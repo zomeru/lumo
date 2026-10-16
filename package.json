@@ -1,20 +1,72 @@
 {
   "name": "lumo",
+  "version": "0.0.0",
   "private": true,
-  "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
-  },
-  "devDependencies": {
-    "prettier": "3.9.6",
-    "turbo": "^2.11.8",
-    "typescript": "7.0.2"
-  },
+  "type": "module",
   "packageManager": "pnpm@11.25.0",
   "engines": {
-    "node": ">=24"
+    "node": ">=24.21.0"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "oxlint --type-aware --deny-warnings .",
+    "lint:fix": "oxlint --type-aware --deny-warnings --fix .",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "check-types": "tsc --noEmit && turbo run check-types",
+    "boundaries": "turbo boundaries",
+    "deps:check": "syncpack lint",
+    "deps:fix": "syncpack fix",
+    "deps:unused": "knip",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check:all": "pnpm format:check && pnpm lint && pnpm boundaries && pnpm deps:check && pnpm deps:unused && pnpm check-types && pnpm test:coverage && pnpm build",
+    "db:generate": "pnpm --filter @lumo/database db:generate",
+    "db:migrate": "pnpm --filter @lumo/database db:migrate",
+    "test:e2e": "playwright test",
+    "test:integration": "vitest run --project api"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": [
+      "oxlint --fix --deny-warnings --no-error-on-unmatched-pattern",
+      "oxfmt --write --no-error-on-unmatched-pattern"
+    ],
+    "*.{json,jsonc,json5,css,scss,less,html,md,mdx,yaml,yml,graphql,gql}": "oxfmt --write --no-error-on-unmatched-pattern"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "5.0.5",
+    "husky": "9.1.7",
+    "knip": "6.41.0",
+    "lint-staged": "17.6.0",
+    "oxfmt": "0.73.0",
+    "oxlint": "1.88.0",
+    "oxlint-tsgolint": "7.0.2004",
+    "syncpack": "15.3.3",
+    "turbo": "2.11.8",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5",
+    "@playwright/test": "1.64.1"
+  },
+  "intent": {
+    "skills": [
+      "@tanstack/router-core#router-core",
+      "@tanstack/router-core#router-core/auth-and-guards",
+      "@tanstack/router-core#router-core/code-splitting",
+      "@tanstack/router-core#router-core/data-loading",
+      "@tanstack/router-core#router-core/navigation",
+      "@tanstack/router-core#router-core/not-found-and-errors",
+      "@tanstack/router-core#router-core/path-params",
+      "@tanstack/router-core#router-core/search-params",
+      "@tanstack/router-core#router-core/ssr",
+      "@tanstack/router-core#router-core/type-safety",
+      "@tanstack/router-plugin#router-plugin",
+      "@tanstack/virtual-file-routes#virtual-file-routes"
+    ]
   }
 }

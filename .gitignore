@@ -1,38 +1,24 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Dependencies and local caches
+node_modules/
+.turbo/
+.tanstack/
+*.tsbuildinfo
 
-# Dependencies
-node_modules
-.pnp
-.pnp.js
+# Generated files and build output
+dist/
+coverage/
+**/routeTree.gen.ts
 
-# Local env files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Local environment files (examples are committed)
+.env*
+!.env.example
 
-# Testing
-coverage
-
-# Turbo
-.turbo
-
-# Vercel
-.vercel
-
-# Build Outputs
-.next/
-out/
-build
-dist
-
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Misc
+# Debug and operating system files
+*.log
 .DS_Store
 *.pem
+
+# Local email verification links and browser test artifacts
+.local/
+playwright-report/
+test-results/

@@ -1,3 +1,34 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - "@vitest/coverage-v8@5.0.5"
+  - "@vitest/mocker@5.0.5"
+  - "@vitest/spy@5.0.5"
+  - jsdom@30.1.3
+  - vitest@5.0.5
+  - "@better-auth/core@1.7.10"
+  - "@better-auth/drizzle-adapter@1.7.10"
+  - "@better-auth/kysely-adapter@1.7.10"
+  - "@better-auth/memory-adapter@1.7.10"
+  - "@better-auth/mongo-adapter@1.7.10"
+  - "@better-auth/prisma-adapter@1.7.10"
+  - "@better-auth/telemetry@1.7.10"
+  - better-auth@1.7.10
+
+# Keep route generation on the repository's formatter, including upstream internals.
+overrides:
+  "@tanstack/router-generator@1.167.44>prettier": "-"
+
+packageExtensions:
+  "@tanstack/router-generator@1.167.44":
+    dependencies:
+      oxfmt: 0.73.0
+
+patchedDependencies:
+  "@tanstack/router-generator@1.167.44": patches/@tanstack__router-generator@1.167.44.patch

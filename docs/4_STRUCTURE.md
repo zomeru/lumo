@@ -15,7 +15,7 @@ This document defines the recommended monorepo structure, application boundaries
 The architecture is designed to support:
 
 - Web, iOS, Android, Windows, macOS, and Linux.
-- A shared React and TypeScript application.
+- Shared TypeScript logic, a React web/desktop application, and a React Native + Expo mobile application.
 - Multiple isolated workspaces per user.
 - Agora Chat and RTC.
 - Socket.IO presence and notifications.
@@ -33,8 +33,8 @@ The architecture is designed to support:
 | Monorepo | Turborepo |
 | Package manager | pnpm |
 | Language | TypeScript |
-| Shared frontend | React + Vite |
-| Mobile | Capacitor |
+| Web/desktop frontend | React + Vite |
+| Mobile | React Native + Expo + Metro + Expo Router |
 | Desktop | Electron |
 | Backend | Node.js + Hono |
 | Database | PostgreSQL + Drizzle |
@@ -85,32 +85,22 @@ pnpm Workspaces will manage dependencies between applications and packages.
 
 ### 2.3 Frontend Reuse Strategy
 
-The main React application lives in `packages/app`.
+The React web/desktop application lives in `packages/app`; `apps/web` provides its Vite entry point and Electron packages its compiled assets.
 
-The web application provides the browser entry point.
-
-The mobile application packages the web build through Capacitor.
-
-The desktop application packages the web build through Electron.
+`apps/mobile` owns native React Native screens, Expo Router layouts, and Expo configuration. Metro bundles the mobile application independently of Vite.
 
 ```text
-                  packages/app
-                  Shared React App
-                        |
-                  packages/features
-                        |
-          +-------------+-------------+
-          |             |             |
-       apps/web     apps/mobile   apps/desktop
-          |             |             |
-       Browser       Capacitor      Electron
-          |             |             |
-         Web       iOS / Android   Win / Mac / Linux
+apps/web + apps/desktop --> packages/app --> packages/features/web + packages/ui
+apps/mobile (Expo Router) --> packages/features/native + packages/ui-native
+                                     |
+                  shared feature logic / api-client / contracts
+                                     |
+                     platform and Agora web/native adapters
 ```
 
-The objective is to maximize UI and business logic reuse while isolating native platform integrations.
+Share contracts, API clients, query definitions, compatible hooks, and domain logic. Keep DOM components, browser routing, and native UI/navigation in explicit platform entry points. Shared tokens define visual consistency; shadcn/ui and Radix components remain web/desktop-only.
 
-**Important:** Electron and Capacitor may require different navigation, storage, notification, file-system, and permission implementations.
+Electron and Expo require separate navigation, storage, notification, file-system, and permission implementations. The mobile client must not import `packages/app`, browser UI, or the Univer DOM implementation. Mobile office editing uses an authenticated hosted editor WebView after validation, with an approved preview/browser fallback if needed.
 
 ---
 
@@ -149,14 +139,23 @@ collaboration-platform/
 │   │   └── .env.example
 │   │
 │   ├── mobile/
-│   │   ├── android/
-│   │   ├── ios/
-│   │   ├── resources/
+│   │   ├── src/
+│   │   │   ├── app/
+│   │   │   │   ├── _layout.tsx
+│   │   │   │   ├── index.tsx
+│   │   │   │   └── w/
+│   │   │   │       └── [workspaceId]/
+│   │   │   ├── providers/
+│   │   │   └── integrations/
+│   │   │       └── office-webview.tsx
+│   │   ├── assets/
 │   │   │   ├── icon.png
 │   │   │   └── splash.png
-│   │   ├── scripts/
-│   │   │   └── prepare-web-assets.ts
-│   │   ├── capacitor.config.ts
+│   │   ├── plugins/
+│   │   ├── app.config.ts
+│   │   ├── eas.json
+│   │   ├── metro.config.js
+│   │   ├── .env.example
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
@@ -345,9 +344,17 @@ collaboration-platform/
 │   │   │   │   ├── DataTable.tsx
 │   │   │   │   └── ConfirmDialog.tsx
 │   │   │   ├── hooks/
+│   │   │   ├── tokens/
 │   │   │   ├── styles/
 │   │   │   └── index.ts
 │   │   ├── components.json
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   ├── ui-native/
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   └── index.ts
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
@@ -428,15 +435,19 @@ collaboration-platform/
 │   │   │   ├── types.ts
 │   │   │   ├── context.tsx
 │   │   │   ├── web/
-│   │   │   ├── capacitor/
+│   │   │   ├── expo/
 │   │   │   └── electron/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
 │   ├── agora-client/
 │   │   ├── src/
-│   │   │   ├── chat/
-│   │   │   ├── rtc/
+│   │   │   ├── web/
+│   │   │   │   ├── chat/
+│   │   │   │   └── rtc/
+│   │   │   ├── native/
+│   │   │   │   ├── chat/
+│   │   │   │   └── rtc/
 │   │   │   ├── hooks/
 │   │   │   └── types/
 │   │   ├── package.json
@@ -531,6 +542,8 @@ collaboration-platform/
 └── README.md
 ```
 
+**Mobile layout:** Native projects (`ios/`, `android/`) are generated with Expo Prebuild from app configuration and config plugins under Continuous Native Generation (CNG). Keep native customizations reproducible through plugins; do not rely on edits to ignored generated projects. The mobile app owns Expo Router route files; shared feature modules expose separate `web/` and `native/` entry points alongside platform-neutral logic. Keep design tokens in a DOM-free `packages/ui/tokens` export that both UI packages can consume. Metro configuration extends Expo defaults; validate pnpm workspace resolution and a compatible single React/React Native runtime.
+
 **Note:** Directories such as `collaboration/`, `persistence/`, and `infra/pulumi/` represent integration boundaries or future capabilities. Their exact contents depend on the chosen provider APIs and deployment requirements.
 
 ---
@@ -571,44 +584,39 @@ packages/ui + api-client + integrations
 
 ### 4.2 `apps/mobile`
 
-**Responsibility:** Capacitor native shell.
+**Responsibility:** React Native + Expo application for iOS and Android.
 
-It owns:
+It owns native screen composition, Expo Router routes/layouts, global mobile providers, app lifecycle handling, deep links, and configuration for native permissions, icons, splash screens, signing, and releases. Route files delegate to native feature components and shared domain/query logic.
 
-- Capacitor configuration.
-- iOS native project.
-- Android native project.
-- Native app icons and splash screens.
-- Native permissions.
-- Native build and signing configuration.
-- Mobile-specific integration setup.
-
-The mobile app uses the built assets from `apps/web`.
-
-Example configuration:
+Illustrative app configuration:
 
 ```ts
-// apps/mobile/capacitor.config.ts
-import type { CapacitorConfig } from "@capacitor/cli";
+// apps/mobile/app.config.ts
+import type { ExpoConfig } from "expo/config";
 
-const config: CapacitorConfig = {
-  appId: "com.company.collaboration",
-  appName: "Collaboration Platform",
-  webDir: "../web/dist",
+const config: ExpoConfig = {
+  name: "Collaboration Platform",
+  slug: "collaboration-platform",
+  scheme: "collaboration",
+  ios: { bundleIdentifier: "com.company.collaboration" },
+  android: { package: "com.company.collaboration" },
+  plugins: ["expo-router", "expo-secure-store", "expo-notifications"],
 };
 
 export default config;
 ```
 
-The actual application ID will be decided before release.
+Identifiers, universal/app links, permission strings, push credentials, and validated Agora native configuration/plugins must be finalized before release. This example does not provide a complete Agora or push setup.
+
+Use Expo development builds with `expo-dev-client` for native Agora Chat/RTC; Expo Go cannot supply arbitrary native modules. Use CNG/config plugins to generate native projects and EAS Build / Submit or equivalent local native tooling for signed binaries. Rebuild the development client when native dependencies or configuration change.
 
 **Build order:**
 
-1. Build `apps/web`.
-2. Synchronize Capacitor assets.
-3. Build the iOS or Android application.
+1. Build shared package outputs where required and validate Expo/React Native dependency compatibility.
+2. Generate native projects from Expo configuration/plugins (during EAS Build or local Prebuild).
+3. Compile and sign the iOS or Android binary, then install and smoke-test it.
 
-Mobile-specific functionality should be exposed through `packages/platform`.
+Mobile has no dependency on `apps/web/dist`. The hosted office editor must be deployed separately before testing its WebView integration. Native capabilities belong behind `packages/platform` Expo entry points; Agora uses dedicated web/native adapters.
 
 ### 4.3 `apps/desktop`
 
@@ -676,7 +684,7 @@ A secure custom application protocol is preferred over relying on unrestricted `
 It owns:
 
 - HTTP routes.
-- Authentication endpoints.
+- Authentication endpoints and authenticated push device registration/update/removal.
 - Workspace authorization.
 - Business rules.
 - Database operations.
@@ -747,7 +755,7 @@ The server must verify membership before joining a workspace room.
 
 It owns:
 
-- Push notification delivery.
+- Push notification delivery directly to APNs/FCM using native device tokens, with retry handling and invalid-token cleanup.
 - Meeting reminders.
 - File processing.
 - Preview generation.
@@ -764,7 +772,7 @@ Long-running work should not block normal API requests.
 
 ### 5.1 `packages/app`
 
-**Responsibility:** Application composition.
+**Responsibility:** Web/desktop application composition.
 
 Contains:
 
@@ -777,22 +785,26 @@ Contains:
 - Authentication guards.
 - Global command menu.
 
-This package combines feature modules into one application.
+This package combines web feature modules into the web/desktop application. Mobile composes its own providers and Expo Router layouts in `apps/mobile`; it shares compatible feature logic instead of importing this package.
 
 It should not contain the internal implementation of every feature.
 
 ### 5.2 `packages/features`
 
-**Responsibility:** Frontend business features.
+**Responsibility:** Shared frontend feature logic and platform-specific presentation.
 
-Contains all product-facing modules.
+Contains all product-facing modules. Each feature separates platform-neutral hooks, queries, mutations, and domain state from `web/` DOM components/pages and `native/` React Native components/screens. Export those entry points explicitly; avoid a barrel that imports both native and browser SDKs. Keep route files and global navigation composition in the respective application host.
 
 Recommended structure for each feature:
 
 ```text
 packages/features/src/workspace/
-├── components/
-├── pages/
+├── web/
+│   ├── components/
+│   └── pages/
+├── native/
+│   ├── components/
+│   └── screens/
 ├── hooks/
 ├── queries/
 ├── mutations/
@@ -802,10 +814,10 @@ packages/features/src/workspace/
 └── index.ts
 ```
 
-Example:
+Example web presentation (native equivalents live under `messenger/native/`):
 
 ```text
-packages/features/src/messenger/
+packages/features/src/messenger/web/
 ├── components/
 │   ├── ConversationList.tsx
 │   ├── ConversationView.tsx
@@ -814,15 +826,10 @@ packages/features/src/messenger/
 │   └── MessageComposer.tsx
 ├── pages/
 │   └── MessengerPage.tsx
-├── hooks/
-│   ├── useConversations.ts
-│   └── useMessages.ts
-├── queries/
-├── mutations/
-├── stores/
-│   └── messenger-ui.store.ts
 └── index.ts
 ```
+
+Compatible hooks such as `useConversations` and `useMessages`, queries, mutations, and stores live alongside `web/` and `native/` at the feature root; presentation imports them through explicit platform-neutral exports.
 
 **Rules:**
 
@@ -831,12 +838,12 @@ packages/features/src/messenger/
 - Queries use TanStack Query.
 - Stores use Zustand for local UI state.
 - Backend communication goes through `packages/api-client` or a dedicated integration package.
-- Shared UI primitives belong in `packages/ui`.
+- Web UI primitives belong in `packages/ui`; native primitives belong in `packages/ui-native`. Shared hooks must not require DOM APIs or browser storage; inject platform capabilities.
 - Feature modules must not directly access database connections or server secrets.
 
 ### 5.3 `packages/ui`
 
-**Responsibility:** Shared design system.
+**Responsibility:** Web/desktop design system and platform-neutral design tokens.
 
 Contains:
 
@@ -856,6 +863,10 @@ A generic `DataTable` belongs here.
 
 An `EmployeeAttendanceTable` belongs in the People & HR feature.
 
+### Mobile Design System: `packages/ui-native`
+
+Own React Native primitives, forms, loading/empty states, accessible controls, and native layouts. Use React Native StyleSheet and consume only the DOM-free `packages/ui/tokens` export for shared colors, spacing, and typography. Do not import shadcn/ui, Radix, CSS, or browser components. Native icons must use a React Native compatible implementation.
+
 ### 5.4 `packages/api-client`
 
 **Responsibility:** Typed communication with the Hono backend.
@@ -868,6 +879,8 @@ Contains:
 - API endpoint functions.
 - TanStack Query helpers.
 - Mutation helpers.
+
+The client must run in browsers and React Native without DOM or localStorage assumptions. Inject base URLs, authenticated session handling, and upload adapters from each host. Configure TanStack Query focus/reconnection handling for React Native AppState and network changes.
 
 Every workspace-scoped request must include an explicit workspace context.
 
@@ -930,7 +943,7 @@ Contains:
 - SSO configuration.
 - Authentication utilities.
 
-Frontend code should consume authenticated API endpoints and shared session contracts, not server authentication internals.
+Frontend code should consume authenticated API endpoints and shared session contracts, not server authentication internals. Mobile validates Better Auth’s Expo client integration, system-browser SSO and callback scheme, trusted origins, and expo-secure-store session persistence. Test cold-start callbacks, expiry, logout cleanup, and server-side revocation; native clients must not rely on browser cookie/localStorage behavior.
 
 ### 5.8 `packages/permissions`
 
@@ -967,10 +980,19 @@ Frontend permission checks may improve the UI but must never replace backend aut
 Example interface:
 
 ```ts
+type SelectedFile = {
+  name: string;
+  mimeType: string;
+  size?: number;
+} & (
+  | { kind: "web"; blob: Blob }
+  | { kind: "native"; uri: string }
+);
+
 interface PlatformAdapter {
   openExternalUrl(url: string): Promise<void>;
   showNotification(title: string, body: string): Promise<void>;
-  selectFiles(): Promise<File[]>;
+  selectFiles(): Promise<SelectedFile[]>;
   getPlatform(): "web" | "ios" | "android" | "desktop";
 }
 ```
@@ -982,17 +1004,17 @@ packages/platform/src/
 ├── types.ts
 ├── context.tsx
 ├── web/
-├── capacitor/
+├── expo/
 └── electron/
 ```
 
-The correct adapter is injected by the application host.
+The correct adapter is injected by the application host through explicit package exports. Expo adapters use expo-secure-store, expo-notifications, document/media pickers, file-system, and sharing modules as needed. Upload implementations consume either a browser Blob or native URI; native flows must not require DOM File objects. Include secure storage, downloads/sharing, permissions, and deep-link handling in the capability contracts as implemented.
 
 **Important:** Platform-specific dependencies must be isolated so the browser bundle does not unintentionally include Electron or native-only modules.
 
 ### 5.10 `packages/agora-client`
 
-**Responsibility:** Frontend Agora integration.
+**Responsibility:** Frontend Agora integration with separate web and React Native SDK entry points.
 
 Contains:
 
@@ -1006,7 +1028,7 @@ Contains:
 Example:
 
 ```text
-packages/agora-client/src/
+packages/agora-client/src/web/
 ├── chat/
 │   ├── client.ts
 │   ├── conversations.ts
@@ -1018,11 +1040,13 @@ packages/agora-client/src/
 └── hooks/
 ```
 
+Provide a separate `src/native/` implementation using Agora React Native Chat/RTC SDKs and shared contracts/state where compatible. Validate Expo SDK/React Native compatibility, required native plugins, device permissions, screen-sharing extensions/services, audio routing, app lifecycle, and background incoming-call limitations in development and signed release builds. Mobile must not bundle browser Agora SDKs.
+
 **Security:** Agora server credentials and token-signing secrets belong exclusively in backend services.
 
 ### 5.11 `packages/univer`
 
-**Responsibility:** Univer editor integration.
+**Responsibility:** Web/desktop Univer editor integration and the hosted mobile editor route contract.
 
 Contains:
 
@@ -1051,6 +1075,8 @@ packages/univer/src/
 Univer collaboration, storage, and import/export capabilities must be implemented according to the supported SDK, plugins, and licensing.
 
 Do not build an unsupported collaboration protocol merely to fit this folder structure.
+
+Mobile does not import this DOM package. Its `office-webview.tsx` opens an authenticated hosted editor route using react-native-webview. Validate touch/keyboard behavior, performance, persistence, short-lived scoped authorization, origin/navigation allowlists, and typed bridge messages with server-side document authorization. If unsuitable, mobile offers an authorized preview with explicit browser editing handoff; confirm the capability limit before rollout.
 
 ### 5.12 `packages/utils`
 
@@ -1118,7 +1144,7 @@ Suggested route structure:
     └── settings
 ```
 
-This is a conceptual route structure.
+This is a conceptual route structure. TanStack Router owns web/desktop routes; Expo Router maps mobile equivalents to file routes such as `apps/mobile/src/app/w/[workspaceId]/`. Keep native screens in native feature entry points, validate external link destinations, and authenticate/authorize before opening workspace resources, including from a cold start.
 
 For Electron, use a navigation strategy compatible with packaged assets, such as a secure custom protocol or an appropriate hash-history configuration.
 
@@ -1248,23 +1274,26 @@ apps/api/src/modules/drive/
 ### Allowed Dependency Direction
 
 ```text
-apps/web
-apps/mobile
-apps/desktop
+apps/web + apps/desktop
        |
        v
-packages/app
+packages/app --> packages/features/web --> packages/ui
+
+apps/mobile (Expo Router)
        |
-       v
-packages/features
+       +--> packages/features/native
+       +--> packages/ui-native --> packages/ui/tokens (DOM-free export)
+
+Both presentation layers
        |
-       +--> packages/ui
+       +--> packages/features (platform-neutral logic)
        +--> packages/api-client
-       +--> packages/agora-client
-       +--> packages/univer
-       +--> packages/platform
+       +--> packages/agora-client (explicit web/native entry points)
+       +--> packages/platform (explicit web/expo/electron entry points)
        +--> packages/contracts
 
+Web/desktop and hosted editor route --> packages/univer
+Mobile editor WebView --> authorized hosted editor URL
 
 apps/api
        |
@@ -1296,6 +1325,9 @@ apps/worker
 6. Server secrets must not be included in frontend bundles.
 7. Avoid circular dependencies.
 8. Prefer public package exports over deep internal imports.
+9. Mobile must not import `packages/app`, DOM UI, browser Agora SDKs, or `packages/univer`; browser bundles must not import native SDKs.
+10. Shared feature logic and API contracts must remain independent of both browser and native presentation.
+11. `packages/ui-native` may consume only the DOM-free token export of `packages/ui`, never its component entry point.
 
 ---
 
@@ -1378,25 +1410,15 @@ Illustrative configuration:
 }
 ```
 
-Platform packaging tasks should have explicit dependencies on the web build.
-
-In particular:
+Electron packaging must explicitly depend on the web build. Mobile native builds depend on their shared package outputs and Expo configuration, independently of Vite.
 
 ```text
-Web build
-   |
-   +--> Capacitor sync
-   |       |
-   |       +--> iOS / Android native build
-   |
-   +--> Electron packaging
-           |
-           +--> Windows / macOS / Linux release
+Shared package outputs --> Web build --> Electron packaging --> Desktop release
+Shared package outputs --> Expo Prebuild --> Native compile/sign --> Mobile release
+Web hosted editor build --> Deploy editor route --> Mobile editor integration tests
 ```
 
-These dependencies must be represented in Turborepo task configuration or in reliable package-level scripts.
-
-Do not depend on an accidental build order.
+Represent dependencies in Turborepo tasks or reliable package scripts. Expo Metro development servers are persistent, uncached tasks. Native builds, signing, store submission, and EAS remote jobs should use dedicated uncached tasks with explicit platform/environment inputs; do not treat a generic cached `build` result as a signed release. Keep required build prerequisites explicit when using EAS cloud workers, which must build or resolve shared workspace packages themselves.
 
 ### 9.4 Package Naming
 
@@ -1415,6 +1437,7 @@ Examples:
 @company/app
 @company/features
 @company/ui
+@company/ui-native
 @company/api-client
 @company/contracts
 @company/db
@@ -1469,6 +1492,21 @@ VITE_AGORA_APP_ID=
 Only public configuration may use the `VITE_` prefix.
 
 **Never expose Agora App Certificates, token-signing secrets, database credentials, or object storage secrets in frontend variables.**
+
+### Mobile
+
+```text
+apps/mobile/.env.example
+```
+
+```dotenv
+EXPO_PUBLIC_API_URL=
+EXPO_PUBLIC_REALTIME_URL=
+EXPO_PUBLIC_AGORA_APP_ID=
+EXPO_PUBLIC_EDITOR_URL=
+```
+
+`EXPO_PUBLIC_` values are bundled public configuration, never secrets. Native devices need reachable HTTPS service URLs; host `localhost` is not a physical device backend. Validate environment-specific app identifiers, callback schemes, editor origins, and push projects. Keep signing credentials and provider secrets in CI/EAS secret management or backend services, never app config or client bundles.
 
 ### Backend
 
@@ -1566,7 +1604,7 @@ Use Playwright.
 tests/mobile/
 ```
 
-Use Appium and WebdriverIO.
+Use Appium and WebdriverIO against Expo development/release binaries for native flows and the editor WebView. Use React Native Testing Library with jest-expo for native component tests; keep Vitest for platform-neutral logic and web tests. Include physical-device push/cold-start tests, SSO callbacks, token lifecycle, permissions, file URI transfers, Agora calls, accessibility with VoiceOver/TalkBack, and workspace revocation on resume.
 
 ### Desktop E2E
 
@@ -1621,7 +1659,7 @@ Deploy independently:
 - Redis.
 - Object storage.
 
-Electron and Capacitor releases follow separate distribution pipelines.
+Electron and Expo mobile releases follow separate distribution pipelines. Mobile uses EAS Build / Submit or equivalent local native builds and store tooling. Native dependency/configuration changes require a new signed binary; any future EAS Update workflow must enforce runtime compatibility and rollback controls.
 
 ### Infrastructure as Code
 
@@ -1675,13 +1713,31 @@ pnpm --filter @company/worker dev
 pnpm --filter @company/web build
 ```
 
-### Sync Mobile
+### Start Mobile Metro Server
 
 ```bash
-pnpm --filter @company/mobile exec cap sync
+pnpm --filter @company/mobile exec expo start --dev-client
 ```
 
-The web build must exist before syncing.
+Install a development build containing the required native SDKs first.
+
+### Build and Run Mobile Locally
+
+```bash
+pnpm --filter @company/mobile exec expo run:android
+pnpm --filter @company/mobile exec expo run:ios
+```
+
+Run the command for the target platform; local iOS builds require macOS/Xcode. These generate native projects as needed and compile the app independently of the web build.
+
+### Build Mobile with EAS
+
+```bash
+pnpm --filter @company/mobile exec eas build --platform android --profile development
+pnpm --filter @company/mobile exec eas build --platform ios --profile production
+```
+
+These examples assume a pinned `eas-cli`, configured EAS project, `eas.json` profiles (development includes a development client), and signing credentials. Run EAS from the mobile package. Production submission and distribution are separate release steps.
 
 ### Run Tests
 
@@ -1714,7 +1770,7 @@ Recommended workflows:
 | `ci.yml` | Lint, typecheck, unit tests, integration tests |
 | `deploy-web.yml` | Build and deploy web application |
 | `deploy-api.yml` | Deploy API, realtime, and workers |
-| `release-mobile.yml` | Build and distribute iOS/Android apps |
+| `release-mobile.yml` | Validate Expo/native dependencies, build shared packages, build/sign with EAS or local native tooling, device smoke tests, and submit iOS/Android apps |
 | `release-desktop.yml` | Build and distribute Electron apps |
 | `security.yml` | Dependency and security scanning |
 
@@ -1771,8 +1827,8 @@ Each feature should own its UI and feature-specific logic.
 
 Examples:
 
-- Workspace switcher: `packages/app`.
-- Messenger UI: `packages/features/src/messenger`.
+- Workspace switcher: web composition in `packages/app`, mobile composition in `apps/mobile`, and shared membership/query logic in `packages/features/src/workspace`.
+- Messenger UI: `packages/features/src/messenger/web` and `packages/features/src/messenger/native`.
 - Agora Chat integration: `packages/agora-client`.
 - Meeting access validation: `apps/api/src/modules/meetings`.
 - Univer editor initialization: `packages/univer`.
@@ -1854,7 +1910,9 @@ packages/platform
 
 Validate:
 
-- Shared React rendering.
+- Shared web/desktop React rendering and independent Expo native screen rendering.
+- Metro workspace resolution, compatible React/React Native versions, and native SDK development builds.
+- Platform-specific feature exports without DOM/native dependency leakage.
 - Authentication.
 - Navigation.
 - Native permissions.
@@ -1945,9 +2003,9 @@ Complete:
 | Repository model | Single monorepo |
 | Package manager | pnpm |
 | Build orchestration | Turborepo |
-| Frontend architecture | Shared React application |
+| Frontend architecture | Shared TypeScript logic; React web/desktop UI and React Native mobile UI |
 | Web entry point | Vite |
-| Mobile shell | Capacitor |
+| Mobile application | React Native + Expo + Expo Router |
 | Desktop shell | Electron |
 | Backend architecture | Modular Hono monolith |
 | Realtime service | Socket.IO for presence and notifications |
@@ -1969,10 +2027,10 @@ Complete:
 
 ## 18. Architecture Rules
 
-1. The shared React application is the single source of truth for frontend product features.
-2. Mobile and desktop applications are platform shells, not independent product implementations.
+1. Share platform-neutral product logic, contracts, and API clients across React web/desktop and React Native mobile clients.
+2. Electron reuses the web application; Expo owns native presentation and navigation while preserving shared product behavior.
 3. Frontend business features belong in `packages/features`.
-4. Shared design-system components belong in `packages/ui`.
+4. Web design-system components belong in `packages/ui`; native components belong in `packages/ui-native` with shared DOM-free tokens.
 5. Server-side business logic belongs in `apps/api`.
 6. Database access is restricted to server-side code.
 7. Agora owns chat transport and RTC; Socket.IO owns presence and application notifications.
@@ -1987,4 +2045,15 @@ Complete:
 
 **Final architectural direction:**
 
-> A workspace-first, TypeScript-based Turborepo monorepo with one shared React application, Capacitor mobile shells, Electron desktop shells, a modular Hono backend, and dedicated integrations for Agora, Socket.IO, and Univer.
+> A workspace-first, TypeScript-based Turborepo monorepo with shared domain logic, a React web/desktop application, a React Native + Expo mobile application, an Electron desktop shell, a modular Hono backend, and platform-specific integrations for Agora, Socket.IO, and Univer.
+
+## 19. Expo Integration References
+
+Verify compatibility against the SDK version selected at implementation time:
+
+- [Expo development workflow and CNG](https://docs.expo.dev/workflow/overview/).
+- [Custom native code and development builds](https://docs.expo.dev/workflow/customizing/).
+- [Expo Router](https://docs.expo.dev/router/introduction/).
+- [Expo monorepo setup](https://docs.expo.dev/guides/monorepos/).
+- [EAS Build in monorepos](https://docs.expo.dev/build-reference/build-with-monorepos/).
+- [expo-notifications and native device tokens](https://docs.expo.dev/versions/latest/sdk/notifications/).

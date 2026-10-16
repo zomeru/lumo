@@ -1,28 +1,43 @@
 {
-  "name": "web",
-  "version": "0.1.0",
-  "type": "module",
+  "name": "@lumo/web",
+  "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint --max-warnings 0",
-    "check-types": "next typegen && tsc --noEmit"
+    "dev": "vite",
+    "build": "pnpm check-types && vite build",
+    "preview": "vite preview",
+    "routes:generate": "tsr generate",
+    "check-types": "pnpm routes:generate && tsc -b",
+    "test": "vitest run --config ../../vitest.config.ts --project web",
+    "test:watch": "vitest --config ../../vitest.config.ts --project web",
+    "test:coverage": "vitest run --config ../../vitest.config.ts --project web --coverage"
   },
   "dependencies": {
-    "@repo/ui": "workspace:*",
-    "next": "16.3.8",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "@lumo/contracts": "workspace:*",
+    "@lumo/env": "workspace:*",
+    "@tanstack/react-query": "5.104.3",
+    "@tanstack/react-router": "1.170.44",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@repo/eslint-config": "workspace:*",
-    "@repo/typescript-config": "workspace:*",
-    "@types/node": "26.4.1",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.5",
-    "eslint": "10.9.1",
-    "typescript": "7.0.2"
+    "@lumo/typescript-config": "workspace:*",
+    "@tailwindcss/vite": "4.3.3",
+    "@tanstack/router-cli": "1.167.44",
+    "@tanstack/router-plugin": "1.168.46",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "jsdom": "30.1.3",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
   }
 }

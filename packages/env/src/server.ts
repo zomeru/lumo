@@ -1,0 +1,61 @@
+import { z } from "zod";
+
+const origin = z.url().refine((value) => {
+  const url = new URL(value);
+  return ["http:", "https:"].includes(url.protocol) && url.origin === value;
+}, "Use an exact HTTP(S) origin without a trailing slash");
+
+export const databaseUrlSchema = z.string().refine((value) => {
+  try {
+    const url = new URL(value);
+    return (
+      ["postgres:", "postgresql:"].includes(url.protocol) &&
+      Boolean(url.hostname && url.pathname.slice(1))
+    );
+  } catch {
+    return false;
+  }
+}, "Use a PostgreSQL connection URL");
+
+const serverSchema = z
+  .object({
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    DATABASE_URL: databaseUrlSchema,
+    BETTER_AUTH_SECRET: z.string().min(32),
+    API_ORIGIN: origin.default("http://localhost:3001"),
+    WEB_ORIGIN: origin.default("http://localhost:3000"),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+    HOST: z.string().default("127.0.0.1"),
+    SMTP_URL: z
+      .url()
+      .refine((value) => ["smtp:", "smtps:"].includes(new URL(value).protocol))
+      .optional(),
+    MAIL_FROM: z.email().default("hello@lumo.local"),
+    MAIL_DIR: z.string().min(1).default("../../.local/mail"),
+    LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug"]).default("info"),
+  })
+  .superRefine((value, ctx) => {
+    if (value.NODE_ENV !== "production") return;
+    for (const field of ["API_ORIGIN", "WEB_ORIGIN"] as const) {
+      if (!value[field].startsWith("https://"))
+        ctx.addIssue({ code: "custom", path: [field], message: "HTTPS is required in production" });
+    }
+    if (!value.SMTP_URL)
+      ctx.addIssue({
+        code: "custom",
+        path: ["SMTP_URL"],
+        message: "SMTP is required in production",
+      });
+  });
+
+export type ServerEnv = z.infer<typeof serverSchema>;
+
+export function readServerEnv(source: Record<string, unknown> = process.env): ServerEnv {
+  const result = serverSchema.safeParse(source);
+  // Never include raw environment values in startup errors.
+  if (!result.success)
+    throw new Error(
+      `Invalid server environment: ${result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")}`,
+    );
+  return result.data;
+}

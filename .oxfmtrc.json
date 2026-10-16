@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 100,
+  "sortImports": true,
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.turbo/**",
+    "**/coverage/**",
+    "**/.tanstack/**",
+    "**/routeTree.gen.ts",
+    "pnpm-lock.yaml",
+    "docs/**",
+    ".local/**",
+    "playwright-report/**",
+    "test-results/**"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@lumo/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file-if-exists=../../apps/api/.env src/migrate.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@lumo/env": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@lumo/typescript-config": "workspace:*",
+    "typescript": "7.0.2",
+    "@types/node": "24.19.2",
+    "drizzle-kit": "0.31.11",
+    "@types/pg": "8.23.1",
+    "tsx": "4.23.15"
+  }
+}

@@ -1,159 +1,138 @@
-# Turborepo starter
+# Lumo
 
-This Turborepo starter is maintained by the Turborepo core team.
+A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. The current MVP implements the account and workspace foundation.
 
-## Using this example
+## What works
 
-Run the following command:
+- Email/password registration, sign-in, session restoration, sign-out, and email verification.
+- An automatically created private personal workspace, provisioned atomically with each account.
+- Three-step team workspace setup, workspace switching, remembered selection, and public discovery/joining.
+- Private and invite-only workspaces, email-bound invitations, expiry, revocation, and single-use acceptance.
+- Owner, admin, moderator, and member roles; member removal, role changes, ownership transfer, and leaving.
+- Workspace settings, profile editing, a searchable member directory, and administrative audit events.
+- Responsive dark UI based on the reference screenshots, with loading, error, empty, and access-denied states.
 
-```sh
-npx create-turbo@latest
-```
+Messaging, Agora calls, presence, notifications, Drive, Univer editors, work management, HR, SSO, native clients, workspace deletion/retention, join requests, and guest roles are pending. Their navigation is disabled where shown. Private workspaces currently use authorized invitations; they do not accept self-joins or join requests. Personal workspaces remain private and cannot transfer ownership. Workspace language and currency are saved preferences; UI translation and financial features are not implemented.
 
-## What's inside?
+## Packages
 
-This Turborepo includes the following packages/apps:
+| Location                     | Responsibility                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ |
+| `apps/web`                   | Browser routes, UI, validated API calls, and workspace-keyed queries                             |
+| `apps/api`                   | Hono HTTP boundary, authentication middleware, feature services, authorization, and audit events |
+| `packages/database`          | PostgreSQL pool, Drizzle schema, and committed migrations                                        |
+| `packages/auth`              | Better Auth server factory, secure cookies, verification mail, and persistent auth rate limits   |
+| `packages/contracts`         | Zod request/response schemas, DTOs, and reusable role policies                                   |
+| `packages/env`               | Separate server and browser configuration validation                                             |
+| `packages/typescript-config` | Strict shared TypeScript configuration                                                           |
 
-### Apps and Packages
+The shared package boundaries follow [Fidescript](https://github.com/zomeru/fidescript/tree/main/packages), adapted to local PostgreSQL and this Vite application. Internal packages use source exports and `workspace:*` dependencies. The API build bundles internal source; runtime server dependencies remain installed. Browser code never imports server packages.
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `@next/eslint-plugin-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## Local development in WSL
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+Use Node **24.21.0+**, pnpm **11.25.0**, and PostgreSQL **18** (other supported modern PostgreSQL releases should also work). No Neon, Docker, Redis, Agora, or SMTP account is needed for this foundation.
 
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Install dependencies:
 
 ```sh
-cd my-turborepo
-turbo build
+pnpm install
 ```
 
-Without global `turbo`, use your package manager:
+Create a dedicated local role and databases using your PostgreSQL administrator account. These commands do not change existing databases:
 
 ```sh
-cd my-turborepo
-npx turbo build
-pnpm exec turbo build
-pnpm exec turbo build
+sudo -u postgres createuser --pwprompt lumo
+sudo -u postgres createdb --owner=lumo lumo
+sudo -u postgres createdb --owner=lumo lumo_test
+cp apps/api/.env.example apps/api/.env
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Set `DATABASE_URL` and `TEST_DATABASE_URL` with that role's password. Generate `BETTER_AUTH_SECRET` with `openssl rand -hex 48`. Keep the secret in `apps/api/.env`; never prefix server credentials with `VITE_`. This workspace has already been configured with private local credentials and migrated databases.
 
 ```sh
-turbo build --filter=docs
+pnpm db:migrate
+pnpm dev
 ```
 
-Without global `turbo`:
+Open [Lumo](http://localhost:3000). The API listens on [port 3001](http://localhost:3001/health). Vite forwards `/api` to `127.0.0.1:3001`, so no browser environment file is required. If a Vite server is already running, start only the API:
 
 ```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+pnpm --filter @lumo/api dev
 ```
 
-### Develop
+Register at `/register`. Registration opens the personal workspace immediately; subsequent sign-ins restore the last authorized workspace. Use **New workspace** for team setup or **Browse & create workspaces** for discovery. Account settings and sign-out are available through **Your profile & account**.
 
-To develop all apps and packages, run the following command:
+### Verification mail and invitations
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Development verification mail is written to `.local/mail/*.json` (permissions restricted to the local user). Open the `url` from the file addressed to your account to verify it. Resend from **Your profile** if needed. Mail is never exposed through an HTTP inbox.
+
+Owners, admins, and moderators can create invitation links in **Members**, subject to role limits. Copy the link and share it with the intended colleague. Invitation delivery is manual in this MVP. The colleague signs in with the invited email, verifies it, and accepts the link. An invitation cannot elevate an existing member's role; role changes require a separate authorized action. Demoting or removing the inviter invalidates their remaining invitation authority.
+
+### Database changes
 
 ```sh
-cd my-turborepo
-turbo dev
+pnpm db:generate
+pnpm db:migrate
+pnpm --filter @lumo/database db:studio
 ```
 
-Without global `turbo`, use your package manager:
+Review generated SQL before applying it. The custom `0001_personal_workspace.sql` trigger provisions the personal workspace, owner membership, preferences, and initial audit event in the same transaction as the user insert. Do not replace migrations with schema push. The role/visibility enums, membership uniqueness, foreign keys, private-personal-workspace constraint, and one-owner index enforce database invariants.
+
+## Security model
+
+Every workspace read checks membership. Every workspace write locks the workspace and then rechecks membership and policy inside the transaction; revocation, promotion, invitation acceptance, joining, and ownership transfer use the same lock. Knowing a workspace, member, or invitation ID does not grant access. Member DTOs omit email and authentication fields. HR data is not part of the member directory.
+
+Sessions use HTTP-only, SameSite=Lax cookies, with Secure required in production. Session cookie caching is disabled so server revocation is checked on each request. Authentication responses expose no session tokens. Write requests require JSON and an exact allowed Origin, including non-browser clients. Use `Origin: <WEB_ORIGIN>` when testing mutations with curl. CORS uses an exact origin with credentials; body limits, security headers, persistent PostgreSQL rate limits, request IDs, and sanitized errors are enabled. Logs omit bodies, cookies, query strings, invitation links, and raw database errors.
+
+Invitation tokens contain 256 random bits and only their SHA-256 hashes are stored. Acceptance requires a matching verified email, a live invitation, and current inviter authority. Ordinary members cannot promote themselves or others. Admins cannot grant admin/owner roles; moderators can invite and remove regular members. Only owners can transfer ownership, and owners must transfer before leaving.
+
+Workspace query keys include the workspace ID. Switching cancels in-flight requests and removes workspace caches. Protected views stop rendering after failed session or membership refresh; background polling and focus/reconnect refetches revalidate access. The API remains authoritative on every request.
+
+## Verification
 
 ```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+pnpm check:all
+pnpm exec playwright install chromium
+pnpm test:e2e
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+`check:all` runs formatting, type-aware linting, package boundaries, dependency checks, type checking, coverage, and production builds. Tests retain the 90% global coverage gate for lines, statements, functions, and branches. HTTP/bootstrap entry points are verified by migration/build/browser smoke tests instead of importing running servers into Vitest.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+API integration and browser tests require `TEST_DATABASE_URL` pointing to a dedicated database whose name ends in `_test`. Each run creates and removes its own random PostgreSQL schema, applying the committed migrations with only the schema namespace rewritten. Tests never truncate development data. Browser tests use ports **3010/3011** and a separate local outbox at `.local/e2e-mail`; no mock API is used in Playwright. Readiness probes use IPv6 loopback to avoid WSL's delay when probing an unused IPv4 forwarded port.
+
+Useful scoped commands:
 
 ```sh
-turbo dev --filter=web
+pnpm test --project web
+pnpm test --project api
+pnpm test --project contracts --project env --project auth
+pnpm test:watch
+pnpm test:coverage
+pnpm check-types
+pnpm lint
+pnpm format:check
+pnpm deps:check
+pnpm deps:unused
+pnpm boundaries
+pnpm build
+pnpm --filter @lumo/api start
+pnpm --filter @lumo/web preview
 ```
 
-Without global `turbo`:
+Root Vitest discovers package projects. React tests use Testing Library and jsdom; API tests exercise real PostgreSQL. Playwright runs desktop and mobile Chromium flows. CI provides PostgreSQL and runs the complete gate and browser tests on Linux, with tooling, types, unit/UI tests, and builds on Windows.
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
+## Production configuration
 
-### Remote Caching
+Set a strong `BETTER_AUTH_SECRET`, PostgreSQL `DATABASE_URL`, exact HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `SMTP_URL`, a deliverable `MAIL_FROM`, and `HOST` as appropriate for the runtime. SMTP transport requires TLS in production. Development mail spooling is disabled in production. The server validates its environment before listening and closes HTTP and PostgreSQL connections during shutdown.
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+Serve the web build with an SPA fallback to `index.html`. Use a same-origin `/api` reverse proxy, or build with an explicit HTTPS `VITE_API_URL` and configure the API's exact `WEB_ORIGIN`. Turbo hashes browser configuration and forwards required server environment variables to development tasks. The default API listener is loopback; a container normally sets `HOST=0.0.0.0`.
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+Production rollout still requires deployment-specific TLS/proxy configuration, backups and recovery testing, mail delivery validation, monitoring, and capacity testing. Auth rate limiting uses the actual socket peer; a deployment behind a reverse proxy must account for shared peer limits at its trusted ingress. Client-supplied forwarding headers are intentionally ignored.
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+## Repository conventions
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Use Oxlint and Oxfmt at the root. Husky installs staged source/format checks; commits follow Conventional Commits. Keep external dependencies pinned and run `pnpm install` after dependency changes. Add TanStack file routes in `apps/web/src/routes`; never edit `routeTree.gen.ts`. Type checking generates routes on a fresh checkout. The router Vite plugin stays before React, and tests disable automatic route splitting.
 
-```sh
-cd my-turborepo
-turbo login
-```
+The version-scoped route-generator patch replaces its upstream formatter with Oxfmt. Review the patch, override, and package extension together when upgrading, and keep Oxfmt versions aligned. Planning material and screenshots under `docs/` remain unchanged.
 
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+The repository asks agents to use its installed Intent. Intent is currently unavailable (`pnpm exec intent list` reports that the command is missing); no replacement was downloaded.

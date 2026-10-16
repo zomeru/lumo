@@ -41,7 +41,9 @@ Each workspace operates as an independent environment with its own members, conv
 - macOS
 - Linux
 
-The same core functionality should be available across supported platforms, subject to platform-specific capabilities.
+The same core functionality should be available across supported platforms, subject to platform-specific capabilities. Web and Electron use React + Vite; iOS and Android use React Native + Expo with native screens and Expo Router. Shared contracts, domain logic, and API/query helpers preserve consistent behavior across clients.
+
+Mobile acceptance includes safe-area layouts, keyboard handling, accessible native controls, system back navigation, and authenticated deep links. Recheck workspace and resource access when opening invitations, meetings, files, or notification links, including from a cold start.
 
 ---
 
@@ -255,7 +257,7 @@ Only authorized participants may access group content.
 | Workspace authorization | Hono backend |
 | User presence | Socket.IO |
 | In-app notifications | Socket.IO |
-| Push notifications | APNs / FCM |
+| Push notifications | expo-notifications on mobile; backend delivery directly to APNs / FCM |
 
 ---
 
@@ -406,7 +408,7 @@ Required testing:
 - Screen-sharing permissions.
 - Audio/video behavior while sharing.
 
-Screen-sharing support may require platform-specific Agora integrations.
+Screen-sharing support requires validation of the Agora React Native SDK in Expo development and release builds, including any native extensions, config plugins, permissions, and foreground services required by the selected SDK. Web and Electron use their own Agora integrations. Test background/resume, audio routing, interruptions, and reconnection; define incoming-call behavior separately from ordinary push notifications.
 
 ### 5.6 Meeting Security
 
@@ -499,7 +501,7 @@ Comment-only access may be introduced if supported by the selected editor integr
 - Document revisions must be stored according to the persistence design.
 - Autosave and recovery must be tested.
 
-**Implementation note:** Univer's Docs, Sheets, Slides, and collaborative capabilities must be validated against the selected version, plugins, licensing, and backend integration.
+**Implementation note:** Univer's Docs, Sheets, Slides, and collaborative capabilities must be validated against the selected version, plugins, licensing, and backend integration. Mobile uses an authenticated hosted editor in react-native-webview after a usability proof of concept; native screens must not import the DOM editor. Validate touch editing, keyboard handling, save/recovery, short-lived scoped editor authorization, allowed origins, and bridge messages. If unusable, offer an authorized preview with an explicit browser editing handoff and confirm that capability limit before rollout.
 
 ---
 
@@ -509,7 +511,7 @@ Comment-only access may be introduced if supported by the selected editor integr
 
 Drive provides workspace-scoped file storage and management.
 
-**Selected technologies: React + Hono + PostgreSQL + S3-compatible storage**
+**Selected technologies: React (web/desktop) + React Native (Expo mobile) + Hono + PostgreSQL + S3-compatible storage**
 
 ### 7.2 Core Features
 
@@ -542,7 +544,7 @@ Drive should support general file uploads, including:
 - Archives.
 - Other allowed file types.
 
-Supported file types and maximum upload sizes must be configurable.
+Supported file types and maximum upload sizes must be configurable. Mobile uses native document/media pickers and URI-based upload/download adapters, with permission denial, cancellation, progress, interrupted transfers, and OS sharing tested on physical devices. Browser File objects must not be assumed on mobile.
 
 ### 7.4 Workspace Storage
 
@@ -886,7 +888,15 @@ Examples:
 - Notification preferences.
 - Workspace-specific notifications.
 
-### 10.4 Notification Access Rules
+### 10.4 Mobile Delivery and Navigation
+
+- Use expo-notifications to request permissions, register native APNs/FCM device tokens, and handle foreground notifications and notification taps.
+- Associate device registrations with authenticated users; handle token rotation and remove registrations on logout. Workers deliver directly to APNs/FCM; Expo Push Service remains an optional explicit alternative using its own token format.
+- Validate suspended and terminated app delivery on physical iOS and Android devices. Socket.IO is for active connections; recover missed notifications from persisted records when resuming.
+- Notification taps must authenticate, validate the destination, resolve workspace context, and recheck resource access before displaying content.
+- Coordinate Agora message push with application notifications to prevent duplicates. Background call invitations need a separate native call/VoIP feasibility check.
+
+### 10.5 Notification Access Rules
 
 Notifications must not leak workspace data.
 
@@ -1054,6 +1064,7 @@ The following entities represent the initial logical data model.
 
 - `notifications`
 - `notification_preferences`
+- `push_device_registrations` (user, platform, native token, and registration lifecycle)
 - `audit_logs`
 - `activity_logs`
 
@@ -1113,7 +1124,7 @@ Expired, revoked, or unauthorized invitations must be rejected.
 2. User selects New Document, Spreadsheet, or Presentation.
 3. Backend validates workspace permissions.
 4. Backend creates document metadata.
-5. Univer editor opens.
+5. Univer editor opens in the web/desktop UI or the authorized mobile editor WebView; use the approved preview/browser fallback if mobile editing is unavailable.
 6. User edits and saves the document.
 7. Document appears in Drive.
 8. Authorized collaborators may access it.
@@ -1222,6 +1233,16 @@ The actual delivery order may change based on which existing Lark features the c
 - Users can switch between joined workspaces.
 - Non-members cannot access protected workspace data.
 - Public, private, and invite-only policies work as defined.
+
+### Mobile
+
+- Expo development and signed release builds load the required native Agora integrations.
+- Login/SSO callbacks, secure session restoration, logout, and membership revocation work on physical iOS and Android devices.
+- Native navigation and cold-start deep links preserve workspace isolation.
+- Push registration, token rotation, notification taps, and missed-event recovery work across app lifecycle states.
+- File selection, uploads, downloads, sharing, and permission denial work through native adapters.
+- Office editing passes the mobile WebView proof of concept or has an explicitly approved preview/browser handoff.
+- Native components are checked with React Native Testing Library / jest-expo; Appium / WebdriverIO covers native end-to-end flows and the editor WebView.
 
 ### Messenger
 

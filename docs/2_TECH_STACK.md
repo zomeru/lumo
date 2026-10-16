@@ -19,8 +19,8 @@ The primary objective is to reduce long-term software subscription costs while m
 | Platform | Technology |
 |---|---|
 | Web | React + Vite |
-| iOS | Capacitor |
-| Android | Capacitor |
+| iOS | React Native + Expo |
+| Android | React Native + Expo |
 | Windows | Electron |
 | macOS | Electron |
 | Linux | Electron |
@@ -56,14 +56,14 @@ The primary objective is to reduce long-term software subscription costs while m
 | Git hooks | Lefthook | Pre-commit quality checks |
 | Dependency updates | Renovate | Automated dependency updates |
 
-### 2.2 Frontend
+### 2.2 Web and Desktop Frontend
 
 | Category | Technology | Purpose |
 |---|---|---|
 | Framework | React | Application UI |
 | Build tool | Vite | Development server and production builds |
 | Language | TypeScript | Type safety |
-| Routing | TanStack Router | Client-side navigation |
+| Routing | TanStack Router | Web/desktop client-side navigation |
 | Server state | TanStack Query | API fetching, caching, and mutations |
 | Client state | Zustand | Local UI and application state |
 | Styling | Tailwind CSS | Utility-first styling |
@@ -73,17 +73,31 @@ The primary objective is to reduce long-term software subscription costs while m
 | Icons | Lucide React | Application icons |
 | Component documentation | Storybook | Component development and testing |
 
-The frontend follows a **web-first architecture**.
+Web and Electron share the React + Vite application. iOS and Android use a separate React Native application built with Expo and Metro.
 
-The same React application will be reused across web, mobile, and desktop whenever practical. Platform-specific capabilities will be accessed through dedicated adapters.
+Share TypeScript domain logic, contracts, API clients, query definitions, and compatible hooks across platforms. Mobile screens use React Native components and Expo Router; browser DOM components, TanStack Router, Tailwind CSS, shadcn/ui, and Radix UI remain in the web/desktop layer. Use React Native StyleSheet with shared design tokens for mobile styling.
+
+### Mobile Frontend
+
+| Category | Technology | Purpose |
+|---|---|---|
+| Framework / tooling | React Native + Expo + Metro | Native iOS and Android application |
+| Navigation | Expo Router | Native navigation and deep links |
+| Shared state / validation | TanStack Query + Zustand + Zod | Reuse platform-neutral logic |
+| UI / styling | React Native components + StyleSheet | Native screens with shared design tokens |
+| Native integrations | Expo modules + platform adapters | Secure storage, files, permissions, and notifications |
+| Development runtime | Expo development builds + expo-dev-client | Native SDK integration testing |
+| Build / distribution | EAS Build / Submit or local native builds | Signed application releases |
+
+Use development builds for native Agora integrations; Expo Go is insufficient for custom native SDKs. Pin compatible Expo, React Native, React, and native dependency versions after validation.
 
 ### 2.3 Cross-Platform Applications
 
 | Platform | Technology | Additional Tooling |
 |---|---|---|
 | Web | React + Vite | PWA support where useful |
-| iOS | Capacitor | Xcode, iOS Simulator, physical iPhone |
-| Android | Capacitor | Android Studio, Android Emulator, physical Android |
+| iOS | React Native + Expo | Xcode, iOS Simulator, physical iPhone |
+| Android | React Native + Expo | Android Studio, Android Emulator, physical Android |
 | Windows | Electron | electron-vite, electron-builder |
 | macOS | Electron | electron-vite, electron-builder |
 | Linux | Electron | electron-vite, electron-builder |
@@ -151,7 +165,7 @@ We should avoid storing duplicate authoritative message histories in both Agora 
 
 **Integration requirements:**
 
-- Validate Agora Chat and RTC SDK behavior inside Capacitor WebViews and Electron.
+- Validate Agora Chat and RTC React Native SDKs in Expo development builds, including required config plugins/native configuration; validate web SDKs separately in browsers and Electron.
 - Implement secure, short-lived provider credentials.
 - Verify group membership and permissions server-side.
 - Define message retention, export, deletion, and backup requirements.
@@ -179,12 +193,14 @@ When a mobile application is suspended or closed, Socket.IO cannot reliably deli
 | Notification Type | Technology |
 |---|---|
 | In-app, while connected | Socket.IO |
-| iOS push | APNs, typically via Capacitor-compatible integration |
-| Android push | Firebase Cloud Messaging |
+| iOS push | APNs via expo-notifications with native device tokens |
+| Android push | FCM via expo-notifications with native device tokens |
 | Browser push | Web Push |
 | Desktop notification | Electron Notification API |
 | Notification persistence | PostgreSQL |
 | Notification processing | BullMQ |
+
+The backend worker delivers directly to APNs/FCM using registered native device tokens. Expo Push Service is an optional alternative requiring an explicit transport decision; do not mix Expo push tokens with native provider tokens. Handle token rotation, logout/unregistration, notification permissions, and authorized deep-link navigation. Background incoming calls require separate validation of native call UI, VoIP push, and OS restrictions; ordinary push does not guarantee a live incoming-call experience.
 
 PostgreSQL will be the durable source of truth for notification records. Socket.IO is the real-time delivery channel.
 
@@ -201,7 +217,7 @@ PostgreSQL will be the durable source of truth for notification records. Socket.
 | Docs | Univer | Document editing |
 | Sheets | Univer | Spreadsheet editing |
 | Slides | Univer | Presentation editing |
-| Drive | Custom React + Hono | File management and storage |
+| Drive | Custom React / React Native + Hono | File management and storage |
 
 ### 4.1 Docs
 
@@ -241,7 +257,7 @@ Planned functionality:
 
 ### 4.4 Univer Integration Requirements
 
-Univer will be integrated into the shared React application through a dedicated editor module.
+Univer will be integrated into the web/desktop React application through a dedicated editor module. Mobile opens an authenticated hosted editor route in react-native-webview, subject to a touch/keyboard/performance proof of concept. Univer is a web editor, so its DOM implementation must not be imported into native screens. If the proof of concept fails, mobile offers an authorized preview and an explicit browser handoff for editing; this capability limit must be approved before rollout. The WebView bridge must validate messages and allowed origins, use short-lived scoped authorization, and enforce the same workspace/document permissions without exposing long-lived credentials.
 
 **The following must be validated before production implementation:**
 
@@ -252,7 +268,7 @@ Univer will be integrated into the shared React application through a dedicated 
 5. Import/export compatibility with DOCX, XLSX, and PPTX.
 6. Licensing and commercial deployment requirements.
 7. Editor performance with large documents and spreadsheets.
-8. Compatibility with Capacitor on iOS and Android.
+8. Mobile editor WebView compatibility on iOS and Android, including authentication, keyboard input, touch interactions, and file handling.
 9. Compatibility with Electron.
 10. Conflict handling, revision history, and permissions.
 
@@ -270,7 +286,7 @@ Drive will be a custom-built module integrated with the backend and the collabor
 
 | Component | Technology |
 |---|---|
-| File management UI | React |
+| File management UI | React (web/desktop) + React Native (mobile) |
 | File/folder APIs | Hono |
 | Metadata database | PostgreSQL |
 | ORM | Drizzle |
@@ -414,7 +430,7 @@ This includes:
 
 Agora credentials must be issued only after backend authorization.
 
-Electron and Capacitor applications must use appropriate secure session and credential storage.
+Electron must use appropriate secure credential storage. Mobile must validate Better Auth’s Expo client integration, system-browser SSO callbacks and deep links, trusted origins, session expiry/revocation, and expo-secure-store persistence. Browser cookies and localStorage must not be assumed to work as native session storage.
 
 ---
 
@@ -425,7 +441,7 @@ The project will use **pnpm Workspaces + Turborepo**.
 ### Applications
 
 - `apps/web`: Shared React + Vite application.
-- `apps/mobile`: Capacitor application shell for iOS and Android.
+- `apps/mobile`: React Native + Expo application for iOS and Android, with Expo Router and native screens.
 - `apps/desktop`: Electron application, including main and preload processes.
 - `apps/api`: Hono backend.
 - `apps/realtime`: Socket.IO service for presence and notifications.
@@ -433,15 +449,18 @@ The project will use **pnpm Workspaces + Turborepo**.
 
 ### Shared Packages
 
-- `packages/ui`: Shared React components and design system.
-- `packages/features`: Shared feature modules.
-- `packages/editor`: Univer integration and editor abstractions.
-- `packages/agora`: Agora Chat and RTC integration.
-- `packages/drive`: Drive client logic and shared types.
+- `packages/app`: Web/desktop React composition and routing.
+- `packages/ui`: Web/desktop React components and shared design tokens.
+- `packages/ui-native`: React Native design-system components consuming shared tokens.
+- `packages/api-client`: Platform-neutral typed API client and query helpers.
+- `packages/features`: Shared feature logic with explicit web and native presentation entry points.
+- `packages/univer`: Univer integration and editor abstractions.
+- `packages/agora-client`: Agora Chat and RTC integration.
+- `packages/features/src/drive`: Drive feature logic with web/native presentation.
 - `packages/db`: Drizzle schemas and migrations.
 - `packages/contracts`: Zod schemas and API contracts.
 - `packages/auth`: Authentication and authorization utilities.
-- `packages/platform`: Web, Capacitor, and Electron adapters.
+- `packages/platform`: Web, React Native + Expo, and Electron adapters.
 - `packages/config`: Shared TypeScript and tooling configuration.
 
 ### Infrastructure and Testing
@@ -453,7 +472,7 @@ The project will use **pnpm Workspaces + Turborepo**.
 - `tests/desktop`: Electron end-to-end tests.
 - `docs`: Architecture and engineering documentation.
 
-The frontend must not directly depend on Electron or Capacitor APIs inside shared business components. Platform-specific behavior should be exposed through the platform adapter package.
+The frontend must not directly depend on Electron or React Native + Expo APIs inside shared business components. Platform-specific behavior should be exposed through the platform adapter package.
 
 ---
 
@@ -489,13 +508,14 @@ Avoid introducing redundant tools without a clear technical requirement.
 | Testing Category | Technology |
 |---|---|
 | Unit testing | Vitest |
-| React component testing | React Testing Library |
+| Web component testing | React Testing Library + Vitest |
+| Native component testing | React Native Testing Library + jest-expo |
 | API mocking | MSW |
 | Backend integration testing | Vitest + Testcontainers |
 | Web end-to-end testing | Playwright |
 | Mobile end-to-end testing | Appium + WebdriverIO |
 | Electron end-to-end testing | Playwright Electron support |
-| Accessibility testing | axe-core |
+| Accessibility testing | axe-core (web) + VoiceOver / TalkBack (mobile) |
 | Load testing | k6 |
 | Security testing | OWASP ZAP + CodeQL |
 
@@ -521,7 +541,11 @@ Before production rollout, validate:
 - Agora voice/video calls on every supported platform.
 - Microphone, camera, and screen-sharing permissions.
 - Socket.IO presence reconnection.
-- Mobile background push notifications.
+- Expo development and release builds with native Agora modules.
+- Mobile deep links, SSO callbacks, secure session persistence, and revocation.
+- Mobile editor WebView authorization, bridge validation, and browser handoff.
+- Native file picking, URI-based uploads, downloads, and sharing.
+- Mobile background push notifications, token lifecycle, and foreground/resume recovery.
 - Electron desktop notifications.
 - Drive file uploads, downloads, and permissions.
 - App startup, memory usage, and long-running sessions.
@@ -547,7 +571,7 @@ Pull requests should run:
 - Browser end-to-end tests.
 - Security and dependency checks.
 
-Release workflows should additionally build and validate mobile and desktop applications.
+Release workflows should additionally build and validate mobile and desktop applications. Mobile uses EAS Build / Submit or equivalent local native builds, independently of the Vite build. Only the hosted mobile editor route requires deployed web assets. Native dependency/configuration changes require a new signed binary; any future EAS Update rollout must match the native runtime and include rollback controls.
 
 ### Deployment
 
@@ -617,14 +641,14 @@ Desktop release requirements:
 
 ## 13. Architectural Principles
 
-1. **Share code by default.** Reuse the React frontend and TypeScript business logic across platforms.
+1. **Share code by default.** Reuse the React UI across web/desktop and platform-neutral TypeScript business logic across all clients; implement native mobile presentation separately.
 2. **Keep native APIs behind adapters.** Platform-specific integrations should not leak into shared feature components.
 3. **Use the right service for each responsibility.** Agora handles chat and calls; Socket.IO handles presence and in-app notifications; Univer handles office editing.
 4. **Avoid duplicate sources of truth.** Each data domain must have a clearly designated authoritative system.
 5. **Enforce permissions on the backend.** Never trust frontend-only access checks.
 6. **Build a modular monolith first.** Extract services only when scale or operational needs justify them.
 7. **Use managed infrastructure where practical.** Minimize operational overhead.
-8. **Validate native compatibility early.** Web functionality does not guarantee identical Capacitor or Electron behavior.
+8. **Validate native compatibility early.** Web functionality does not guarantee React Native, Expo, editor WebView, or Electron compatibility.
 9. **Track total cost of ownership.** Include Agora usage, Univer licensing, infrastructure, engineering, and maintenance.
 10. **Prioritize the company's actual workflows.** Avoid unnecessary feature development.
 
@@ -642,7 +666,10 @@ The following are selected technologies, but their production integration detail
 | Agora Chat | Retention, export, history, data residency, and usage pricing |
 | Agora RTC | Mobile/Electron SDK compatibility and media permissions |
 | Socket.IO scaling | Redis adapter, reconnection, and multi-instance behavior |
-| Mobile notifications | APNs/FCM integration and background behavior |
+| Mobile notifications | expo-notifications, direct APNs/FCM delivery, token lifecycle, background behavior, and incoming-call limitations |
+| Expo native SDKs | Agora Chat/RTC compatibility, config plugins, native runtime, and signed development/release builds |
+| Mobile authentication | Better Auth Expo integration, secure storage, trusted origins, SSO callbacks, and revocation |
+| Mobile office editing | Authorized WebView editor, mobile usability, and preview/browser fallback |
 | Electron distribution | Signing, notarization, updates, and deployment policy |
 | Offline support | Scope of offline reading, drafts, and synchronization |
 | Search | Indexing and permission-aware search across multiple providers |
@@ -656,8 +683,8 @@ These should be resolved through targeted proofs of concept before committing to
 ### Phase 1: Foundation
 
 - Monorepo and development tooling.
-- Shared React application.
-- Capacitor and Electron shells.
+- Shared web/desktop React application and platform-neutral feature logic.
+- React Native + Expo mobile application and Electron desktop shell.
 - Hono backend.
 - PostgreSQL and Drizzle.
 - Authentication and permissions.
@@ -715,10 +742,10 @@ These should be resolved through targeted proofs of concept before committing to
 | Language | TypeScript |
 | Monorepo | pnpm + Turborepo |
 | Frontend | React + Vite |
-| Routing | TanStack Router |
+| Routing | TanStack Router (web/desktop); Expo Router (mobile) |
 | State | TanStack Query + Zustand |
-| UI | Tailwind CSS + shadcn/ui + Radix UI |
-| Mobile | Capacitor |
+| UI | Tailwind CSS + shadcn/ui + Radix UI (web/desktop); React Native + StyleSheet (mobile) |
+| Mobile | React Native + Expo |
 | Desktop | Electron |
 | Backend | Node.js + Hono |
 | Database | PostgreSQL + Drizzle |
@@ -732,14 +759,14 @@ These should be resolved through targeted proofs of concept before committing to
 | Docs | Univer |
 | Sheets | Univer |
 | Slides | Univer |
-| Drive | Custom React + Hono |
+| Drive | Custom React / React Native + Hono |
 | File storage | S3-compatible object storage |
 | Search | PostgreSQL full-text search |
-| Testing | Vitest + Playwright + Appium |
+| Testing | Vitest + jest-expo + Playwright + Appium |
 | CI/CD | GitHub Actions |
 | Infrastructure | Docker |
 | Monitoring | Sentry + OpenTelemetry |
 
-**Architecture:** Web-first, cross-platform TypeScript monorepo with a modular Node.js backend, managed communication services, a unified office editor integration, and custom Drive functionality.
+**Architecture:** Cross-platform TypeScript monorepo with shared web/desktop React UI, a native Expo mobile client, a modular Node.js backend, managed communication services, a dedicated office editor integration, and custom Drive functionality.
 
 **Primary goal:** Maximize code reuse and development efficiency while minimizing long-term operating and maintenance costs.
