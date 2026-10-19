@@ -31,6 +31,9 @@
     "**/routeTree.gen.ts",
     ".local/**",
     "playwright-report/**",
-    "test-results/**"
+    "test-results/**",
+    "**/out/**",
+    "**/release/**",
+    "**/chat-codec.generated.*"
   ]
 }

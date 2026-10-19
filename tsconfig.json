@@ -4,5 +4,5 @@
     "types": ["node"],
     "lib": ["ES2023", "DOM"]
   },
-  "include": ["*.config.ts", "tests/e2e/**/*.ts"]
+  "include": ["*.config.ts", "tests/e2e/**/*.ts", "tests/desktop/**/*.ts"]
 }

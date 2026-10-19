@@ -1,0 +1,7 @@
+{
+  "extends": "@lumo/typescript-config/react-library.json",
+  "compilerOptions": {
+    "types": ["vite/client", "@testing-library/jest-dom"]
+  },
+  "include": ["src", "*.config.ts"]
+}

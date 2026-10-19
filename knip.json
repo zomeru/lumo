@@ -2,16 +2,18 @@
   "$schema": "./node_modules/knip/schema.json",
   "workspaces": {
     ".": {},
-    "apps/web": {
-      "entry": ["src/routes/**/*.{ts,tsx}"],
-      "project": ["src/**/*.{ts,tsx,css}", "*.config.ts"],
-      "ignoreUnresolved": ["./routeTree.gen"]
-    },
     "packages/typescript-config": {},
     "apps/api": {
       "entry": ["src/test/e2e-server.ts", "src/test/live-provider.ts"],
       "project": ["src/**/*.ts", "*.config.ts"],
       "ignoreDependencies": ["@better-auth/drizzle-adapter", "better-auth", "nodemailer"]
+    },
+    "packages/app": {
+      "entry": ["src/routes/**/*.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}", "*.config.ts"]
+    },
+    "apps/desktop": {
+      "project": ["src/**/*.{ts,tsx,css}", "*.config.ts"]
     }
   }
 }

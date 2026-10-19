@@ -7,8 +7,8 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"],
-      "env": ["VITE_*"]
+      "outputs": ["dist/**", "out/**"],
+      "env": ["VITE_*", "MAIN_VITE_*"]
     },
     "check-types": {
       "dependsOn": ["^check-types"],
@@ -17,8 +17,21 @@
     "dev": {
       "cache": false,
       "persistent": true,
+      "env": ["VITE_*"]
+    },
+    "@lumo/app#check-types": {
+      "dependsOn": ["^check-types"],
+      "outputs": ["node_modules/.tmp/*.tsbuildinfo", "src/routeTree.gen.ts"]
+    },
+    "@lumo/app#build": {
+      "outputs": ["src/routeTree.gen.ts"]
+    },
+    "package": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "@lumo/api#dev": {
       "env": [
-        "VITE_*",
         "DATABASE_URL",
         "BETTER_AUTH_SECRET",
         "NODE_ENV",
@@ -29,12 +42,30 @@
         "SMTP_URL",
         "MAIL_FROM",
         "MAIL_DIR",
-        "LOG_LEVEL"
-      ]
+        "LOG_LEVEL",
+        "AGORA_APP_ID",
+        "AGORA_APP_CERTIFICATE",
+        "AGORA_CHAT_APP_KEY",
+        "AGORA_CHAT_REST_ORIGIN"
+      ],
+      "cache": false,
+      "persistent": true
     },
-    "@lumo/web#check-types": {
-      "dependsOn": ["^check-types"],
-      "outputs": ["node_modules/.tmp/*.tsbuildinfo", "src/routeTree.gen.ts"]
+    "@lumo/desktop#dev": {
+      "env": [
+        "MAIN_VITE_*",
+        "DESKTOP_API_URL",
+        "DESKTOP_WEB_ORIGIN",
+        "DISPLAY",
+        "XAUTHORITY",
+        "WAYLAND_DISPLAY",
+        "XDG_RUNTIME_DIR",
+        "XDG_SESSION_TYPE",
+        "XDG_CURRENT_DESKTOP",
+        "DBUS_SESSION_BUS_ADDRESS"
+      ],
+      "cache": false,
+      "persistent": true
     }
   }
 }

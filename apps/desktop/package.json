@@ -1,0 +1,79 @@
+{
+  "name": "@lumo/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lumo collaboration desktop application",
+  "author": "Lumo",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "pnpm check-types && electron-vite build",
+    "check-types": "pnpm --filter @lumo/app routes:generate && tsc --noEmit",
+    "preview": "electron-vite preview",
+    "package": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@lumo/app": "workspace:*",
+    "@lumo/ui": "workspace:*",
+    "@lumo/api-client": "workspace:*",
+    "@lumo/typescript-config": "workspace:*",
+    "@tailwindcss/vite": "4.3.3",
+    "@vitejs/plugin-react": "6.1.2",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@tanstack/react-router": "1.170.44",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5",
+    "electron": "44.9.0",
+    "electron-vite": "6.0.0",
+    "electron-builder": "26.15.3",
+    "tough-cookie": "6.0.2",
+    "zod": "4.6.7"
+  },
+  "build": {
+    "appId": "com.lumo.desktop",
+    "productName": "Lumo",
+    "asar": true,
+    "directories": {
+      "output": "release",
+      "buildResources": "resources"
+    },
+    "files": [
+      "out/**",
+      "package.json",
+      "resources/icon.png"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office",
+      "icon": "resources/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "resources/icon.png"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "resources/icon.png",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Lumo uses your camera when you enable video in a meeting.",
+        "NSMicrophoneUsageDescription": "Lumo uses your microphone when you enable audio in a meeting."
+      }
+    },
+    "executableName": "lumo"
+  }
+}

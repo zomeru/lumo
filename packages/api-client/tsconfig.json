@@ -1,0 +1,4 @@
+{
+  "extends": "@lumo/typescript-config/node.json",
+  "include": ["src"]
+}

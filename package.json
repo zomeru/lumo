@@ -23,11 +23,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check:all": "pnpm format:check && pnpm lint && pnpm boundaries && pnpm deps:check && pnpm deps:unused && pnpm check-types && pnpm test:coverage && pnpm build",
+    "check:all": "pnpm format:check && pnpm lint && pnpm boundaries && pnpm deps:check && pnpm deps:unused && pnpm check-types && pnpm test:coverage",
+    "check:all:build": "pnpm check:all && pnpm run build",
     "db:generate": "pnpm --filter @lumo/database db:generate",
     "db:migrate": "pnpm --filter @lumo/database db:migrate",
     "test:e2e": "playwright test",
-    "test:integration": "vitest run --project api"
+    "test:integration": "vitest run --project api",
+    "desktop:package": "turbo run package --filter=@lumo/desktop",
+    "test:desktop": "playwright test --config playwright.desktop.config.ts"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": [
@@ -51,7 +54,8 @@
     "turbo": "2.11.8",
     "typescript": "7.0.2",
     "vitest": "5.0.5",
-    "@playwright/test": "1.64.1"
+    "@playwright/test": "1.64.1",
+    "electron": "44.9.0"
   },
   "intent": {
     "skills": [

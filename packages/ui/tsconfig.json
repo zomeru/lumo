@@ -1,0 +1,4 @@
+{
+  "extends": "@lumo/typescript-config/react-library.json",
+  "include": ["src"]
+}
