@@ -25,13 +25,29 @@ const serverSchema = z
     API_ORIGIN: origin.default("http://localhost:3001"),
     WEB_ORIGIN: origin.default("http://localhost:3000"),
     PORT: z.coerce.number().int().min(1).max(65535).default(3001),
-    HOST: z.string().default("127.0.0.1"),
+    HOST: z.string().default("0.0.0.0"),
     SMTP_URL: z
       .url()
       .refine((value) => ["smtp:", "smtps:"].includes(new URL(value).protocol))
       .optional(),
     MAIL_FROM: z.email().default("hello@lumo.local"),
     MAIL_DIR: z.string().min(1).default("../../.local/mail"),
+    AGORA_APP_ID: z
+      .string()
+      .regex(/^[a-f0-9]{32}$/)
+      .optional(),
+    AGORA_APP_CERTIFICATE: z
+      .string()
+      .regex(/^[a-f0-9]{32}$/)
+      .optional(),
+    AGORA_CHAT_APP_KEY: z
+      .string()
+      .regex(/^[a-zA-Z0-9_-]+#[a-zA-Z0-9_-]+$/)
+      .optional(),
+    AGORA_CHAT_REST_ORIGIN: z
+      .url()
+      .refine((value) => new URL(value).protocol === "https:" && new URL(value).origin === value)
+      .optional(),
     LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug"]).default("info"),
   })
   .superRefine((value, ctx) => {

@@ -33,6 +33,9 @@ export function workspaceRoutes(service: ReturnType<typeof createWorkspaceServic
   app.post("/invitations/preview", async (c) =>
     c.json(await service.preview(parse(tokenInputSchema, await c.req.json()).token, c.get("user"))),
   );
+  app.post("/invitations/decline", async (c) =>
+    c.json(await service.decline(parse(tokenInputSchema, await c.req.json()).token, c.get("user"))),
+  );
   app.post("/invitations/accept", async (c) =>
     c.json(await service.accept(parse(tokenInputSchema, await c.req.json()).token, c.get("user"))),
   );

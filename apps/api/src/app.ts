@@ -1,37 +1,68 @@
 import { randomUUID } from "node:crypto";
 
+import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Auth } from "@lumo/auth";
 import type { Database } from "@lumo/database";
+import { conversation, conversationMember } from "@lumo/database/schema";
 import type { ServerEnv } from "@lumo/env/server";
-import { sql } from "drizzle-orm";
-import { Hono, type Context } from "hono";
+import { chatIdentity } from "@lumo/shared";
+import { Scalar } from "@scalar/hono-api-reference";
+import { and, eq, sql, inArray } from "drizzle-orm";
+import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import pino from "pino";
 
+import { createAgora, type CollaborationProvider } from "./integrations/agora";
 import type { ApiContext } from "./lib/context.ts";
 import { AppError } from "./lib/errors.ts";
 import { enforceRateLimit } from "./middleware/rate-limit.ts";
+import { collaborationRoutes } from "./modules/collaboration.routes";
 import { userRoutes } from "./modules/users/user.routes.ts";
 import { workspaceRoutes } from "./modules/workspaces/workspace.routes.ts";
 import { createWorkspaceService } from "./modules/workspaces/workspace.service.ts";
+import { documentFoundation } from "./openapi";
 
 export function createApp({
   db,
   auth,
   env,
   clientIp = () => "direct",
+  provider = createAgora(env),
 }: {
   db: Database;
   auth: Auth;
   env: ServerEnv;
   clientIp?: (c: Context) => string;
+  provider?: CollaborationProvider;
 }) {
-  const app = new Hono<ApiContext>();
+  const app = new OpenAPIHono<ApiContext>();
   const logger = pino({ level: env.LOG_LEVEL });
-  const workspaces = createWorkspaceService(db);
+  const workspaces = createWorkspaceService(db, async (tx, workspaceId, userId) => {
+    const groups = await tx
+      .select({
+        id: conversation.providerGroupId,
+        conversationId: conversation.id,
+        kind: conversation.kind,
+      })
+      .from(conversation)
+      .innerJoin(conversationMember, eq(conversationMember.conversationId, conversation.id))
+      .where(and(eq(conversation.workspaceId, workspaceId), eq(conversationMember.userId, userId)));
+    const direct = groups
+      .filter((group) => group.kind === "direct")
+      .map((group) => group.conversationId);
+    if (direct.length)
+      await tx
+        .update(conversation)
+        .set({ directKey: null })
+        .where(inArray(conversation.id, direct));
+    if (!groups.some((group) => group.id)) return;
+    const identity = chatIdentity(workspaceId, userId);
+    await provider.deactivate(identity);
+    for (const group of groups) if (group.id) await provider.removeMember(group.id, identity);
+  });
   app.use("*", secureHeaders());
   app.use("*", async (c, next) => {
     const start = performance.now();
@@ -76,7 +107,7 @@ export function createApp({
     if (!["GET", "HEAD", "OPTIONS"].includes(c.req.method)) {
       if (![env.WEB_ORIGIN, env.API_ORIGIN].includes(c.req.header("origin") ?? ""))
         throw new AppError(403, "INVALID_ORIGIN", "Request origin is not allowed.");
-      if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json"))
+      if (c.req.header("content-type")?.split(";")[0]?.trim().toLowerCase() !== "application/json")
         throw new AppError(415, "UNSUPPORTED_MEDIA_TYPE", "Use application/json requests.");
     }
     await next();
@@ -131,6 +162,33 @@ export function createApp({
   });
   app.route("/api/v1", userRoutes(db, workspaces));
   app.route("/api/v1", workspaceRoutes(workspaces));
+  app.route("/api/v1", collaborationRoutes(db, workspaces, provider));
+  app.openAPIRegistry.registerComponent("securitySchemes", "cookieAuth", {
+    type: "apiKey",
+    in: "cookie",
+    name:
+      env.NODE_ENV === "production"
+        ? "__Secure-better-auth.session_token"
+        : "better-auth.session_token",
+  });
+  documentFoundation(app);
+  app.doc31("/api/openapi.json", {
+    openapi: "3.1.0",
+    info: { title: "Lumo API", version: "1.0.0" },
+    servers: [{ url: env.API_ORIGIN }],
+  });
+  app.get(
+    "/api/reference",
+    async (c, next) => {
+      if (env.NODE_ENV === "production") {
+        const session = await auth.api.getSession({ headers: c.req.raw.headers });
+        if (!session)
+          throw new AppError(401, "UNAUTHENTICATED", "Sign in to view API documentation.");
+      }
+      await next();
+    },
+    Scalar({ url: "/api/openapi.json" }),
+  );
   app.notFound((c) =>
     c.json(
       {

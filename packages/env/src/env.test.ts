@@ -11,7 +11,7 @@ describe("environment boundaries", () => {
   test("provides local defaults and coerces ports", () => {
     expect(readServerEnv({ ...valid, PORT: "3101" })).toMatchObject({
       PORT: 3101,
-      HOST: "127.0.0.1",
+      HOST: "0.0.0.0",
       WEB_ORIGIN: "http://localhost:3000",
     });
   });
@@ -62,4 +62,29 @@ describe("environment boundaries", () => {
     );
     expect(() => readWebEnv({ VITE_API_URL: "file:///secret" })).toThrow("VITE_API_URL");
   });
+});
+
+test("provider configuration rejects private values and insecure REST origins without echoing them", () => {
+  for (const AGORA_CHAT_REST_ORIGIN of [
+    "http://a61.chat.agora.io",
+    "https://a61.chat.agora.io/path",
+  ])
+    expect(() => readServerEnv({ ...valid, AGORA_CHAT_REST_ORIGIN })).toThrow(
+      "AGORA_CHAT_REST_ORIGIN",
+    );
+  expect(() =>
+    readServerEnv({ ...valid, AGORA_APP_CERTIFICATE: "private-bad-certificate" }),
+  ).not.toThrow("private-bad-certificate");
+  expect(() => readServerEnv({ ...valid, AGORA_CHAT_APP_KEY: "without-app-name" })).toThrow(
+    "AGORA_CHAT_APP_KEY",
+  );
+  expect(
+    readServerEnv({
+      ...valid,
+      AGORA_APP_ID: "a".repeat(32),
+      AGORA_APP_CERTIFICATE: "b".repeat(32),
+      AGORA_CHAT_APP_KEY: "org#app",
+      AGORA_CHAT_REST_ORIGIN: "https://a61.chat.agora.io",
+    }).AGORA_CHAT_APP_KEY,
+  ).toBe("org#app");
 });

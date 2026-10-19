@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { createAuth } from "@lumo/auth";
+import { conversation, conversationMember } from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
+import { chatIdentity } from "@lumo/shared";
+import AgoraToken from "agora-token";
 
 import { createApp } from "../app.ts";
 import { createTestDatabase } from "./database.ts";
@@ -30,11 +33,50 @@ const server = serve({ fetch: app.fetch, port: env.PORT }, () =>
   console.log("E2E API ready on port 3011"),
 );
 let stopping = false;
+async function cleanup() {
+  if (
+    process.env.LUMO_LIVE_AGORA === "1" &&
+    env.AGORA_CHAT_REST_ORIGIN &&
+    env.AGORA_APP_ID &&
+    env.AGORA_APP_CERTIFICATE
+  ) {
+    const groups = await database.db
+      .select({ id: conversation.providerGroupId })
+      .from(conversation);
+    const members = await database.db
+      .select({ workspaceId: conversationMember.workspaceId, userId: conversationMember.userId })
+      .from(conversationMember);
+    const paths = [
+      ...groups.filter((group) => group.id).map((group) => `/chatgroups/${group.id}`),
+      ...new Set(
+        members.map((member) => `/users/${chatIdentity(member.workspaceId, member.userId)}`),
+      ),
+    ];
+    const token = AgoraToken.ChatTokenBuilder.buildAppToken(
+      env.AGORA_APP_ID,
+      env.AGORA_APP_CERTIFICATE,
+      60,
+    );
+    for (const path of paths) {
+      const response = await fetch(
+        `${env.AGORA_CHAT_REST_ORIGIN}/app-id/${env.AGORA_APP_ID}${path}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(10000),
+        },
+      ).catch(() => null);
+      if (response && !response.ok && response.status !== 404)
+        console.error("Live provider cleanup needs attention.");
+    }
+  }
+  await database.cleanup();
+}
 function shutdown() {
   if (stopping) return;
   stopping = true;
   server.close(() => {
-    void database.cleanup();
+    void cleanup();
   });
   if ("closeAllConnections" in server) server.closeAllConnections();
 }

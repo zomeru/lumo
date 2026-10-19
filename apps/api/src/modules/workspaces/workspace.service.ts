@@ -54,7 +54,10 @@ async function audit(
   await tx.insert(auditEvent).values({ workspaceId, actorId, action, targetId });
 }
 
-export function createWorkspaceService(db: Database) {
+export function createWorkspaceService(
+  db: Database,
+  revokeAccess?: (tx: Transaction, workspaceId: string, userId: string) => Promise<void>,
+) {
   // All workspace writes share this lock. Membership is checked AFTER acquiring it,
   // so a concurrent demotion/removal cannot authorize a later mutation.
   async function withAccess<T>(
@@ -89,6 +92,7 @@ export function createWorkspaceService(db: Database) {
 
   return {
     requireAccess,
+    withAccess,
     async list(userId: string) {
       const rows = await db
         .select({ ws: workspace, role: membership.role })
@@ -229,6 +233,7 @@ export function createWorkspaceService(db: Database) {
         const target = await findMembership(tx, workspaceId, targetId);
         if (!target) missing();
         if (actorId === targetId || !canRemoveMember(actor.role, target.role)) denied();
+        await revokeAccess?.(tx, workspaceId, targetId);
         await tx
           .delete(membership)
           .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, targetId)));
@@ -247,6 +252,7 @@ export function createWorkspaceService(db: Database) {
             "OWNER_REQUIRED",
             "Transfer ownership before leaving this workspace.",
           );
+        await revokeAccess?.(tx, workspaceId, userId);
         await tx
           .delete(membership)
           .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, userId)));
@@ -409,6 +415,38 @@ export function createWorkspaceService(db: Database) {
         role: item.invite.role,
         expiresAt: item.invite.expiresAt.toISOString(),
       };
+    },
+    async decline(token: string, currentUser: SessionUser) {
+      const [lookup] = await db
+        .select({ workspaceId: invitation.workspaceId })
+        .from(invitation)
+        .where(eq(invitation.tokenHash, tokenHash(token)));
+      if (!lookup) missing();
+      return db.transaction(async (tx) => {
+        await tx
+          .select({ id: workspace.id })
+          .from(workspace)
+          .where(eq(workspace.id, lookup.workspaceId))
+          .for("update");
+        const [item] = await tx
+          .select()
+          .from(invitation)
+          .where(eq(invitation.tokenHash, tokenHash(token)));
+        if (
+          !item ||
+          item.email !== currentUser.email.toLowerCase() ||
+          item.revokedAt ||
+          item.acceptedAt ||
+          item.expiresAt <= new Date()
+        )
+          missing();
+        await tx
+          .update(invitation)
+          .set({ revokedAt: new Date() })
+          .where(eq(invitation.id, item.id));
+        await audit(tx, item.workspaceId, currentUser.id, "invitation.declined", item.id);
+        return { ok: true as const };
+      });
     },
     async accept(token: string, currentUser: SessionUser) {
       if (!currentUser.emailVerified)
