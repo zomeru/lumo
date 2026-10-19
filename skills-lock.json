@@ -7,6 +7,12 @@
       "skillPath": "skills/agent-browser/SKILL.md",
       "computedHash": "80161e6836b3b40f4e83730a290deb40ac14d877d38c97ad5f6d71be37ce74c3"
     },
+    "agora": {
+      "source": "AgoraIO/skills",
+      "sourceType": "github",
+      "skillPath": "skills/agora/SKILL.md",
+      "computedHash": "791ad785b097cf0b4a5a5b3fb3aaec899e265da0003655c60b991f5656a618af"
+    },
     "building-components": {
       "source": "vercel/components.build",
       "sourceType": "github",
