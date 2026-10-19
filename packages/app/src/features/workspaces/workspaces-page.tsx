@@ -1,8 +1,19 @@
 import { workspaceSchema } from "@lumo/contracts";
 import { parseLumoLink } from "@lumo/shared";
-import { Brand, ErrorMessage, Field, Loading, PageHeading } from "@lumo/ui";
+import {
+  Badge,
+  Brand,
+  Button,
+  Card,
+  ErrorMessage,
+  Field,
+  Loading,
+  PageHeading,
+  ThemeMenu,
+} from "@lumo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -34,12 +45,15 @@ export function WorkspacesPage() {
     },
   });
   return (
-    <main id="main-content" className="workspace-picker">
-      <header className="picker-header">
+    <main id="main-content" className="mx-auto max-w-6xl px-5 pt-6 pb-16 sm:px-8">
+      <header className="mb-12 flex items-center justify-between gap-4">
         <Brand />
-        <Link className="button" to="/profile">
-          Your profile
-        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeMenu />
+          <Button asChild>
+            <Link to="/profile">Your profile</Link>
+          </Button>
+        </div>
       </header>
       <PageHeading
         eyebrow="Your shared spaces"
@@ -47,81 +61,89 @@ export function WorkspacesPage() {
       >
         Choose where you’d like to work today.
       </PageHeading>
-      <section className="card">
-        <h2>Open a shared link</h2>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            try {
-              const value = new FormData(event.currentTarget).get("link") as string;
-              const target = parseLumoLink(
-                value,
-                getPlatform()?.webOrigin ?? window.location.origin,
-              );
-              setLinkError(null);
-              void navigate(
-                target.kind === "invite"
-                  ? { to: "/invite", search: { token: target.token } }
-                  : { to: "/meetings/$meetingId", params: { meetingId: target.id } },
-              );
-            } catch (error) {
-              setLinkError(error);
-            }
-          }}
-        >
-          <Field
-            label="Lumo invitation or meeting link"
-            type="url"
-            name="link"
-            required
-            maxLength={2048}
-          />
-          <ErrorMessage error={linkError} />
-          <button>Open link</button>
-        </form>
-      </section>
-      <div className="section-heading">
+      <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
+        <section>
+          <h2>Open a shared link</h2>
+          <form
+            className="grid gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              try {
+                const value = new FormData(event.currentTarget).get("link") as string;
+                const target = parseLumoLink(
+                  value,
+                  getPlatform()?.webOrigin ?? window.location.origin,
+                );
+                setLinkError(null);
+                void navigate(
+                  target.kind === "invite"
+                    ? { to: "/invite", search: { token: target.token } }
+                    : { to: "/meetings/$meetingId", params: { meetingId: target.id } },
+                );
+              } catch (error) {
+                setLinkError(error);
+              }
+            }}
+          >
+            <Field
+              label="Lumo invitation or meeting link"
+              type="url"
+              name="link"
+              required
+              maxLength={2048}
+            />
+            <ErrorMessage error={linkError} />
+            <Button type="submit">Open link</Button>
+          </form>
+        </section>
+      </Card>
+      <div className="mt-7 mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2>Your workspaces</h2>
-        <Link className="button primary" to="/onboarding">
-          + Create workspace
-        </Link>
+        <Button asChild variant="primary">
+          <Link to="/onboarding">+ Create workspace</Link>
+        </Button>
       </div>
       <ErrorMessage error={joined.error} />
       {joined.isPending ? (
         <Loading />
       ) : (
-        <div className="workspace-grid">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {joined.data?.workspaces.map((ws) => (
-            <Link
-              to="/w/$workspaceId"
-              params={{ workspaceId: ws.id }}
-              key={ws.id}
-              className="card workspace-card"
-            >
-              <span className="workspace-icon">{ws.name[0]?.toUpperCase()}</span>
-              <h3>{ws.name}</h3>
-              <p>
-                {ws.description ||
-                  (ws.isPersonal ? "Your private space to get started." : "A space for your team.")}
-              </p>
-              <div className="row">
-                <span className="badge">{ws.role}</span>
-                <span>{ws.isPersonal ? "Personal" : ws.visibility}</span>
-                <span className="push" aria-hidden="true">
-                  →
+            <Card asChild key={ws.id} className="[&>p]:my-3 [&>form]:mt-4">
+              <Link
+                to="/w/$workspaceId"
+                params={{ workspaceId: ws.id }}
+                key={ws.id}
+                className="group block transition-colors hover:border-primary/40 hover:bg-accent/25"
+              >
+                <span className="mb-4 flex size-10 items-center justify-center rounded-lg border border-primary/15 bg-accent font-semibold text-accent-foreground">
+                  {ws.name[0]?.toUpperCase()}
                 </span>
-              </div>
-            </Link>
+                <h3>{ws.name}</h3>
+                <p>
+                  {ws.description ||
+                    (ws.isPersonal
+                      ? "Your private space to get started."
+                      : "A space for your team.")}
+                </p>
+                <div className="flex items-center gap-3">
+                  <Badge>{ws.role}</Badge>
+                  <span>{ws.isPersonal ? "Personal" : ws.visibility}</span>
+                  <ArrowRight className="ml-auto size-4" aria-hidden="true" />
+                </div>
+              </Link>
+            </Card>
           ))}
         </div>
       )}
-      <section className="discovery">
+      <section className="mt-12 border-t pt-8">
         <PageHeading eyebrow="Find your community" title="Discover workspaces">
           Public workspaces are open to join. Their content is available to members.
         </PageHeading>
         <Field
           label="Search public workspaces"
           type="search"
+          className="mb-5 max-w-md"
           maxLength={100}
           value={q}
           onChange={(e) => {
@@ -133,29 +155,31 @@ export function WorkspacesPage() {
         {discover.isPending ? (
           <Loading label="Finding workspaces…" />
         ) : discover.data?.workspaces.length ? (
-          <div className="workspace-grid">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {discover.data.workspaces.map((ws) => (
-              <article className="card" key={ws.id}>
-                <h3>{ws.name}</h3>
-                <p>{ws.description || "An open space for collaboration."}</p>
-                <button disabled={join.isPending} onClick={() => join.mutate(ws.id)}>
-                  Join workspace <span aria-hidden="true">→</span>
-                </button>
-              </article>
+              <Card asChild key={ws.id} className="[&>p]:my-3 [&>form]:mt-4">
+                <article key={ws.id}>
+                  <h3>{ws.name}</h3>
+                  <p>{ws.description || "An open space for collaboration."}</p>
+                  <Button disabled={join.isPending} onClick={() => join.mutate(ws.id)}>
+                    Join workspace <ArrowRight className="size-4" aria-hidden="true" />
+                  </Button>
+                </article>
+              </Card>
             ))}
           </div>
         ) : (
-          <div className="empty">
+          <div className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-surface px-5 py-10 text-center text-muted-foreground">
             <h3>No public workspaces found</h3>
             <p>Create a workspace or ask your team for an invitation link.</p>
           </div>
         )}
-        <div className="actions">
+        <div className="mt-5 flex flex-wrap items-center gap-2">
           {offset > 0 && (
-            <button onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</button>
+            <Button onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</Button>
           )}
           {discover.data?.nextOffset != null && (
-            <button onClick={() => setOffset(discover.data!.nextOffset!)}>Next</button>
+            <Button onClick={() => setOffset(discover.data!.nextOffset!)}>Next</Button>
           )}
         </div>
       </section>

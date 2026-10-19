@@ -1,0 +1,95 @@
+/* Generated from tokens.ts. Run theme:generate to update. */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --background: #f8fafc;
+  --foreground: #17253d;
+  --surface: #ffffff;
+  --elevated: #ffffff;
+  --muted: #edf2f9;
+  --muted-foreground: #596b85;
+  --border: #dce4f0;
+  --input: #7f90aa;
+  --primary: #2968ee;
+  --primary-hover: #2055d0;
+  --primary-foreground: #ffffff;
+  --accent: #e7efff;
+  --accent-foreground: #214b99;
+  --ring: #2968ee;
+  --destructive: #b33445;
+  --destructive-subtle: #fdf0f1;
+  --success: #246b4d;
+  --success-subtle: #eaf5ee;
+  --sidebar: #f1f5fb;
+  --media-background: #080e1a;
+  --media-foreground: #dce7fa;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0b1221;
+  --foreground: #eff4ff;
+  --surface: #111c30;
+  --elevated: #16233a;
+  --muted: #1b2942;
+  --muted-foreground: #a9b9d3;
+  --border: #24344f;
+  --input: #657b9c;
+  --primary: #82afff;
+  --primary-hover: #b6d0ff;
+  --primary-foreground: #0b1425;
+  --accent: #162c46;
+  --accent-foreground: #b8d0ff;
+  --ring: #8ebaff;
+  --destructive: #ffacb5;
+  --destructive-subtle: #3b242b;
+  --success: #92d9af;
+  --success-subtle: #223a2b;
+  --sidebar: #0b1425;
+  --media-background: #080e1a;
+  --media-foreground: #dce7fa;
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-sidebar: var(--sidebar);
+  --color-media-background: var(--media-background);
+  --color-media-foreground: var(--media-foreground);
+}
+@theme {
+  --font-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --spacing: 4px;
+  --spacing-control: 36px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --default-transition-duration: 120ms;
+  --animate-enter: enter 180ms ease-out;
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(-3px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

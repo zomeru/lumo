@@ -7,6 +7,7 @@ import { vi, test, expect, beforeEach, afterEach } from "vitest";
 import { configurePlatform } from "./platform";
 import { createAppRouter } from "./router";
 import { mockApi, teamId, bobId } from "./test/mock-api";
+import { selectOption } from "./test/select-option";
 const media = vi.hoisted(() => ({
   send: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
   history: vi.fn<() => Promise<boolean>>(async () => false),
@@ -123,7 +124,7 @@ test("new private conversations and conversation pagination remain usable", asyn
   const user = await show(`/w/${teamId}/messenger`);
   await user.click(await screen.findByText("New conversation"));
   await user.type(screen.getByLabelText("Conversation name"), "Team");
-  await user.selectOptions(screen.getByLabelText("Type"), "group");
+  await selectOption(user, "Type", "Private group");
   await user.type(screen.getByLabelText("Find members"), "Bob");
   await user.click(screen.getByLabelText("Bob Rivera"));
   await user.click(screen.getByRole("button", { name: "Create conversation" }));
@@ -147,8 +148,8 @@ test("meeting creation, pagination and media controls run through the shared scr
   await user.click(screen.getByRole("button", { name: "Turn camera off" }));
   await user.click(screen.getByRole("button", { name: "Share screen" }));
   await user.click(screen.getByRole("button", { name: "Choose devices" }));
-  await user.selectOptions(screen.getByLabelText("Microphone"), "mic");
-  await user.selectOptions(screen.getByLabelText("Camera"), "cam");
+  await selectOption(user, "Microphone", "Microphone 1");
+  await selectOption(user, "Camera", "Camera 1");
   await user.click(screen.getByRole("button", { name: "Leave meeting" }));
   await screen.findByRole("button", { name: "Join meeting" });
   await user.click(screen.getByRole("button", { name: "End meeting for everyone" }));
@@ -167,7 +168,7 @@ test("scheduled creation and copyable links preserve timezone", async () => {
   fireEvent.change(screen.getByLabelText("Start time (leave empty to meet now)"), {
     target: { value: "2030-01-01T12:00" },
   });
-  await user.selectOptions(screen.getByLabelText("Who can join"), "open");
+  await selectOption(user, "Who can join", "Anyone with a Lumo account and link");
   await user.click(screen.getByRole("button", { name: "Create meeting" }));
   expect(await screen.findByRole("link", { name: "Open Design review" })).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Next" }));

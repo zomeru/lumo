@@ -1,5 +1,5 @@
 import { conversationSchema } from "@lumo/contracts/collaboration";
-import { Avatar, ErrorMessage, Field, Loading, PageHeading } from "@lumo/ui";
+import { Avatar, Badge, Button, Card, ErrorMessage, Field, Loading, PageHeading } from "@lumo/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -33,6 +33,7 @@ export function ContactsPage({ workspaceId }: { workspaceId: string }) {
       <Field
         label="Search members by name"
         type="search"
+        className="mb-5 max-w-md"
         maxLength={100}
         value={q}
         onChange={(e) => {
@@ -44,45 +45,47 @@ export function ContactsPage({ workspaceId }: { workspaceId: string }) {
       {members.isPending ? (
         <Loading label="Loading contacts…" />
       ) : members.isError ? null : members.data?.members.length ? (
-        <div className="contacts-grid">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {members.data.members.map((member) => (
-            <article className="card contact-card" key={member.userId}>
-              <Avatar name={member.name} />
-              <h2>{member.name}</h2>
-              <p>
-                {member.jobTitle || "Workspace member"}
-                {member.department && (
-                  <>
-                    <br />
-                    {member.department}
-                  </>
+            <Card asChild key={member.userId} className="[&>p]:my-3 [&>form]:mt-4">
+              <article className="flex flex-col items-start gap-3" key={member.userId}>
+                <Avatar name={member.name} />
+                <h2>{member.name}</h2>
+                <p>
+                  {member.jobTitle || "Workspace member"}
+                  {member.department && (
+                    <>
+                      <br />
+                      {member.department}
+                    </>
+                  )}
+                </p>
+                <Badge>{member.role}</Badge>
+                {member.userId !== session.data?.user.id && (
+                  <Button
+                    className="w-full"
+                    disabled={start.isPending}
+                    onClick={() => start.mutate(member.userId)}
+                  >
+                    Message {member.name}
+                  </Button>
                 )}
-              </p>
-              <span className="badge">{member.role}</span>
-              {member.userId !== session.data?.user.id && (
-                <button
-                  className="full"
-                  disabled={start.isPending}
-                  onClick={() => start.mutate(member.userId)}
-                >
-                  Message {member.name}
-                </button>
-              )}
-            </article>
+              </article>
+            </Card>
           ))}
         </div>
       ) : (
-        <div className="empty">
+        <div className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-surface px-5 py-10 text-center text-muted-foreground">
           <h2>No members found</h2>
           <p>Try a different name.</p>
         </div>
       )}
-      <div className="actions">
+      <div className="mt-5 flex flex-wrap items-center gap-2">
         {offset > 0 && (
-          <button onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</button>
+          <Button onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</Button>
         )}
         {members.data?.nextOffset != null && (
-          <button onClick={() => setOffset(members.data!.nextOffset!)}>Next</button>
+          <Button onClick={() => setOffset(members.data!.nextOffset!)}>Next</Button>
         )}
       </div>
     </>

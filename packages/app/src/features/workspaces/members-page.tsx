@@ -5,7 +5,23 @@ import {
   canInviteRole,
   canRemoveMember,
 } from "@lumo/contracts/permissions";
-import { Avatar, ErrorMessage, Field, Loading, PageHeading, SelectField } from "@lumo/ui";
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  ErrorMessage,
+  Field,
+  Loading,
+  PageHeading,
+  Select,
+  SelectContent,
+  SelectField,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useToast,
+} from "@lumo/ui";
 import { ConfirmAction } from "@lumo/ui/confirm-action";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -35,27 +51,34 @@ function RoleEditor({
 }) {
   const [selected, setSelected] = useState(member.role);
   return (
-    <div className="role-editor">
-      <select
-        aria-label={`Role for ${member.name}`}
+    <div className="flex items-end gap-2">
+      <Select
         value={selected}
-        onChange={(e) => setSelected(e.target.value as Role)}
+        onValueChange={(value) => setSelected(value as Role)}
         disabled={busy}
       >
-        <option value={member.role}>{member.role}</option>
-        {(["admin", "moderator", "member"] as const)
-          .filter((role) => role !== member.role && canChangeRole(actorRole, member.role, role))
-          .map((role) => (
-            <option key={role}>{role}</option>
-          ))}
-      </select>
-      <button
-        className="compact"
+        <SelectTrigger aria-label={`Role for ${member.name}`} size="sm" className="w-28 capitalize">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={member.role}>{member.role}</SelectItem>
+          {(["admin", "moderator", "member"] as const)
+            .filter((role) => role !== member.role && canChangeRole(actorRole, member.role, role))
+            .map((role) => (
+              <SelectItem key={role} value={role}>
+                {role}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+      <Button
+        size="sm"
+
         disabled={busy || selected === member.role}
         onClick={() => onChange(selected)}
       >
         Save role
-      </button>
+      </Button>
     </div>
   );
 }
@@ -63,6 +86,7 @@ function RoleEditor({
 import { getPlatform } from "../../platform";
 
 export function MembersPage({ workspaceId }: { workspaceId: string }) {
+  const notify = useToast();
   const client = useQueryClient();
   const navigate = useNavigate();
   const ws = useQuery(workspaceQuery(workspaceId));
@@ -120,67 +144,82 @@ export function MembersPage({ workspaceId }: { workspaceId: string }) {
         Manage the people who belong to {ws.data.name}.
       </PageHeading>
       {canInvite(role) && (
-        <section className="card">
-          <h2>Invite your team</h2>
-          <p>
-            Create a link for a specific email address. Your colleague must verify that email to
-            accept it. Links expire in seven days.
-          </p>
-          <form
-            className="invite-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const values = new FormData(e.currentTarget);
-              invite.mutate({
-                email: values.get("email") as string,
-                role: values.get("role") as string,
-              });
-            }}
-          >
-            <Field label="Colleague’s email" name="email" type="email" required maxLength={254} />
-            <SelectField label="Invitation role" name="role">
-              <option value="member">Member</option>
-              {canInviteRole(role, "moderator") && <option value="moderator">Moderator</option>}
-            </SelectField>
-            <button className="primary" disabled={invite.isPending}>
-              {invite.isPending ? "Creating…" : "Create invitation"}
-            </button>
-          </form>
-          <ErrorMessage error={invite.error} />
-          {inviteLink && (
-            <div className="invite-result">
-              <Field
-                label="Invitation link"
-                value={inviteLink}
-                readOnly
-                onFocus={(e) => e.target.select()}
-                hint="Share this link with the invited colleague. It is only shown after creation."
+        <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
+          <section>
+            <h2>Invite your team</h2>
+            <p>
+              Create a link for a specific email address. Your colleague must verify that email to
+              accept it. Links expire in seven days.
+            </p>
+            <form
+              className="grid items-end gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const values = new FormData(e.currentTarget);
+                invite.mutate({
+                  email: values.get("email") as string,
+                  role: values.get("role") as string,
+                });
+              }}
+            >
+              <Field label="Colleague’s email" name="email" type="email" required maxLength={254} />
+              <SelectField
+                label="Invitation role"
+                name="role"
+                options={[
+                  { value: "member", label: "Member" },
+                  ...(canInviteRole(role, "moderator")
+                    ? [{ value: "moderator", label: "Moderator" }]
+                    : []),
+                ]}
               />
-              <button
-                onClick={() => {
-                  void Promise.resolve()
-                    .then(() => navigator.clipboard.writeText(inviteLink))
-                    .then(
-                      () => setCopied(true),
-                      () => setCopyError(new Error("Select and copy the invitation link above.")),
-                    );
-                }}
-              >
-                {copied ? "Copied" : "Copy link"}
-              </button>
-              <ErrorMessage error={copyError} />
-            </div>
-          )}
-        </section>
+              <Button variant="primary" type="submit" disabled={invite.isPending}>
+                {invite.isPending ? "Creating…" : "Create invitation"}
+              </Button>
+            </form>
+            <ErrorMessage error={invite.error} />
+            {inviteLink && (
+              <div className="mt-5 grid gap-3 border-t pt-5">
+                <Field
+                  label="Invitation link"
+                  value={inviteLink}
+                  readOnly
+                  onFocus={(e) => e.target.select()}
+                  hint="Share this link with the invited colleague. It is only shown after creation."
+                />
+                <Button
+                  onClick={() => {
+                    void Promise.resolve()
+                      .then(() => navigator.clipboard.writeText(inviteLink))
+                      .then(
+                        () => {
+                          setCopied(true);
+                          notify({
+                            title: "Invitation link copied",
+                            description: "Share it with the invited colleague.",
+                          });
+                        },
+                        () => setCopyError(new Error("Select and copy the invitation link above.")),
+                      );
+                  }}
+                >
+                  {copied ? "Copied" : "Copy link"}
+                </Button>
+                <ErrorMessage error={copyError} />
+              </div>
+            )}
+          </section>
+        </Card>
       )}
       <section>
-        <div className="section-heading">
+        <div className="mt-7 mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2>Workspace members</h2>
-          <span className="badge">{role}</span>
+          <Badge>{role}</Badge>
         </div>
         <Field
           label="Search members"
           type="search"
+          className="mb-5 max-w-md"
           value={q}
           maxLength={100}
           onChange={(e) => {
@@ -189,24 +228,31 @@ export function MembersPage({ workspaceId }: { workspaceId: string }) {
           }}
         />
         <ErrorMessage error={members.error ?? action.error} />
-        {action.isSuccess && <output className="notice">Workspace membership updated.</output>}
+        {action.isSuccess && (
+          <output className="my-3 block rounded-md border border-primary/15 bg-accent px-3 py-2.5 text-sm text-accent-foreground">
+            Workspace membership updated.
+          </output>
+        )}
         {members.isPending ? (
           <Loading label="Loading members…" />
         ) : members.isError ? null : members.data?.members.length ? (
-          <div className="member-list">
+          <div className="mt-4 divide-y overflow-hidden rounded-lg border bg-surface">
             {members.data.members.map((member) => (
-              <article className="member-row" key={member.userId}>
+              <article
+                className="flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
+                key={member.userId}
+              >
                 <Avatar name={member.name} />
-                <div className="member-name">
+                <div className="min-w-28 flex-1 wrap-anywhere text-sm">
                   <strong>
                     {member.name}
                     {member.userId === session.data!.user.id ? " (you)" : ""}
                   </strong>
                   <small>{member.jobTitle || "Workspace member"}</small>
                 </div>
-                <span className="badge">{member.role}</span>
+                <Badge>{member.role}</Badge>
                 {member.userId !== session.data!.user.id && (
-                  <div className="member-actions">
+                  <div className="flex flex-wrap items-center gap-2">
                     {(["admin", "moderator", "member"] as const).some((next) =>
                       canChangeRole(role, member.role, next),
                     ) && (
@@ -253,64 +299,75 @@ export function MembersPage({ workspaceId }: { workspaceId: string }) {
             ))}
           </div>
         ) : (
-          <p className="empty">No members match your search.</p>
+          <p className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-surface px-5 py-10 text-center text-muted-foreground">
+            No members match your search.
+          </p>
         )}
-        <div className="actions">
+        <div className="mt-5 flex flex-wrap items-center gap-2">
           {offset > 0 && (
-            <button onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</button>
+            <Button onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</Button>
           )}
           {members.data?.nextOffset != null && (
-            <button onClick={() => setOffset(members.data!.nextOffset!)}>Next</button>
+            <Button onClick={() => setOffset(members.data!.nextOffset!)}>Next</Button>
           )}
         </div>
       </section>
       {canInvite(role) && (
-        <section className="card">
-          <h2>Pending invitations</h2>
-          <ErrorMessage error={invitations.error} />
-          {invitations.isPending ? (
-            <Loading label="Loading invitations…" />
-          ) : invitations.data?.invitations.length ? (
-            invitations.data.invitations.map((item) => (
-              <div className="invitation-row" key={item.id}>
-                <div>
-                  <strong>{item.email}</strong>
-                  <small>
-                    {item.role} · expires {new Date(item.expiresAt).toLocaleDateString()}
-                  </small>
-                </div>
-                <button
-                  className="danger compact"
-                  disabled={action.isPending || !canInviteRole(role, item.role)}
-                  onClick={() => {
-                    setInviteLink("");
-                    action.mutate({ path: `/invitations/${item.id}`, method: "DELETE" });
-                  }}
+        <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
+          <section>
+            <h2>Pending invitations</h2>
+            <ErrorMessage error={invitations.error} />
+            {invitations.isPending ? (
+              <Loading label="Loading invitations…" />
+            ) : invitations.data?.invitations.length ? (
+              invitations.data.invitations.map((item) => (
+                <div
+                  className="flex flex-wrap items-center justify-between gap-3 border-b py-4 last:border-0"
+                  key={item.id}
                 >
-                  Revoke invitation
-                </button>
-              </div>
-            ))
-          ) : (
-            <p>No pending invitations.</p>
-          )}
-        </section>
+                  <div>
+                    <strong>{item.email}</strong>
+                    <small>
+                      {item.role} · expires {new Date(item.expiresAt).toLocaleDateString()}
+                    </small>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+
+                    disabled={action.isPending || !canInviteRole(role, item.role)}
+                    onClick={() => {
+                      setInviteLink("");
+                      action.mutate({ path: `/invitations/${item.id}`, method: "DELETE" });
+                    }}
+                  >
+                    Revoke invitation
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <p>No pending invitations.</p>
+            )}
+          </section>
+        </Card>
       )}
       {role !== "owner" && (
-        <section className="card">
-          <h2>Leave workspace</h2>
-          <p>
-            You will lose access to this workspace. You can return with a new invitation
-            {ws.data.visibility === "public" ? " or by joining again" : ""}.
-          </p>
-          <ErrorMessage error={leave.error} />
-          <ConfirmAction
-            label="Leave workspace"
-            message="You will no longer have access to this workspace’s data."
-            disabled={leave.isPending}
-            onConfirm={() => leave.mutate()}
-          />
-        </section>
+        <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
+          <section>
+            <h2>Leave workspace</h2>
+            <p>
+              You will lose access to this workspace. You can return with a new invitation
+              {ws.data.visibility === "public" ? " or by joining again" : ""}.
+            </p>
+            <ErrorMessage error={leave.error} />
+            <ConfirmAction
+              label="Leave workspace"
+              message="You will no longer have access to this workspace’s data."
+              disabled={leave.isPending}
+              onConfirm={() => leave.mutate()}
+            />
+          </section>
+        </Card>
       )}
     </>
   );

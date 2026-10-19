@@ -40,7 +40,7 @@ function SessionBoundary() {
   }, [session.error, queryClient, navigate]);
   if (session.isError)
     return (
-      <main className="centered">
+      <main className="mx-auto my-16 grid max-w-xl gap-5 px-6">
         <ErrorMessage error={session.error} />
         <Link to="/login">Sign in again</Link>
       </main>

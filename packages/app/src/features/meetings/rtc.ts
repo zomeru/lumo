@@ -91,7 +91,7 @@ export async function createMeetingConnection(
         const key = String(user.uid);
         remove(key);
         const node = document.createElement("div");
-        node.className = "video-tile";
+        node.dataset.videoTile = "";
         node.setAttribute("aria-label", `Video ${key}`);
         renderers.remote.append(node);
         remoteNodes.set(key, node);

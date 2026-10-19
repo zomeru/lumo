@@ -1,4 +1,13 @@
-import { useRef } from "react";
+import { Button } from "./button";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "./dialog";
 
 export function ConfirmAction({
   label,
@@ -11,32 +20,27 @@ export function ConfirmAction({
   disabled?: boolean;
   onConfirm: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
   return (
-    <>
-      <button
-        className="danger compact"
-        disabled={disabled}
-        onClick={() => dialog.current?.showModal()}
-      >
-        {label}
-      </button>
-      <dialog ref={dialog} aria-label={label}>
-        <h2>{label}?</h2>
-        <p>{message}</p>
-        <div className="actions">
-          <button onClick={() => dialog.current?.close()}>Cancel</button>
-          <button
-            className="danger"
-            onClick={() => {
-              dialog.current?.close();
-              onConfirm();
-            }}
-          >
-            Confirm {label.toLowerCase()}
-          </button>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" size="sm" disabled={disabled}>
+          {label}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogTitle>{label}?</AlertDialogTitle>
+        <AlertDialogDescription>{message}</AlertDialogDescription>
+        <div className="mt-2 flex justify-end gap-2">
+          <AlertDialogCancel asChild>
+            <Button>Cancel</Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button variant="destructive" disabled={disabled} onClick={onConfirm}>
+              Confirm {label.toLowerCase()}
+            </Button>
+          </AlertDialogAction>
         </div>
-      </dialog>
-    </>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

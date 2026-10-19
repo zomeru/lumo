@@ -67,12 +67,14 @@ async function login(page: Page, email: string) {
   ).toBeVisible();
 }
 test("desktop login, real API, workspace parity, logout, restart and sandbox boundaries", async () => {
+  const testInfo = test.info();
   const dir = await mkdtemp(join(tmpdir(), "lumo-desktop-e2e-"));
   let app: ElectronApplication | undefined;
   try {
     app = await launch(dir);
     let page = await app.firstWindow();
     await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("desktop-login.png") });
     expect(
       await page.evaluate(() => ({
         require: typeof (window as unknown as { require: unknown }).require,
@@ -101,6 +103,24 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
     await expect(
       page.getByRole("heading", { name: "Make yourself at home, Desktop" }),
     ).toBeVisible();
+    await page.getByRole("button", { name: "Change appearance" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Dark" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.getByRole("combobox", { name: "Workspace", exact: true }).click();
+    const choices = page.getByRole("listbox");
+    await expect(choices).toBeVisible();
+    const box = await choices.boundingBox();
+    expect(box && box.width > 150 && box.x >= 0).toBe(true);
+    await page.keyboard.press("Escape");
+    await page.screenshot({ path: testInfo.outputPath("desktop-home-dark.png") });
+    await page.getByRole("link", { name: /Messenger/ }).click();
+    await page.getByRole("button", { name: "New conversation" }).click();
+    const dialog = page.getByRole("dialog", { name: "New conversation" });
+    await dialog.getByRole("combobox", { name: "Type" }).click();
+    await page.getByRole("option", { name: "Private group" }).click();
+    await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Private group");
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
     await page.getByRole("link", { name: /Contacts/ }).click();
     await expect(page.getByRole("heading", { name: "Contacts", exact: true })).toBeVisible();
     await page.getByRole("link", { name: /Meetings/ }).click();
@@ -284,13 +304,13 @@ async function liveMeeting(browser: Browser, screenCapture: boolean) {
     await expect(web.getByRole("button", { name: "Turn camera off", exact: true })).toBeVisible({
       timeout: 30000,
     });
-    await expect(desktop.locator(".remote-videos video")).toHaveCount(1, { timeout: 30000 });
+    await expect(desktop.locator("[data-remote-videos] video")).toHaveCount(1, { timeout: 30000 });
     if (!screenCapture) {
       await desktop.getByRole("button", { name: "Turn camera on", exact: true }).click();
       await expect(
         desktop.getByRole("button", { name: "Turn camera off", exact: true }),
       ).toBeVisible({ timeout: 30000 });
-      await expect(web.locator(".remote-videos video")).toHaveCount(1, { timeout: 30000 });
+      await expect(web.locator("[data-remote-videos] video")).toHaveCount(1, { timeout: 30000 });
       await desktop.getByRole("button", { name: "Unmute microphone", exact: true }).click();
       await expect(
         desktop.getByRole("button", { name: "Mute microphone", exact: true }),
@@ -310,9 +330,9 @@ async function liveMeeting(browser: Browser, screenCapture: boolean) {
       await expect(desktop.getByRole("button", { name: "Stop sharing", exact: true })).toBeVisible({
         timeout: 30000,
       });
-      await expect(web.locator(".remote-videos video")).toHaveCount(1, { timeout: 30000 });
+      await expect(web.locator("[data-remote-videos] video")).toHaveCount(1, { timeout: 30000 });
       await desktop.getByRole("button", { name: "Stop sharing", exact: true }).click();
-      await expect(web.locator(".remote-videos video")).toHaveCount(0, { timeout: 30000 });
+      await expect(web.locator("[data-remote-videos] video")).toHaveCount(0, { timeout: 30000 });
     }
     await desktop.getByRole("button", { name: "End meeting for everyone", exact: true }).click();
     await expect(desktop.getByRole("button", { name: "Join meeting", exact: true })).toHaveCount(0);

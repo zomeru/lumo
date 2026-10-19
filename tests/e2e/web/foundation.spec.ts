@@ -3,6 +3,13 @@ import { resolve } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+async function selectOption(page: Page, label: string, option: string) {
+  await page.getByRole("combobox", { name: label, exact: true }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}
+
+import { verifyDesignSystem } from "./design-system";
+
 const password = "Strong-browser-password-2026!";
 
 async function register(page: Page, name: string, email: string) {
@@ -53,11 +60,12 @@ test("account, setup, invitations, switching and revocation work with the real A
   await expect(page).toHaveURL(/\/login/);
   await register(page, "Alice Chen", ownerEmail);
   await expect(page.getByRole("heading", { name: "Make yourself at home, Alice" })).toBeVisible();
-  await page.getByRole("link", { name: "+ New workspace" }).click();
+  await verifyDesignSystem(page, testInfo);
+  await page.getByRole("link", { name: "New workspace" }).click();
   await page.getByLabel("Company or team name").fill("Acme Studio");
   await page.getByLabel("Description").fill("Our browser-tested team");
-  await page.getByLabel("Industry").selectOption("Technology");
-  await page.getByLabel("Company size").selectOption("11-50");
+  await selectOption(page, "Industry", "Technology");
+  await selectOption(page, "Company size", "11–50 people");
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Job title").fill("Engineer");
   await page.getByLabel("Department").fill("Product");
@@ -91,7 +99,7 @@ test("account, setup, invitations, switching and revocation work with the real A
 
   await page.reload();
   await expect(page.getByText("Bob Rivera", { exact: true })).toBeVisible();
-  await page.getByLabel("Role for Bob Rivera").selectOption("moderator");
+  await selectOption(page, "Role for Bob Rivera", "moderator");
   await page.getByRole("button", { name: "Save role" }).click();
   await expect(page.getByRole("status")).toContainText("membership updated");
   await page.getByRole("button", { name: "Remove member", exact: true }).click();
@@ -105,18 +113,19 @@ test("account, setup, invitations, switching and revocation work with the real A
   await colleagueContext.close();
 
   await openNav(page);
-  await page.getByLabel("Workspace", { exact: true }).selectOption({ label: "Alice's Workspace" });
+  await selectOption(page, "Workspace", "Alice's Workspace");
   await expect(page.getByRole("heading", { name: "Make yourself at home, Alice" })).toBeVisible();
   await expect(page.getByText("Our browser-tested team")).toHaveCount(0);
   await openNav(page);
-  await page.getByLabel("Workspace", { exact: true }).selectOption({ label: "Acme Studio" });
+  await selectOption(page, "Workspace", "Acme Studio");
   await expect(page).toHaveURL(teamUrl);
   await openNav(page);
   await page.getByRole("link", { name: /Settings/ }).click();
   await page.getByLabel("Company or team name").fill("Acme Updated");
   await page.getByRole("button", { name: "Save settings" }).click();
   await expect(page.getByRole("status")).toContainText("settings saved");
-  await expect(page.getByLabel("Company size")).toHaveValue("11-50");
+  await expect(page.getByRole("combobox", { name: "Company size" })).toHaveText("11–50 people");
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath("settings.png"), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,

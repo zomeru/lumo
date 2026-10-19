@@ -20,11 +20,16 @@ afterEach(() => {
   }
 });
 
-// jsdom does not implement scrolling or the native dialog lifecycle.
+// jsdom does not implement document scrolling.
 window.scrollTo = () => {};
-HTMLDialogElement.prototype.showModal = function () {
-  this.setAttribute("open", "");
-};
-HTMLDialogElement.prototype.close = function () {
-  this.removeAttribute("open");
+
+// Radix uses browser pointer capture and scrolling, which jsdom does not implement.
+HTMLElement.prototype.hasPointerCapture = () => false;
+HTMLElement.prototype.setPointerCapture = () => {};
+HTMLElement.prototype.releasePointerCapture = () => {};
+HTMLElement.prototype.scrollIntoView = () => {};
+globalThis.ResizeObserver = class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
 };

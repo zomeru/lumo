@@ -5,15 +5,19 @@ export const Route = createFileRoute("/about")({ component: AboutPage });
 
 function AboutPage() {
   return (
-    <section className="centered" id="main-content">
+    <section className="mx-auto my-16 grid max-w-xl gap-5 px-6" id="main-content">
       <Brand />
       <h1 className="text-4xl font-semibold tracking-tight">About Lumo</h1>
-      <p className="mt-4 text-lg text-slate-600">Built with React, Vite, and TanStack Router.</p>
+      <p className="mt-4 text-lg text-muted-foreground">
+        Built with React, Vite, and TanStack Router.
+      </p>
       <p>
-        Lumo’s foundation connects accounts, workspaces and people. Messaging, calls, Drive, office
+        Lumo connects accounts, workspaces and people through messages and meetings. Drive, office
         editing, work management and HR are planned for later releases.
       </p>
-      <Link to="/">Home</Link>
+      <Link className="text-primary hover:underline" to="/">
+        Home
+      </Link>
     </section>
   );
 }

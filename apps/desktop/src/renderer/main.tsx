@@ -1,6 +1,7 @@
 import type { Transport } from "@lumo/api-client";
 import { createAppRouter } from "@lumo/app";
 import { configurePlatform } from "@lumo/app/platform";
+import { initializeTheme } from "@lumo/ui/theme";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 
@@ -15,6 +16,7 @@ declare global {
     };
   }
 }
+initializeTheme();
 configurePlatform({
   kind: "desktop",
   webOrigin: await window.lumo.webOrigin(),

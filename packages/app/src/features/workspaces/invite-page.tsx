@@ -1,5 +1,5 @@
 import { okSchema, workspaceSchema } from "@lumo/contracts";
-import { Brand, ErrorMessage, Loading } from "@lumo/ui";
+import { Brand, Button, Card, ErrorMessage, Loading } from "@lumo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 
@@ -34,49 +34,60 @@ export function InvitePage({ token }: { token: string }) {
     },
   });
   return (
-    <main id="main-content" className="onboarding">
+    <main
+      id="main-content"
+      className="mx-auto grid min-h-dvh max-w-2xl content-start gap-6 px-5 py-10 sm:py-14"
+    >
       <Brand />
-      <section className="card">
-        <h1>You’re invited</h1>
-        {preview.isPending ? (
-          <Loading label="Checking your invitation…" />
-        ) : preview.data ? (
-          <>
-            <p>
-              Join <strong>{preview.data.workspaceName}</strong> as a {preview.data.role}.
-            </p>
-            <p>This invitation expires {new Date(preview.data.expiresAt).toLocaleDateString()}.</p>
-            {session.data?.user.emailVerified ? (
-              <button
-                className="primary"
-                disabled={accept.isPending}
-                onClick={() => accept.mutate()}
-              >
-                {accept.isPending ? "Joining…" : "Accept invitation"}
-              </button>
-            ) : (
-              <p className="notice">
-                Verify your email before accepting. <Link to="/profile">Open your profile</Link>,
-                then return to this invitation link.
+      <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
+        <section>
+          <h1>You’re invited</h1>
+          {preview.isPending ? (
+            <Loading label="Checking your invitation…" />
+          ) : preview.data ? (
+            <>
+              <p>
+                Join <strong>{preview.data.workspaceName}</strong> as a {preview.data.role}.
               </p>
-            )}
-          </>
-        ) : (
-          <p>
-            This invitation is unavailable. It may have expired, been used or revoked, or belong to
-            another email address.
-          </p>
-        )}
-        {preview.data && (
-          <button disabled={decline.isPending} onClick={() => decline.mutate()}>
-            Decline invitation
-          </button>
-        )}
-        <ErrorMessage error={accept.error ?? decline.error} />
-        <Link className="back-link" to="/workspaces">
-          Your workspaces
-        </Link>
-      </section>
+              <p>
+                This invitation expires {new Date(preview.data.expiresAt).toLocaleDateString()}.
+              </p>
+              {session.data?.user.emailVerified ? (
+                <Button
+                  variant="primary"
+
+                  disabled={accept.isPending}
+                  onClick={() => accept.mutate()}
+                >
+                  {accept.isPending ? "Joining…" : "Accept invitation"}
+                </Button>
+              ) : (
+                <p className="my-3 block rounded-md border border-primary/15 bg-accent px-3 py-2.5 text-sm text-accent-foreground">
+                  Verify your email before accepting. <Link to="/profile">Open your profile</Link>,
+                  then return to this invitation link.
+                </p>
+              )}
+            </>
+          ) : (
+            <p>
+              This invitation is unavailable. It may have expired, been used or revoked, or belong
+              to another email address.
+            </p>
+          )}
+          {preview.data && (
+            <Button disabled={decline.isPending} onClick={() => decline.mutate()}>
+              Decline invitation
+            </Button>
+          )}
+          <ErrorMessage error={accept.error ?? decline.error} />
+          <Link
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
+            to="/workspaces"
+          >
+            Your workspaces
+          </Link>
+        </section>
+      </Card>
     </main>
   );
 }

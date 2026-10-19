@@ -139,7 +139,7 @@ The repository asks agents to use its installed Intent. Intent is currently unav
 
 ## Desktop and collaboration
 
-`apps/desktop` builds Electron main, a sandbox-compatible preload, and a renderer with electron-vite. `packages/app` owns the shared TanStack router, views and query composition; `packages/ui` owns the existing DOM primitives/styles and a DOM-free token export; `packages/api-client` provides an injectable, schema-validating transport; `packages/shared` contains platform-neutral identities, link validation and message reconciliation. Expo should reuse contracts/client/domain code and implement native presentation/media adapters; no empty mobile app has been created.
+`apps/desktop` builds Electron main, a sandbox-compatible preload, and a renderer with electron-vite. `packages/app` owns the shared TanStack router, views and query composition; `packages/ui` owns the shared Radix components, Tailwind v4 theme/styles and a DOM-free token export (see [Lumo UI](packages/ui/README.md)); `packages/api-client` provides an injectable, schema-validating transport; `packages/shared` contains platform-neutral identities, link validation and message reconciliation. Expo should reuse contracts/client/domain code and implement native presentation/media adapters; no empty mobile app has been created.
 
 Start PostgreSQL in WSL (`sudo service postgresql start` where supported), configure `apps/api/.env`, and run `pnpm db:migrate`. Start API, web and desktop together with `pnpm dev`, or independently:
 

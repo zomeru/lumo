@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { createAppRouter } from "./router";
 import { mockApi, bobId, inviteToken, personalId, teamId } from "./test/mock-api";
+import { selectOption } from "./test/select-option";
 
 let server: ReturnType<typeof mockApi>;
 let client: QueryClient;
@@ -97,7 +98,7 @@ describe("workspace setup and discovery", () => {
   test("creates a workspace through all three steps and preserves back navigation", async () => {
     const { user } = await renderRoute("/onboarding");
     await user.type(screen.getByLabelText("Company or team name"), "New Studio");
-    await user.selectOptions(screen.getByLabelText("Industry"), "Technology");
+    await selectOption(user, "Industry", "Technology");
     await user.click(screen.getByRole("button", { name: /Continue/ }));
     await user.type(screen.getByLabelText("Job title"), "Engineer");
     await user.type(screen.getByLabelText("Department"), "Product");
@@ -158,7 +159,7 @@ describe("workspace shell and contacts", () => {
   test("switches workspaces and removes old cache entries", async () => {
     const { user, router } = await renderRoute(`/w/${teamId}/contacts`);
     expect(await screen.findByRole("heading", { name: "Bob Rivera" })).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText("Workspace", { exact: true }), personalId);
+    await selectOption(user, "Workspace", "Alice's Workspace");
     await waitFor(() => expect(router.state.location.pathname).toContain(personalId));
     expect(
       await screen.findByRole("heading", { name: "Make yourself at home, Alice" }),
@@ -175,16 +176,17 @@ describe("workspace shell and contacts", () => {
   test("opens mobile navigation and exposes only implemented actions", async () => {
     const { user } = await renderRoute(`/w/${teamId}`);
     await screen.findByRole("heading", { name: "Make yourself at home, Alice" });
-    await user.click(screen.getByRole("button", { name: "☰ Navigation" }));
-    expect(screen.getByRole("button", { name: "Close navigation" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
+    expect(screen.getByRole("dialog", { name: "Workspace navigation" })).toBeVisible();
     expect(screen.getByRole("link", { name: /Messenger/ })).toHaveAttribute(
       "href",
       `/w/${teamId}/messenger`,
     );
-    await user.click(screen.getByRole("button", { name: "Close navigation" }));
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Open navigation" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
   test("blocks revoked workspace routes", async () => {
     server.state.overrides.set(`GET /api/v1/workspaces/${teamId}`, () =>
@@ -229,14 +231,14 @@ describe("member administration", () => {
   test("changes a member role and confirms removal", async () => {
     const { user } = await renderRoute(`/w/${teamId}/members`);
     await screen.findByLabelText("Role for Bob Rivera");
-    await user.selectOptions(screen.getByLabelText("Role for Bob Rivera"), "moderator");
+    await selectOption(user, "Role for Bob Rivera", "moderator");
     await user.click(screen.getByRole("button", { name: "Save role" }));
     await waitFor(() =>
       expect(server.state.members.find((m) => m.userId === bobId)?.role).toBe("moderator"),
     );
     await user.click(screen.getByRole("button", { name: "Remove member" }));
     await user.click(
-      within(screen.getByRole("dialog", { name: "Remove member" })).getByRole("button", {
+      within(screen.getByRole("alertdialog", { name: "Remove member?" })).getByRole("button", {
         name: "Cancel",
       }),
     );
