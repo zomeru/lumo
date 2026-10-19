@@ -1,6 +1,6 @@
 # Lumo
 
-A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. The current MVP implements the account and workspace foundation.
+A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. Web and Electron share the account/workspace UI, contacts, invitations, Messenger and meetings.
 
 ## What works
 
@@ -12,13 +12,13 @@ A workspace collaboration platform built with React, Vite, TanStack Router and Q
 - Workspace settings, profile editing, a searchable member directory, and administrative audit events.
 - Responsive dark UI based on the reference screenshots, with loading, error, empty, and access-denied states.
 
-Messaging, Agora calls, presence, notifications, Drive, Univer editors, work management, HR, SSO, native clients, workspace deletion/retention, join requests, and guest roles are pending. Their navigation is disabled where shown. Private workspaces currently use authorized invitations; they do not accept self-joins or join requests. Personal workspaces remain private and cannot transfer ownership. Workspace language and currency are saved preferences; UI translation and financial features are not implemented.
+Presence, application notifications, Drive, Univer editors, work management, HR, SSO, Expo, workspace deletion/retention, join requests, and guest roles are pending. Their navigation is disabled where shown. Private workspaces currently use authorized invitations; they do not accept self-joins or join requests. Personal workspaces remain private and cannot transfer ownership. Workspace language and currency are saved preferences; UI translation and financial features are not implemented.
 
 ## Packages
 
 | Location                     | Responsibility                                                                                   |
 | ---------------------------- | ------------------------------------------------------------------------------------------------ |
-| `apps/web`                   | Browser routes, UI, validated API calls, and workspace-keyed queries                             |
+| `apps/web`                   | Browser entry and Vite host for the shared application                                           |
 | `apps/api`                   | Hono HTTP boundary, authentication middleware, feature services, authorization, and audit events |
 | `packages/database`          | PostgreSQL pool, Drizzle schema, and committed migrations                                        |
 | `packages/auth`              | Better Auth server factory, secure cookies, verification mail, and persistent auth rate limits   |
@@ -96,7 +96,7 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-`check:all` runs formatting, type-aware linting, package boundaries, dependency checks, type checking, coverage, and production builds. Tests retain the 90% global coverage gate for lines, statements, functions, and branches. HTTP/bootstrap entry points are verified by migration/build/browser smoke tests instead of importing running servers into Vitest.
+`check:all` runs formatting, type-aware linting, package boundaries, dependency checks, type checking, and coverage. Use `pnpm check:all:build` to include production builds. Tests retain the 90% global coverage gate for lines, statements, functions, and branches. HTTP/bootstrap entry points are verified by migration/build/browser smoke tests instead of importing running servers into Vitest.
 
 API integration and browser tests require `TEST_DATABASE_URL` pointing to a dedicated database whose name ends in `_test`. Each run creates and removes its own random PostgreSQL schema, applying the committed migrations with only the schema namespace rewritten. Tests never truncate development data. Browser tests use ports **3010/3011** and a separate local outbox at `.local/e2e-mail`; no mock API is used in Playwright. Readiness probes use IPv6 loopback to avoid WSL's delay when probing an unused IPv4 forwarded port.
 
@@ -125,14 +125,58 @@ Root Vitest discovers package projects. React tests use Testing Library and jsdo
 
 Set a strong `BETTER_AUTH_SECRET`, PostgreSQL `DATABASE_URL`, exact HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `SMTP_URL`, a deliverable `MAIL_FROM`, and `HOST` as appropriate for the runtime. SMTP transport requires TLS in production. Development mail spooling is disabled in production. The server validates its environment before listening and closes HTTP and PostgreSQL connections during shutdown.
 
-Serve the web build with an SPA fallback to `index.html`. Use a same-origin `/api` reverse proxy, or build with an explicit HTTPS `VITE_API_URL` and configure the API's exact `WEB_ORIGIN`. Turbo hashes browser configuration and forwards required server environment variables to development tasks. The default API listener is loopback; a container normally sets `HOST=0.0.0.0`.
+Serve the web build with an SPA fallback to `index.html`. Use a same-origin `/api` reverse proxy, or build with an explicit HTTPS `VITE_API_URL` and configure the API's exact `WEB_ORIGIN`. Turbo hashes browser configuration and forwards required server environment variables to development tasks. The environment example explicitly binds loopback; set `HOST=0.0.0.0` for WSL host access or containers.
 
 Production rollout still requires deployment-specific TLS/proxy configuration, backups and recovery testing, mail delivery validation, monitoring, and capacity testing. Auth rate limiting uses the actual socket peer; a deployment behind a reverse proxy must account for shared peer limits at its trusted ingress. Client-supplied forwarding headers are intentionally ignored.
 
 ## Repository conventions
 
-Use Oxlint and Oxfmt at the root. Husky installs staged source/format checks; commits follow Conventional Commits. Keep external dependencies pinned and run `pnpm install` after dependency changes. Add TanStack file routes in `apps/web/src/routes`; never edit `routeTree.gen.ts`. Type checking generates routes on a fresh checkout. The router Vite plugin stays before React, and tests disable automatic route splitting.
+Use Oxlint and Oxfmt at the root. Husky installs staged source/format checks; commits follow Conventional Commits. Keep external dependencies pinned and run `pnpm install` after dependency changes. Add TanStack file routes in `packages/app/src/routes`; never edit `routeTree.gen.ts`. Type checking generates routes on a fresh checkout. The router Vite plugin stays before React, and tests disable automatic route splitting.
 
 The version-scoped route-generator patch replaces its upstream formatter with Oxfmt. Review the patch, override, and package extension together when upgrading, and keep Oxfmt versions aligned. Planning material and screenshots under `docs/` remain unchanged.
 
 The repository asks agents to use its installed Intent. Intent is currently unavailable (`pnpm exec intent list` reports that the command is missing); no replacement was downloaded.
+
+## Desktop and collaboration
+
+`apps/desktop` builds Electron main, a sandbox-compatible preload, and a renderer with electron-vite. `packages/app` owns the shared TanStack router, views and query composition; `packages/ui` owns the existing DOM primitives/styles and a DOM-free token export; `packages/api-client` provides an injectable, schema-validating transport; `packages/shared` contains platform-neutral identities, link validation and message reconciliation. Expo should reuse contracts/client/domain code and implement native presentation/media adapters; no empty mobile app has been created.
+
+Start PostgreSQL in WSL (`sudo service postgresql start` where supported), configure `apps/api/.env`, and run `pnpm db:migrate`. Start API, web and desktop together with `pnpm dev`, or independently:
+
+```sh
+pnpm --filter @lumo/api dev
+pnpm --filter @lumo/web dev
+pnpm --filter @lumo/desktop dev
+pnpm build
+pnpm desktop:package
+```
+
+Desktop packaging produces an unpacked app under `apps/desktop/release/`. `pnpm --filter @lumo/desktop dist` builds the configured native installer (Linux AppImage, Windows NSIS, macOS DMG). Run Windows/macOS builds on their respective native runners. Releases still require signing/notarization credentials and a configured update service. No unsigned artifact is described as a signed release.
+
+Copy `apps/desktop/.env.example` to its `.env` to set public main-process build origins. Runtime main-process overrides are `DESKTOP_API_URL` and `DESKTOP_WEB_ORIGIN`. Use exact HTTPS origins in deployment; loopback HTTP is allowed for development. No API/Agora server secrets belong in desktop environment files or `VITE_*` variables. The desktop starts at Login, restores a session when an OS-protected key store is available, and restores the last authorized workspace through `/me`. Unavailable key stores use memory only. Paste invitation/meeting links from the configured web origin into the workspace picker to open them in desktop.
+
+Agora RTC uses the public project ID documented in `apps/api/.env.example`. Configure its server-only certificate with the authenticated Agora CLI, and quote the Chat App Key because `#` starts an unquoted dotenv comment. Chat is enabled for the supplied Lumo project at `https://a61.chat.agora.io`; credentials remain in the ignored server `.env`.
+
+Contacts can start workspace DMs. Messenger creates private DMs/groups, loads paginated provider history, sends text, receives live messages, reconciles optimistic sends, retries, reports connection errors, and refreshes short-lived provider credentials. PostgreSQL owns membership and provider mappings; Agora owns message bodies. Group membership is rechecked before credential issuance; removing a member disables their workspace-scoped provider identity and removes private-group access. Provider outages block that operation safely. Product attachments, reactions, editing/search and full presence are future additions.
+
+Meetings support immediate/scheduled creation, open-to-authenticated-guests and workspace-only access, shareable links, participant lists, muted-by-default joining, camera/mic toggles, device selection, separate screen-share credentials, leave and host-only end. Start times are stored as UTC instants with an IANA timezone. Reauthorization occurs on token refresh. Provider credentials last up to 60 seconds after an end/revoke; instantaneous provider ejection is not implemented. Physical camera/microphone permission flows and native screen sharing must still be verified on supported target machines.
+
+Generated OpenAPI is served at [OpenAPI JSON](http://localhost:3001/api/openapi.json), with [Scalar](http://localhost:3001/api/reference) for interactive documentation. Interactive docs require a session in production; private operations always authenticate. Existing `/api/v1` endpoints remain compatible. Collaboration adds workspace conversation creation/listing/credentials/read routes, workspace meeting creation/listing, and authenticated `/api/v1/meetings/:meetingId` detail/token/leave/end operations. `0003_flowery_warstar.sql` adds relational conversation and meeting metadata with uniqueness, foreign keys and indexes. Invitations also support authenticated email-bound decline.
+
+The Chat protocol codec is generated at build time to preserve strict Electron CSP; see [codec maintenance](packages/app/THIRD_PARTY_NOTICES.md). API secrets are scoped to the API Turbo task and are excluded from desktop test process environments.
+
+Additional checks:
+
+```sh
+pnpm test --project desktop --project shared --project api-client
+pnpm test:desktop
+# Headless Linux/WSL: xvfb-run -a pnpm test:desktop
+# Explicit live provider smoke (creates and cleans temporary provider records):
+LUMO_LIVE_AGORA=1 pnpm --filter @lumo/api exec tsx --env-file=.env src/test/live-provider.ts
+# Explicit browser/Electron live messaging integration:
+LUMO_LIVE_AGORA=1 xvfb-run -a pnpm test:desktop
+# Native screen capture: a supported graphical host must expose capture sources.
+LUMO_LIVE_AGORA=1 LUMO_LIVE_SCREEN_CAPTURE=1 xvfb-run -a --server-args="-screen 0 1280x1024x24 +extension RANDR +extension RENDER" pnpm test:desktop
+```
+
+Provider-dependent tests are gated and reported as skipped without explicit opt-in. Live tests distinguish synthetic camera/audio from native virtual-display capture. Capture tests report a skip when the graphical host exposes no sources. These checks do not prove physical device quality or Windows/macOS permissions. See [implementation evidence and limitations](docs/desktop-implementation-notes.md).
