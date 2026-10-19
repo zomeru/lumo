@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld(
         body: options.body,
       }),
     openExternal: (url: string) => ipcRenderer.invoke("lumo:external", url),
+    download: (path: string, body: unknown) => ipcRenderer.invoke("lumo:download", { path, body }),
     webOrigin: () => ipcRenderer.invoke("lumo:web-origin"),
   }),
 );

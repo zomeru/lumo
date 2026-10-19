@@ -34,7 +34,9 @@ export async function createSessionTransport(
         const response = await fetch(url, {
           method: request.method,
           redirect: "error",
-          signal: AbortSignal.timeout(20000),
+          signal: AbortSignal.timeout(
+            /\/drive\/(?:archive|[^/]+\/(?:copy|complete))$/.test(url.pathname) ? 120000 : 20000,
+          ),
           headers: {
             "Content-Type": "application/json",
             Origin: webOrigin,

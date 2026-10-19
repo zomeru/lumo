@@ -49,8 +49,37 @@ const serverSchema = z
       .refine((value) => new URL(value).protocol === "https:" && new URL(value).origin === value)
       .optional(),
     LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug"]).default("info"),
+    AWS_REGION: z.string().min(1).optional(),
+    AWS_S3_BUCKET: z
+      .string()
+      .regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+      .optional(),
+    DRIVE_MAX_FILE_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(5 * 1024 ** 3)
+      .default(1024 ** 3),
+    DRIVE_ALLOWED_MIME_TYPES: z
+      .string()
+      .refine(
+        (value) =>
+          value
+            .split(",")
+            .every((part) =>
+              /^(?:\*|[a-z0-9!#$&^_.+-]+\/(?:\*|[a-z0-9!#$&^_.+-]+))$/.test(part.trim()),
+            ),
+        "Use comma-separated MIME types, type/*, or *",
+      )
+      .default("*"),
   })
   .superRefine((value, ctx) => {
+    if (Boolean(value.AWS_REGION) !== Boolean(value.AWS_S3_BUCKET))
+      ctx.addIssue({
+        code: "custom",
+        path: ["AWS_S3_BUCKET"],
+        message: "Configure AWS_REGION and AWS_S3_BUCKET together",
+      });
     if (value.NODE_ENV !== "production") return;
     for (const field of ["API_ORIGIN", "WEB_ORIGIN"] as const) {
       if (!value[field].startsWith("https://"))

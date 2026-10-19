@@ -151,6 +151,17 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             Meetings
           </Link>
         </NavigationGroup>
+        <NavigationGroup label="Create">
+          <Link
+            className={navigationLink}
+            to="/w/$workspaceId/drive"
+            params={{ workspaceId }}
+            onClick={() => setMenuOpen(false)}
+          >
+            <Folder aria-hidden="true" />
+            Drive
+          </Link>
+        </NavigationGroup>
         <NavigationGroup label="Workspace">
           <Link
             className={navigationLink}
@@ -183,7 +194,6 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
               "Docs",
               "Sheets",
               "Slides",
-              "Drive",
               "Tasks",
               "Projects",
               "Approvals",
@@ -198,7 +208,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
                 className={cn(navigationLink, "w-full cursor-default opacity-50")}
                 key={item}
               >
-                {item === "Drive" ? <Folder aria-hidden="true" /> : <FileText aria-hidden="true" />}
+                <FileText aria-hidden="true" />
                 {item}
               </button>
             ))}

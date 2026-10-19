@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { verifyDrive } from "../../drive-flow";
+
 async function selectOption(page: Page, label: string, option: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();
   await page.getByRole("option", { name: option, exact: true }).click();
@@ -47,7 +49,7 @@ async function verifyEmail(page: Page, email: string) {
   await expect(page).toHaveURL(/\/workspaces$/);
 }
 
-test("account, setup, invitations, switching and revocation work with the real API", async ({
+test("account, setup, Drive, invitations, switching and revocation work with the real API", async ({
   page,
   browser,
 }, testInfo) => {
@@ -59,6 +61,9 @@ test("account, setup, invitations, switching and revocation work with the real A
   await page.goto("/workspaces");
   await expect(page).toHaveURL(/\/login/);
   await register(page, "Alice Chen", ownerEmail);
+  const personalHome = page.url();
+  await verifyDrive(page, testInfo.outputPath("drive.png"));
+  await page.goto(personalHome);
   await expect(page.getByRole("heading", { name: "Make yourself at home, Alice" })).toBeVisible();
   await verifyDesignSystem(page, testInfo);
   await page.getByRole("link", { name: "New workspace" }).click();

@@ -46,7 +46,22 @@
         "AGORA_APP_ID",
         "AGORA_APP_CERTIFICATE",
         "AGORA_CHAT_APP_KEY",
-        "AGORA_CHAT_REST_ORIGIN"
+        "AGORA_CHAT_REST_ORIGIN",
+        "AWS_REGION",
+        "AWS_S3_BUCKET",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_SESSION_TOKEN",
+        "AWS_PROFILE",
+        "AWS_CONFIG_FILE",
+        "AWS_SHARED_CREDENTIALS_FILE",
+        "AWS_ROLE_ARN",
+        "AWS_WEB_IDENTITY_TOKEN_FILE",
+        "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+        "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+        "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE",
+        "DRIVE_MAX_FILE_BYTES",
+        "DRIVE_ALLOWED_MIME_TYPES"
       ],
       "cache": false,
       "persistent": true

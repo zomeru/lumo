@@ -17,6 +17,7 @@ declare global {
       request: Transport;
       webOrigin: () => Promise<string>;
       openExternal: (url: string) => Promise<void>;
+      download: (path: string, body: unknown) => Promise<void>;
     };
   }
 }
@@ -25,6 +26,7 @@ configurePlatform({
   kind: "desktop",
   webOrigin: await window.lumo.webOrigin(),
   transport: window.lumo.request,
+  download: window.lumo.download,
 });
 const router = createAppRouter();
 const root = document.getElementById("root");

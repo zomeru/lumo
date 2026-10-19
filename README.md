@@ -1,6 +1,6 @@
 # Lumo
 
-A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. Web and Electron share the account/workspace UI, contacts, invitations, Messenger and meetings.
+A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. Web and Electron share the account/workspace UI, contacts, invitations, Messenger, meetings and Drive.
 
 ## What works
 
@@ -12,7 +12,7 @@ A workspace collaboration platform built with React, Vite, TanStack Router and Q
 - Workspace settings, profile editing, a searchable member directory, and administrative audit events.
 - Responsive dark UI based on the reference screenshots, with loading, error, empty, and access-denied states.
 
-Presence, application notifications, Drive, Univer editors, work management, HR, SSO, Expo, workspace deletion/retention, join requests, and guest roles are pending. Their navigation is disabled where shown. Private workspaces currently use authorized invitations; they do not accept self-joins or join requests. Personal workspaces remain private and cannot transfer ownership. Workspace language and currency are saved preferences; UI translation and financial features are not implemented.
+Presence, application notifications, Univer editors, work management, HR, SSO, Expo, workspace deletion/retention, join requests, and guest roles are pending. Their navigation is disabled where shown. Private workspaces currently use authorized invitations; they do not accept self-joins or join requests. Personal workspaces remain private and cannot transfer ownership. Workspace language and currency are saved preferences; UI translation and financial features are not implemented.
 
 ## Packages
 
@@ -135,7 +135,7 @@ Use Oxlint and Oxfmt at the root. Husky installs staged source/format checks; co
 
 The version-scoped route-generator patch replaces its upstream formatter with Oxfmt. Review the patch, override, and package extension together when upgrading, and keep Oxfmt versions aligned. Planning material and screenshots under `docs/` remain unchanged.
 
-The repository asks agents to use its installed Intent. Intent is currently unavailable (`pnpm exec intent list` reports that the command is missing); no replacement was downloaded.
+The repository includes pinned Intent tooling for local skills. Before substantial edits, run `pnpm exec intent list` and load matching guidance with `pnpm exec intent load <package>#<skill>`. Knip excludes this agent-facing CLI from its static dependency analysis.
 
 ## Desktop and collaboration
 
@@ -186,3 +186,9 @@ LUMO_LIVE_AGORA=1 LUMO_LIVE_SCREEN_CAPTURE=1 xvfb-run -a --server-args="-screen 
 Native window state tests need a window manager; bare Xvfb skips them. The minimize test probes Electron directly and skips when the compositor ignores minimization (including the local WSLg host). Use `LUMO_PACKAGED_DESKTOP=apps/desktop/release/linux-unpacked/lumo` to run the same suite against the unpacked Linux build. Native drag/double-click behavior, Windows snapping and macOS traffic lights still need verification on their target desktops; custom maximize buttons do not provide Windows’ native Snap Layout hover menu.
 
 Provider-dependent tests are gated and reported as skipped without explicit opt-in. Live tests distinguish synthetic camera/audio from native virtual-display capture. Capture tests report a skip when the graphical host exposes no sources. These checks do not prove physical device quality or Windows/macOS permissions. See [implementation evidence and limitations](docs/desktop-implementation-notes.md).
+
+## Workspace Drive
+
+Drive is available in the shared workspace navigation on web and Electron. It supports private S3 uploads with progress/cancel/retry, nested folders, inherited viewer/editor sharing, previews, search/sort/filter, grid/list views, stars, Trash/restore, recursive copy/move and ZIP downloads. PostgreSQL stores file references and permissions; object keys and AWS credentials stay on the API. API owners/admins manage workspace content through the existing roles.
+
+Apply migration `0004_shiny_speed.sql` with `pnpm db:migrate`, set API-only `AWS_REGION`/`AWS_S3_BUCKET`, and configure the private bucket's IAM, encryption, CORS and lifecycle rules. See [Drive setup, permissions and operational limits](docs/drive-storage.md) for deployment instructions and test commands. Signature validation is implemented; comprehensive antivirus scanning and upload resume across page reloads are not included.

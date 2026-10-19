@@ -59,5 +59,5 @@ export function externalUrl(value: unknown, webOrigin: string) {
 export function rendererCsp(developmentOrigin?: string, nonce?: string) {
   const scripts = developmentOrigin && nonce ? ` 'nonce-${nonce}'` : "";
   const websocket = developmentOrigin ? ` ${developmentOrigin.replace(/^http/, "ws")}` : "";
-  return `default-src 'self'; script-src 'self'${scripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:${websocket}; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src 'none'; frame-ancestors 'none'; form-action 'self'`;
+  return `default-src 'self'; script-src 'self'${scripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:${websocket}; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src https://*.amazonaws.com https://*.amazonaws.com.cn; frame-ancestors 'none'; form-action 'self'`;
 }

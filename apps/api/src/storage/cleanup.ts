@@ -1,0 +1,83 @@
+import { randomUUID } from "node:crypto";
+
+import type { Database } from "@lumo/database";
+import { driveItem, storageCleanup, workspace } from "@lumo/database/schema";
+import { and, asc, eq, inArray, lte, or, sql } from "drizzle-orm";
+
+import type { Storage } from "./storage";
+
+export async function cleanupStorage(db: Database, storage: Storage) {
+  const due = await db
+    .select()
+    .from(storageCleanup)
+    .where(lte(storageCleanup.notBefore, new Date()))
+    .orderBy(asc(storageCleanup.notBefore))
+    .limit(50);
+  let failures = 0;
+  for (const candidate of due) {
+    try {
+      await db.transaction(async (tx) => {
+        const [file] = await tx
+          .select()
+          .from(driveItem)
+          .where(
+            or(eq(driveItem.objectKey, candidate.key), eq(driveItem.stagingKey, candidate.key)),
+          );
+        // Match the lock ordering used by Drive and membership mutations.
+        if (file)
+          await tx
+            .select({ id: workspace.id })
+            .from(workspace)
+            .where(eq(workspace.id, file.workspaceId))
+            .for("update");
+        const [job] = await tx
+          .select()
+          .from(storageCleanup)
+          .where(
+            and(eq(storageCleanup.id, candidate.id), lte(storageCleanup.notBefore, new Date())),
+          )
+          .for("update", { skipLocked: true });
+        if (!job) return;
+        if (job.uploadId) await storage.abort(job.key, job.uploadId);
+        await storage.remove(job.key);
+        await tx.delete(storageCleanup).where(eq(storageCleanup.id, job.id));
+        if (
+          file?.status === "uploading" &&
+          file.uploadExpiresAt &&
+          file.uploadExpiresAt <= new Date()
+        )
+          await tx
+            .update(driveItem)
+            .set({ status: "failed", deletedAt: new Date(), deletionId: randomUUID() })
+            .where(and(eq(driveItem.id, file.id), eq(driveItem.status, "uploading")));
+      });
+    } catch {
+      failures++;
+      await db
+        .update(storageCleanup)
+        .set({
+          attempts: sql`${storageCleanup.attempts} + 1`,
+          notBefore: new Date(
+            Date.now() + Math.min(3600, 30 * 2 ** Math.min(candidate.attempts, 7)) * 1000,
+          ),
+        })
+        .where(eq(storageCleanup.id, candidate.id));
+    }
+  }
+  // Delete leaves only after BOTH object keys have been physically cleaned up.
+  for (let depth = 0; depth < 64; depth++) {
+    const leaves = await db.execute<{
+      id: string;
+    }>(sql`select d.id from drive_items d where d.status = 'deleting'
+      and not exists (select 1 from storage_cleanup c where c.key = d.object_key or c.key = d.staging_key)
+      and not exists (select 1 from drive_items child where child.parent_id = d.id) limit 1000`);
+    if (!leaves.rows.length) break;
+    await db.delete(driveItem).where(
+      inArray(
+        driveItem.id,
+        leaves.rows.map((v) => v.id),
+      ),
+    );
+  }
+  return { processed: due.length, failures };
+}

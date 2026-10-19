@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/knip/schema.json",
   "workspaces": {
-    ".": {},
+    ".": { "ignoreDependencies": ["@tanstack/intent"] },
     "packages/typescript-config": {},
     "apps/api": {
       "entry": ["src/test/e2e-server.ts", "src/test/live-provider.ts"],

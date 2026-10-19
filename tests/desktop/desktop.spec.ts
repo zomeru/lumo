@@ -12,6 +12,7 @@ import {
   type Browser,
 } from "@playwright/test";
 
+import { verifyDrive } from "../drive-flow";
 import { verifyDesktopScrolling } from "./scrollbars";
 
 const require = createRequire(import.meta.url);
@@ -25,6 +26,7 @@ async function launch(dir: string, capture = false) {
     "DATABASE_URL",
     "TEST_DATABASE_URL",
     "SMTP_URL",
+    ...Object.keys(clientEnv).filter((key) => key.startsWith("AWS_")),
   ])
     delete clientEnv[key];
   const args = [
@@ -532,4 +534,23 @@ test("live native screen capture publishes a second track and stops it", async (
     "Requires explicit native capture opt-in and a supported graphical capture host.",
   );
   await liveMeeting(browser, true);
+});
+
+test("packaged-protocol Drive shares real folder workflows with web", async ({
+  browserName,
+}, info) => {
+  expect(browserName).toBe("chromium");
+  const dir = await mkdtemp(join(tmpdir(), "lumo-drive-e2e-"));
+  const app = await launch(dir);
+  try {
+    const page = await app.firstWindow();
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await register(page, "Desktop Drive", `desktop-drive-${Date.now()}@example.com`);
+    await verifyDrive(page, info.outputPath("desktop-drive.png"));
+    expect(errors).toEqual([]);
+  } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
 });

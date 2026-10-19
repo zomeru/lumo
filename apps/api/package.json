@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
     "start": "node --env-file-if-exists=.env dist/index.mjs",
-    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --packages=bundle --external:pg --external:better-auth --external:@better-auth/drizzle-adapter --external:drizzle-orm --external:nodemailer --external:pino --external:agora-token --outfile=dist/index.mjs",
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --packages=bundle --external:pg --external:better-auth --external:@better-auth/drizzle-adapter --external:drizzle-orm --external:nodemailer --external:pino --external:agora-token --external:@aws-sdk/client-s3 --external:@aws-sdk/lib-storage --external:@aws-sdk/s3-request-presigner --external:yazl --outfile=dist/index.mjs",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1152.0",
+    "@aws-sdk/lib-storage": "3.1152.0",
+    "@aws-sdk/s3-request-presigner": "3.1152.0",
     "@better-auth/drizzle-adapter": "1.7.10",
     "@hono/node-server": "2.1.5",
     "@hono/zod-openapi": "1.6.3",
@@ -17,6 +20,7 @@
     "@lumo/contracts": "workspace:*",
     "@lumo/database": "workspace:*",
     "@lumo/env": "workspace:*",
+    "@lumo/shared": "workspace:*",
     "@scalar/hono-api-reference": "0.12.13",
     "agora-token": "2.0.7",
     "better-auth": "1.7.10",
@@ -25,12 +29,13 @@
     "nodemailer": "10.1.1",
     "pg": "8.23.1",
     "pino": "10.4.0",
-    "zod": "4.6.7",
-    "@lumo/shared": "workspace:*"
+    "yazl": "3.3.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@lumo/typescript-config": "workspace:*",
     "@types/node": "24.19.2",
+    "@types/yazl": "3.3.1",
     "esbuild": "0.28.2",
     "tsx": "4.23.15",
     "typescript": "7.0.2",

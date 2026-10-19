@@ -14,6 +14,7 @@ import {
   desktopCapturer,
 } from "electron";
 
+import { driveDownload } from "./drive-download";
 import { remoteOrigin, trustedRenderer, externalUrl, rendererCsp } from "./policy";
 import { createSessionTransport } from "./transport";
 import { registerWindowControls, synchronizeWindowState } from "./window-controls";
@@ -69,6 +70,10 @@ void app.whenReady().then(async () => {
     sender(event);
     return webOrigin;
   });
+  ipcMain.handle("lumo:download", async (event, input: unknown) => {
+    sender(event);
+    await driveDownload(input, request, (url) => window!.webContents.downloadURL(url));
+  });
   ipcMain.handle("lumo:external", async (event, url: unknown) => {
     sender(event);
     await shell.openExternal(externalUrl(url, webOrigin));
@@ -108,6 +113,10 @@ void app.whenReady().then(async () => {
     }
   });
   const ses = session.defaultSession;
+  ses.on("will-download", (_event, item) => {
+    // Electron's native save dialog keeps file contents outside the renderer.
+    item.setSaveDialogOptions({ title: "Save Lumo Drive download" });
+  });
   if (devOrigin)
     ses.webRequest.onHeadersReceived({ urls: [`${devOrigin}/*`] }, (details, callback) => {
       callback({

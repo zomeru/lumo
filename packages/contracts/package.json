@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./permissions": "./src/permissions.ts",
-    "./collaboration": "./src/collaboration.ts"
+    "./collaboration": "./src/collaboration.ts",
+    "./drive": "./src/drive.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"

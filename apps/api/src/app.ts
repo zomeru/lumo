@@ -20,10 +20,13 @@ import type { ApiContext } from "./lib/context.ts";
 import { AppError } from "./lib/errors.ts";
 import { enforceRateLimit } from "./middleware/rate-limit.ts";
 import { collaborationRoutes } from "./modules/collaboration.routes";
+import { driveRoutes } from "./modules/drive/drive.routes";
 import { userRoutes } from "./modules/users/user.routes.ts";
 import { workspaceRoutes } from "./modules/workspaces/workspace.routes.ts";
 import { createWorkspaceService } from "./modules/workspaces/workspace.service.ts";
 import { documentFoundation } from "./openapi";
+import { createS3Storage } from "./storage/s3";
+import type { Storage } from "./storage/storage";
 
 export function createApp({
   db,
@@ -31,12 +34,14 @@ export function createApp({
   env,
   clientIp = () => "direct",
   provider = createAgora(env),
+  storage = createS3Storage(env),
 }: {
   db: Database;
   auth: Auth;
   env: ServerEnv;
   clientIp?: (c: Context) => string;
   provider?: CollaborationProvider;
+  storage?: Storage;
 }) {
   const app = new OpenAPIHono<ApiContext>();
   const logger = pino({ level: env.LOG_LEVEL });
@@ -163,6 +168,7 @@ export function createApp({
   app.route("/api/v1", userRoutes(db, workspaces));
   app.route("/api/v1", workspaceRoutes(workspaces));
   app.route("/api/v1", collaborationRoutes(db, workspaces, provider));
+  app.route("/api/v1", driveRoutes(db, workspaces, storage, env));
   app.openAPIRegistry.registerComponent("securitySchemes", "cookieAuth", {
     type: "apiKey",
     in: "cookie",

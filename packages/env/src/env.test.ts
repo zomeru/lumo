@@ -88,3 +88,27 @@ test("provider configuration rejects private values and insecure REST origins wi
     }).AGORA_CHAT_APP_KEY,
   ).toBe("org#app");
 });
+
+test("Drive configuration validates paired storage settings and MIME policy without exposing credentials", () => {
+  expect(readServerEnv(valid).DRIVE_MAX_FILE_BYTES).toBe(1024 ** 3);
+  expect(() => readServerEnv({ ...valid, AWS_REGION: "us-east-1" })).toThrow(
+    "Configure AWS_REGION and AWS_S3_BUCKET together",
+  );
+  expect(() => readServerEnv({ ...valid, AWS_S3_BUCKET: "private-drive-bucket" })).toThrow(
+    "AWS_S3_BUCKET",
+  );
+  expect(() => readServerEnv({ ...valid, DRIVE_ALLOWED_MIME_TYPES: "not a mime" })).toThrow(
+    "DRIVE_ALLOWED_MIME_TYPES",
+  );
+  expect(
+    readServerEnv({
+      ...valid,
+      AWS_REGION: "us-east-1",
+      AWS_S3_BUCKET: "private-drive-bucket",
+      DRIVE_ALLOWED_MIME_TYPES: "text/plain,image/*",
+    }).AWS_REGION,
+  ).toBe("us-east-1");
+  expect(() => readServerEnv({ ...valid, DRIVE_MAX_FILE_BYTES: -1 })).toThrow(
+    "DRIVE_MAX_FILE_BYTES",
+  );
+});
