@@ -12,6 +12,8 @@ import {
   type Browser,
 } from "@playwright/test";
 
+import { verifyDesktopScrolling } from "./scrollbars";
+
 const require = createRequire(import.meta.url);
 const password = "Strong-desktop-password-2026!";
 async function launch(dir: string, capture = false) {
@@ -279,14 +281,22 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
     expect(box && box.width > 150 && box.x >= 0).toBe(true);
     await page.keyboard.press("Escape");
     await page.screenshot({ path: testInfo.outputPath("desktop-home-dark.png") });
+    await verifyDesktopScrolling(app, page, testInfo);
     await page.getByRole("link", { name: /Messenger/ }).click();
+    const desktopWindow = await app.browserWindow(page);
+    await desktopWindow.evaluate((win) => win.setSize(600, 540));
     await page.getByRole("button", { name: "New conversation" }).click();
     const dialog = page.getByRole("dialog", { name: "New conversation" });
+    await expect(dialog).toHaveCSS("scrollbar-width", "thin");
+    const dialogBounds = await dialog.boundingBox();
+    expect(dialogBounds!.y).toBeGreaterThanOrEqual(0);
+    expect(dialogBounds!.y + dialogBounds!.height).toBeLessThanOrEqual(540);
     await dialog.getByRole("combobox", { name: "Type" }).click();
     await page.getByRole("option", { name: "Private group" }).click();
     await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Private group");
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
+    await desktopWindow.evaluate((win) => win.setSize(1280, 850));
     await page.getByRole("link", { name: /Contacts/ }).click();
     await expect(page.getByRole("heading", { name: "Contacts", exact: true })).toBeVisible();
     await page.getByRole("link", { name: /Meetings/ }).click();

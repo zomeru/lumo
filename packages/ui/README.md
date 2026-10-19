@@ -34,7 +34,15 @@ Button variants are `primary`, `secondary`, `ghost`, `destructive`, and `link`; 
 
 `Combobox` adds searchable single selection. `MultiSelectField` adds searchable checkbox selection and submits repeated named values with `FormData.getAll()`. Both accept controlled or uncontrolled values. Menus and dialogs use Radix focus management; include a dialog title and description, and use the provided trigger/close parts so focus returns to its origin.
 
-Component customization uses `className`, composition, and primitive props. Keep screen layout in `packages/app`. Keep Electron window behavior outside the UI library. The only handwritten global CSS is the Tailwind entry, generated tokens, base typography, reduced-motion support, and SDK-created media containers.
+Component customization uses `className`, composition, and primitive props. Keep screen layout in `packages/app`. Keep Electron window behavior outside the UI library. The handwritten global CSS covers the Tailwind entry, generated tokens, base typography, native scrollbar styling, reduced-motion support, and SDK-created media containers.
+
+## Scrolling
+
+`styles.css` loads the shared `scrollbars.css` adapter for web and desktop. The Tailwind v4 `scrollbar-app` utility applies thin native scrollbars with transparent tracks and neutral colors derived from the current theme. It is applied globally, including portaled overlays and textareas. Rounded thumbs and native auto-hiding follow the browser/OS; the WebKit fallback styles older browsers. High-contrast and forced-color modes keep native scrollbar sizes/colors. There are no Chromium feature flags, scroll event handlers, or forced smooth scrolling.
+
+Use `scrollbar-stable` on vertical scroll containers whose content changes (message history, navigation, lists, dialogs). It reserves a narrow gutter for classic scrollbars and leaves platform overlays intact; avoid it on non-scrolling wrappers and horizontal-only containers. The document reserves a stable gutter too. Do not hide scrollbars on interactive content. Existing Radix Select keeps its keyboard/scroll controls, and `ScrollArea` shares the palette, defaults to showing scrollbars whenever content overflows, and still accepts Radix's `type` prop. ScrollArea uses wider, high-contrast thumbs in accessibility modes.
+
+Popovers respect Radix's available viewport height; searchable lists scroll inside the popover without a second outer scrollbar. Electron's workspace header stays sticky while the document scrolls. Physical trackpad gestures, overlay visibility, and always-show preferences should be verified on each target OS.
 
 ## Validation
 

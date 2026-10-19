@@ -7,7 +7,7 @@ import { cn } from "./utils";
 
 const overlayStyles = "fixed inset-0 z-50 bg-black/35 backdrop-blur-xs motion-safe:animate-enter";
 const contentStyles =
-  "fixed top-1/2 left-1/2 z-50 grid max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl border bg-elevated p-6 text-foreground shadow-xl";
+  "fixed top-1/2 left-1/2 z-50 grid max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto scrollbar-stable rounded-xl border bg-elevated p-6 text-foreground shadow-xl";
 export const Dialog = Primitive.Root;
 export const DialogTrigger = Primitive.Trigger;
 export const DialogClose = Primitive.Close;

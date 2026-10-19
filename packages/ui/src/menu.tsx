@@ -5,7 +5,7 @@ import type { ComponentProps } from "react";
 import { cn } from "./utils";
 
 const contentStyles =
-  "z-50 min-w-44 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-lg border bg-elevated p-1 text-foreground shadow-lg motion-safe:animate-enter";
+  "z-50 min-w-44 max-w-[calc(100vw-1.5rem)] overflow-y-auto scrollbar-stable rounded-lg border bg-elevated p-1 text-foreground shadow-lg motion-safe:animate-enter";
 const itemStyles =
   "relative flex cursor-default items-center gap-2 rounded-sm px-2.5 py-2 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-40 data-highlighted:bg-accent data-highlighted:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0";
 export const DropdownMenu = Dropdown.Root;
@@ -95,7 +95,14 @@ export function DropdownMenuSubContent({
 }: ComponentProps<typeof Dropdown.SubContent>) {
   return (
     <Dropdown.Portal>
-      <Dropdown.SubContent className={cn(contentStyles, className)} {...props} />
+      <Dropdown.SubContent
+        className={cn(
+          contentStyles,
+          "max-h-(--radix-dropdown-menu-content-available-height)",
+          className,
+        )}
+        {...props}
+      />
     </Dropdown.Portal>
   );
 }
@@ -170,7 +177,14 @@ export function ContextMenuSubContent({
 }: ComponentProps<typeof Context.SubContent>) {
   return (
     <Context.Portal>
-      <Context.SubContent className={cn(contentStyles, className)} {...props} />
+      <Context.SubContent
+        className={cn(
+          contentStyles,
+          "max-h-(--radix-context-menu-content-available-height)",
+          className,
+        )}
+        {...props}
+      />
     </Context.Portal>
   );
 }

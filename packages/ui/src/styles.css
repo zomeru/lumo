@@ -1,5 +1,6 @@
 @import "tailwindcss" source(none);
 @import "./theme.css";
+@import "./scrollbars.css";
 
 /* Explicit roots make shared utilities independent of the Vite process working directory. */
 @source "./";

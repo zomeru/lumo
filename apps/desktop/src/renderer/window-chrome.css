@@ -98,3 +98,14 @@
   width: 28px;
   height: 28px;
 }
+
+/* Long workspace pages scroll beneath the existing header, without a second page scroller. */
+.desktop-app [data-app-sidebar] + div > [data-app-header] {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+html:has(.desktop-app [data-app-sidebar]) {
+  scroll-padding-top: 80px;
+}

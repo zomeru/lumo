@@ -71,7 +71,7 @@ export function Combobox({
         </PopoverTrigger>
         <PopoverContent
           id={`${id}-popup`}
-          className="w-(--radix-popover-trigger-width) p-0"
+          className="w-(--radix-popover-trigger-width) overflow-hidden p-0"
           aria-label={label}
         >
           <Command loop label={`Search ${label.toLowerCase()}`}>
@@ -83,7 +83,7 @@ export function Combobox({
                 className="h-10 w-full bg-transparent text-sm outline-none"
               />
             </div>
-            <Command.List className="max-h-60 overflow-y-auto p-1">
+            <Command.List className="max-h-[min(15rem,calc(var(--radix-popover-content-available-height)-3rem))] overflow-y-auto scrollbar-stable p-1">
               <Command.Empty className="p-4 text-center text-sm text-muted-foreground">
                 No options found.
               </Command.Empty>
@@ -179,7 +179,10 @@ export function MultiSelectField({
             <ChevronsUpDown aria-hidden="true" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-(--radix-popover-trigger-width)" aria-label={label}>
+        <PopoverContent
+          className="w-(--radix-popover-trigger-width) overflow-hidden"
+          aria-label={label}
+        >
           <Input
             type="search"
             aria-label={`Search ${label.toLowerCase()}`}
@@ -187,7 +190,7 @@ export function MultiSelectField({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Find a person…"
           />
-          <fieldset className="mt-3 grid max-h-56 gap-1 overflow-y-auto">
+          <fieldset className="mt-3 grid max-h-[min(14rem,calc(var(--radix-popover-content-available-height)-5rem))] gap-1 overflow-y-auto scrollbar-stable">
             <legend className="sr-only">{label}</legend>
             {filtered.map((option) => (
               <label

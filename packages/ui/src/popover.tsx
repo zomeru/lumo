@@ -18,7 +18,7 @@ export function PopoverContent({
         sideOffset={6}
         collisionPadding={12}
         className={cn(
-          "z-50 w-72 max-w-[calc(100vw-1.5rem)] rounded-lg border bg-elevated p-3 text-foreground shadow-lg outline-none motion-safe:animate-enter",
+          "z-50 max-h-(--radix-popover-content-available-height) w-72 overflow-y-auto max-w-[calc(100vw-1.5rem)] rounded-lg border bg-elevated p-3 text-foreground shadow-lg outline-none motion-safe:animate-enter",
           className,
         )}
         {...props}

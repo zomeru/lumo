@@ -111,7 +111,10 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           <ArrowUpRight className="size-3" aria-hidden="true" />
         </Link>
       </div>
-      <nav aria-label="Workspace navigation" className="min-h-0 flex-1 overflow-y-auto px-3 pb-6">
+      <nav
+        aria-label="Workspace navigation"
+        className="min-h-0 flex-1 overflow-y-auto scrollbar-stable px-3 pb-6"
+      >
         <Link
           className={navigationLink}
           to="/w/$workspaceId"
@@ -251,7 +254,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
                   <Menu aria-hidden="true" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="inset-y-0 left-0 h-dvh max-h-dvh w-72 max-w-[90vw] translate-x-0 translate-y-0 gap-0 rounded-none border-y-0 border-l-0 bg-sidebar p-0 sm:p-0">
+              <DialogContent className="inset-y-0 left-0 h-dvh max-h-dvh w-72 max-w-[90vw] overflow-hidden translate-x-0 translate-y-0 gap-0 rounded-none border-y-0 border-l-0 bg-sidebar p-0 sm:p-0">
                 <DialogTitle className="sr-only">Workspace navigation</DialogTitle>
                 <DialogDescription className="sr-only">
                   Switch workspaces and open your team’s tools.

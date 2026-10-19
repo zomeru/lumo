@@ -115,20 +115,28 @@ export function Separator({
     />
   );
 }
-export function ScrollArea({ className, children, ...props }: ComponentProps<typeof Scroll.Root>) {
+export function ScrollArea({
+  className,
+  children,
+  type = "auto",
+  ...props
+}: ComponentProps<typeof Scroll.Root>) {
   return (
-    <Scroll.Root className={cn("relative overflow-hidden", className)} {...props}>
+    <Scroll.Root type={type} className={cn("relative overflow-hidden", className)} {...props}>
       <Scroll.Viewport className="size-full rounded-[inherit] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
         {children}
       </Scroll.Viewport>
-      <Scroll.Scrollbar orientation="vertical" className="flex w-2.5 touch-none p-0.5 select-none">
-        <Scroll.Thumb className="relative flex-1 rounded-full bg-muted-foreground/35" />
+      <Scroll.Scrollbar
+        orientation="vertical"
+        className="scrollbar-rail flex w-2.5 touch-none p-0.5 select-none"
+      >
+        <Scroll.Thumb className="relative flex-1 rounded-full scrollbar-thumb" />
       </Scroll.Scrollbar>
       <Scroll.Scrollbar
         orientation="horizontal"
-        className="flex h-2.5 touch-none flex-col p-0.5 select-none"
+        className="scrollbar-rail flex h-2.5 touch-none flex-col p-0.5 select-none"
       >
-        <Scroll.Thumb className="relative flex-1 rounded-full bg-muted-foreground/35" />
+        <Scroll.Thumb className="relative flex-1 rounded-full scrollbar-thumb" />
       </Scroll.Scrollbar>
       <Scroll.Corner />
     </Scroll.Root>
