@@ -7,7 +7,7 @@ export async function verifyDesktopScrolling(app: ElectronApplication, page: Pag
   const navigation = page.getByRole("navigation", { name: "Workspace navigation" });
   await expect(navigation).toBeVisible();
   await expect(navigation).toHaveCSS("scrollbar-width", "thin");
-  await expect(navigation).toHaveCSS("scrollbar-gutter", "stable");
+  await expect(navigation).toHaveCSS("scrollbar-gutter", "auto");
   await expect(page.locator("html")).toHaveCSS("scrollbar-width", "thin");
   for (const theme of ["Light", "Dark"]) {
     await page.getByRole("button", { name: "Change appearance" }).click();
@@ -29,6 +29,17 @@ export async function verifyDesktopScrolling(app: ElectronApplication, page: Pag
   await expect.poll(() => navigation.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.scrollY)).toBe(pageOffset);
   await navigation.locator("summary").click();
+  const workspaceUrl = page.url();
   await desktopWindow.evaluate((win) => win.setSize(1280, 850));
+  await page.goto(new URL("/about", page.url()).href);
+  await expect(page.getByRole("heading", { name: "About Lumo" })).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight))
+    .toBe(true);
+  expect(
+    await page.evaluate(() => document.documentElement.clientWidth === window.innerWidth),
+  ).toBe(true);
+  await page.goto(workspaceUrl);
+  await expect(page.getByRole("navigation", { name: "Workspace navigation" })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
 }

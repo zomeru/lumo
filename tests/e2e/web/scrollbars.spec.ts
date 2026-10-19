@@ -9,7 +9,6 @@ async function scrollFixture(page: Page) {
     const pane = document.createElement("section");
     pane.setAttribute("aria-label", "Scroll fixture");
     pane.tabIndex = 0;
-    pane.className = "scrollbar-stable";
     pane.style.cssText =
       "position:fixed;left:24px;top:140px;width:240px;height:160px;overflow:auto;z-index:100;background:var(--surface)";
     const content = document.createElement("div");
@@ -26,7 +25,7 @@ test("native scrollbars follow the theme and retain wheel and keyboard scrolling
 }, info) => {
   const pane = await scrollFixture(page);
   await expect(pane).toHaveCSS("scrollbar-width", "thin");
-  await expect(page.locator("html")).toHaveCSS("scrollbar-gutter", "stable");
+  await expect(page.locator("html")).toHaveCSS("scrollbar-gutter", "auto");
   const colors: string[] = [];
   for (const theme of ["light", "dark"]) {
     await page.evaluate((value) => {
@@ -52,15 +51,81 @@ test("native scrollbars follow the theme and retain wheel and keyboard scrolling
   );
 });
 
-test("stable gutters prevent shifts between short and long content and nested scrolling stays local", async ({
+test("scroll containers reclaim their full width when overflow disappears and restore native scrolling", async ({
   page,
 }) => {
   const pane = await scrollFixture(page);
-  const before = await pane.evaluate((node) => node.clientWidth);
   await pane.evaluate((node) => {
-    (node.firstElementChild as HTMLElement).style.height = "20px";
+    (node.firstElementChild as HTMLElement).style.width = "100%";
   });
-  expect(await pane.evaluate((node) => node.clientWidth)).toBe(before);
+  const overflowingWidth = await pane.evaluate((node) => node.clientWidth);
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((value) => {
+      document.documentElement.dataset.theme = value;
+    }, theme);
+    await pane.evaluate((node) => {
+      (node.firstElementChild as HTMLElement).style.height = "20px";
+    });
+    await expect
+      .poll(() => pane.evaluate((node) => node.scrollHeight <= node.clientHeight))
+      .toBe(true);
+    expect(await pane.evaluate((node) => node.clientWidth)).toBe(240);
+    expect(await pane.locator("div").evaluate((node) => node.getBoundingClientRect().width)).toBe(
+      240,
+    );
+    // A hidden-overflow wrapper must not retain a gutter either (for example, navigation drawers).
+    await pane.evaluate((node) => {
+      node.style.overflow = "hidden";
+    });
+    expect(await pane.evaluate((node) => node.clientWidth)).toBe(240);
+    await pane.evaluate((node) => {
+      node.style.overflow = "auto";
+      (node.firstElementChild as HTMLElement).style.height = "600px";
+    });
+    expect(await pane.evaluate((node) => node.clientWidth)).toBe(overflowingWidth);
+    await pane.hover();
+    await page.mouse.wheel(0, 80);
+    await expect.poll(() => pane.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  }
+});
+
+test("document width is reclaimed after resize, content removal, and page navigation", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 900, height: 600 });
+  await page.goto("/about");
+  await page.evaluate(() => {
+    const content = document.createElement("div");
+    content.id = "overflow-content";
+    content.style.height = "900px";
+    document.body.append(content);
+  });
+  const overflowingWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight))
+    .toBe(true);
+  await page.setViewportSize({ width: 900, height: 1800 });
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight))
+    .toBe(true);
+  expect(
+    await page.evaluate(() => document.documentElement.clientWidth === window.innerWidth),
+  ).toBe(true);
+  await page.setViewportSize({ width: 900, height: 600 });
+  expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(overflowingWidth);
+  await page.evaluate(() => document.getElementById("overflow-content")!.remove());
+  expect(
+    await page.evaluate(() => document.documentElement.clientWidth === window.innerWidth),
+  ).toBe(true);
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.clientWidth === window.innerWidth),
+  ).toBe(true);
+});
+
+test("nested scrolling stays local", async ({ page }) => {
+  const pane = await scrollFixture(page);
   await pane.evaluate((node) => {
     const child = node.firstElementChild as HTMLElement;
     child.style.cssText = "width:180px;height:80px;overflow:auto";

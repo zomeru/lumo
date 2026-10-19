@@ -111,10 +111,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           <ArrowUpRight className="size-3" aria-hidden="true" />
         </Link>
       </div>
-      <nav
-        aria-label="Workspace navigation"
-        className="min-h-0 flex-1 overflow-y-auto scrollbar-stable px-3 pb-6"
-      >
+      <nav aria-label="Workspace navigation" className="min-h-0 flex-1 overflow-y-auto px-3 pb-6">
         <Link
           className={navigationLink}
           to="/w/$workspaceId"

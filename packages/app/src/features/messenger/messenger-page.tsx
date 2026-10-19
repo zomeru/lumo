@@ -139,7 +139,7 @@ export function MessengerPage({
                     onChange={(event) => setQ(event.target.value)}
                     maxLength={100}
                   />
-                  <fieldset className="grid max-h-52 gap-1 overflow-y-auto scrollbar-stable rounded-md border p-3">
+                  <fieldset className="grid max-h-52 gap-1 overflow-y-auto rounded-md border p-3">
                     <legend className="px-1 text-xs font-medium">Participants</legend>
                     {people.data?.members
                       .filter((person) => person.userId !== session.data?.user.id)
@@ -294,7 +294,7 @@ function ConversationView({
           </Button>
         )}
         <ol
-          className="my-4 max-h-[55vh] flex-1 overflow-y-auto scrollbar-stable"
+          className="my-4 max-h-[55vh] flex-1 overflow-y-auto"
           aria-label="Messages"
           aria-live="polite"
         >

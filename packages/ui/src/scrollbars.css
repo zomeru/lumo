@@ -49,11 +49,6 @@
   }
 }
 
-/* Reserve space only on classic scrollbar platforms. Overlays consume no gutter. */
-@utility scrollbar-stable {
-  scrollbar-gutter: stable;
-}
-
 @layer base {
   :root,
   [data-theme] {
@@ -65,10 +60,6 @@
   /* Includes the document, textareas, and portaled menus/dialogs/popovers. */
   * {
     @apply scrollbar-app;
-  }
-
-  html {
-    @apply scrollbar-stable;
   }
 }
 

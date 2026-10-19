@@ -34,8 +34,13 @@ export async function verifyDesignSystem(page: Page, testInfo: TestInfo) {
       .click();
   }
   await expect(main.getByRole("heading", { name: "Messenger", exact: true })).toBeVisible();
+  const widthBeforeDialog = await page.evaluate(() => document.documentElement.clientWidth);
   await page.getByRole("button", { name: "New conversation" }).click();
   const dialog = page.getByRole("dialog", { name: "New conversation" });
+  await expect(dialog).toHaveCSS("scrollbar-gutter", "auto");
+  expect(
+    await page.evaluate(() => document.documentElement.clientWidth === window.innerWidth),
+  ).toBe(true);
   await dialog.getByRole("combobox", { name: "Type" }).focus();
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("listbox")).toBeVisible();
@@ -43,9 +48,37 @@ export async function verifyDesignSystem(page: Page, testInfo: TestInfo) {
   await expect(page.getByRole("option", { name: "Private group" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Private group");
+  // Exercise the real portaled dialog as its content grows and shrinks.
+  await dialog.evaluate((node) => {
+    const content = document.createElement("div");
+    content.dataset.scrollbarProbe = "";
+    content.style.height = "120vh";
+    node.append(content);
+  });
+  await expect
+    .poll(() => dialog.evaluate((node) => node.scrollHeight > node.clientHeight))
+    .toBe(true);
+  await dialog.locator("[data-scrollbar-probe]").evaluate((node) => node.remove());
+  await expect
+    .poll(() => dialog.evaluate((node) => node.scrollHeight <= node.clientHeight))
+    .toBe(true);
+  expect(
+    await dialog.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return (
+        (node as HTMLElement).offsetWidth -
+        node.clientWidth -
+        Number.parseFloat(style.borderLeftWidth) -
+        Number.parseFloat(style.borderRightWidth)
+      );
+    }),
+  ).toBe(0);
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole("button", { name: "New conversation" })).toBeFocused();
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.clientWidth))
+    .toBe(widthBeforeDialog);
   await page.goto(`/w/${workspace}/meetings`);
   await page.getByRole("button", { name: "Invite workspace members (optional)" }).click();
   await page.getByRole("searchbox").fill("Alice");
