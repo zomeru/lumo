@@ -16,6 +16,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 
+import { AppHeader } from "../../chrome";
 import {
   api,
   clearWorkspaceCache,
@@ -46,7 +47,7 @@ export function WorkspacesPage() {
   });
   return (
     <main id="main-content" className="mx-auto max-w-6xl px-5 pt-6 pb-16 sm:px-8">
-      <header className="mb-12 flex items-center justify-between gap-4">
+      <AppHeader className="mb-12 flex items-center justify-between gap-4">
         <Brand />
         <div className="flex items-center gap-2">
           <ThemeMenu />
@@ -54,7 +55,7 @@ export function WorkspacesPage() {
             <Link to="/profile">Your profile</Link>
           </Button>
         </div>
-      </header>
+      </AppHeader>
       <PageHeading
         eyebrow="Your shared spaces"
         title={`Welcome${session.data ? `, ${session.data.user.name.split(" ")[0]}` : ""}`}

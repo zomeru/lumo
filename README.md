@@ -141,6 +141,8 @@ The repository asks agents to use its installed Intent. Intent is currently unav
 
 `apps/desktop` builds Electron main, a sandbox-compatible preload, and a renderer with electron-vite. `packages/app` owns the shared TanStack router, views and query composition; `packages/ui` owns the shared Radix components, Tailwind v4 theme/styles and a DOM-free token export (see [Lumo UI](packages/ui/README.md)); `packages/api-client` provides an injectable, schema-validating transport; `packages/shared` contains platform-neutral identities, link validation and message reconciliation. Expo should reuse contracts/client/domain code and implement native presentation/media adapters; no empty mobile app has been created.
 
+Desktop windows use frameless custom controls on Windows/Linux and a hidden title bar with native traffic lights on macOS. The application menu is removed. Desktop-only composition mounts controls in the shared `AppHeader`; routes without a header get a compact 32px drag strip. Window actions and state subscriptions pass through the sandboxed preload, with main-frame/origin validation in the main process. Header links, menus and controls are excluded from drag regions using Electron’s [custom window interaction guidance](https://www.electronjs.org/docs/latest/tutorial/custom-window-interactions).
+
 Start PostgreSQL in WSL (`sudo service postgresql start` where supported), configure `apps/api/.env`, and run `pnpm db:migrate`. Start API, web and desktop together with `pnpm dev`, or independently:
 
 ```sh
@@ -171,6 +173,8 @@ Additional checks:
 pnpm test --project desktop --project shared --project api-client
 pnpm test:desktop
 # Headless Linux/WSL: xvfb-run -a pnpm test:desktop
+# Managed Linux display: also exercise native maximize/restore/fullscreen and minimize.
+LUMO_NATIVE_WINDOW_TESTS=1 pnpm test:desktop
 # Explicit live provider smoke (creates and cleans temporary provider records):
 LUMO_LIVE_AGORA=1 pnpm --filter @lumo/api exec tsx --env-file=.env src/test/live-provider.ts
 # Explicit browser/Electron live messaging integration:
@@ -178,5 +182,7 @@ LUMO_LIVE_AGORA=1 xvfb-run -a pnpm test:desktop
 # Native screen capture: a supported graphical host must expose capture sources.
 LUMO_LIVE_AGORA=1 LUMO_LIVE_SCREEN_CAPTURE=1 xvfb-run -a --server-args="-screen 0 1280x1024x24 +extension RANDR +extension RENDER" pnpm test:desktop
 ```
+
+Native window state tests need a window manager; bare Xvfb skips them. The minimize test probes Electron directly and skips when the compositor ignores minimization (including the local WSLg host). Use `LUMO_PACKAGED_DESKTOP=apps/desktop/release/linux-unpacked/lumo` to run the same suite against the unpacked Linux build. Native drag/double-click behavior, Windows snapping and macOS traffic lights still need verification on their target desktops; custom maximize buttons do not provide Windows’ native Snap Layout hover menu.
 
 Provider-dependent tests are gated and reported as skipped without explicit opt-in. Live tests distinguish synthetic camera/audio from native virtual-display capture. Capture tests report a skip when the graphical host exposes no sources. These checks do not prove physical device quality or Windows/macOS permissions. See [implementation evidence and limitations](docs/desktop-implementation-notes.md).

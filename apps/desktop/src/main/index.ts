@@ -6,6 +6,7 @@ import {
   app,
   BrowserWindow,
   ipcMain,
+  Menu,
   protocol,
   shell,
   session,
@@ -15,6 +16,8 @@ import {
 
 import { remoteOrigin, trustedRenderer, externalUrl, rendererCsp } from "./policy";
 import { createSessionTransport } from "./transport";
+import { registerWindowControls, synchronizeWindowState } from "./window-controls";
+
 const dirname = fileURLToPath(new URL(".", import.meta.url));
 protocol.registerSchemesAsPrivileged([
   {
@@ -42,6 +45,8 @@ if (app.commandLine.hasSwitch("user-data-dir"))
   app.setPath("userData", app.commandLine.getSwitchValue("user-data-dir"));
 let window: BrowserWindow | null = null;
 void app.whenReady().then(async () => {
+  Menu.setApplicationMenu(null);
+  registerWindowControls(() => window, devOrigin);
   const request = await createSessionTransport(
     apiOrigin,
     webOrigin,
@@ -177,6 +182,12 @@ void app.whenReady().then(async () => {
   function createWindow() {
     window = new BrowserWindow({
       title: "Lumo",
+      ...(process.platform === "darwin"
+        ? { titleBarStyle: "hidden" as const, trafficLightPosition: { x: 12, y: 12 } }
+        : { frame: false }),
+      resizable: true,
+      maximizable: true,
+      minimizable: true,
       width: 1280,
       height: 850,
       minWidth: 600,
@@ -191,6 +202,8 @@ void app.whenReady().then(async () => {
         webSecurity: true,
       },
     });
+    window.setMenu(null);
+    synchronizeWindowState(window);
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event, url) => {
       if (!trustedRenderer(url, devOrigin)) event.preventDefault();

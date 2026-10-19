@@ -5,6 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Check, MessageSquare } from "lucide-react";
 import { useState } from "react";
 
+import { AppHeader } from "../../chrome";
 import { command, sessionQuery } from "../../lib/api";
 
 export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?: string }) {
@@ -32,9 +33,9 @@ export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?
   });
   return (
     <main id="main-content" className="relative grid min-h-dvh lg:grid-cols-2">
-      <div className="absolute top-5 right-5">
+      <AppHeader className="app-auth-header absolute top-5 right-5 flex items-center gap-3">
         <ThemeMenu />
-      </div>
+      </AppHeader>
       <div className="hidden flex-col justify-between border-r bg-sidebar px-12 py-10 lg:flex xl:px-20">
         <Brand />
         <div>

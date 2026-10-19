@@ -46,6 +46,7 @@
     ".": "./src/router.ts",
     "./api": "./src/lib/api.ts",
     "./platform": "./src/platform.ts",
+    "./chrome": "./src/chrome.tsx",
     "./vite": "./vite.config.ts"
   }
 }

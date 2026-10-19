@@ -11,6 +11,7 @@ import {
   type Page,
   type Browser,
 } from "@playwright/test";
+
 const require = createRequire(import.meta.url);
 const password = "Strong-desktop-password-2026!";
 async function launch(dir: string, capture = false) {
@@ -66,6 +67,159 @@ async function login(page: Page, email: string) {
     page.getByRole("heading", { level: 1, name: /Make yourself at home/ }),
   ).toBeVisible();
 }
+test("frameless chrome, menu removal, drag regions and web isolation", async ({ page: web }) => {
+  const dir = await mkdtemp(join(tmpdir(), "lumo-window-e2e-"));
+  const app = await launch(dir);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+    const platform = await app.evaluate(() => process.platform);
+    const native = await app.evaluate(({ BrowserWindow, Menu }) => {
+      const window = BrowserWindow.getAllWindows()[0]!;
+      return {
+        menu: Menu.getApplicationMenu(),
+        resizable: window.isResizable(),
+        maximizable: window.isMaximizable(),
+        minimizable: window.isMinimizable(),
+        minimum: window.getMinimumSize(),
+        bounds: window.getBounds(),
+        content: window.getContentBounds(),
+      };
+    });
+    expect(native.menu).toBeNull();
+    expect(native.resizable).toBe(true);
+    expect(native.maximizable).toBe(true);
+    expect(native.minimizable).toBe(true);
+    expect(native.minimum).toEqual([600, 540]);
+    if (platform !== "darwin") {
+      expect(native.bounds.height).toBe(native.content.height);
+      expect(native.bounds.width).toBe(native.content.width);
+      await expect(page.getByRole("group", { name: "Window controls" })).toBeVisible();
+      await page.keyboard.press("Alt");
+      expect(await app.evaluate(({ Menu }) => Menu.getApplicationMenu())).toBeNull();
+      const close = page.getByRole("button", { name: "Close window", exact: true });
+      await close.hover();
+      await expect(close).toHaveCSS("background-color", "rgb(196, 43, 28)");
+      const controls = await page.getByRole("group", { name: "Window controls" }).boundingBox();
+      const theme = await page.getByRole("button", { name: "Change appearance" }).boundingBox();
+      expect(controls!.y).toBe(0);
+      expect(controls!.x).toBeGreaterThanOrEqual(theme!.x + theme!.width);
+      await expect(page.locator("[data-app-header]")).toHaveCSS("app-region", "drag");
+      await expect(close).toHaveCSS("app-region", "no-drag");
+      await expect(page.getByRole("button", { name: "Change appearance" })).toHaveCSS(
+        "app-region",
+        "no-drag",
+      );
+      await page.getByRole("button", { name: "Change appearance" }).click();
+      await expect(page.getByRole("menuitemcheckbox", { name: "Dark" })).toBeVisible();
+      await page.keyboard.press("Escape");
+    } else {
+      await expect(page.getByRole("group", { name: "Window controls" })).toHaveCount(0);
+    }
+    const window = await app.browserWindow(page);
+    await window.evaluate((win) => win.setSize(600, 540));
+    await expect.poll(() => window.evaluate((win) => win.getSize())).toEqual([600, 540]);
+    await page.getByLabel("Email address").fill("window@example.com");
+    await expect(page.getByLabel("Email address")).toHaveValue("window@example.com");
+    await page.goto(new URL("/about", page.url()).href);
+    await expect(page.getByRole("heading", { name: "About Lumo" })).toBeVisible();
+    await expect(page.getByRole("banner", { name: "Application window" })).toBeVisible();
+    await page.goto(new URL("/does-not-exist", page.url()).href);
+    await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+    if (platform !== "darwin") {
+      await expect(page.getByRole("button", { name: "Close window", exact: true })).toBeVisible();
+      const closed = page.waitForEvent("close");
+      await page.getByRole("button", { name: "Close window", exact: true }).click();
+      await closed;
+    }
+    await web.goto("/login");
+    await expect(web.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+    await expect(web.getByRole("group", { name: "Window controls" })).toHaveCount(0);
+    await expect(web.locator(".desktop-app")).toHaveCount(0);
+  } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("native window controls synchronize maximize, restore and fullscreen", async () => {
+  test.skip(
+    process.platform === "linux" && process.env.LUMO_NATIVE_WINDOW_TESTS !== "1",
+    "Requires a Linux window manager; plain Xvfb cannot process native window states. Set LUMO_NATIVE_WINDOW_TESTS=1 on a managed display.",
+  );
+  test.skip(process.platform === "darwin", "macOS uses native traffic lights.");
+  const dir = await mkdtemp(join(tmpdir(), "lumo-native-window-e2e-"));
+  const app = await launch(dir);
+  try {
+    const page = await app.firstWindow();
+    const window = await app.browserWindow(page);
+    await page.getByRole("button", { name: "Maximize window", exact: true }).click();
+    await expect.poll(() => window.evaluate((win) => win.isMaximized())).toBe(true);
+    const restore = page.getByRole("button", { name: "Restore window", exact: true });
+    await expect(restore).toBeVisible();
+    const maximizedIcon = await restore.locator("svg").innerHTML();
+    await restore.click();
+    await expect.poll(() => window.evaluate((win) => win.isMaximized())).toBe(false);
+    await expect(page.getByRole("button", { name: "Maximize window", exact: true })).toBeVisible();
+    expect(
+      await page
+        .getByRole("button", { name: "Maximize window", exact: true })
+        .locator("svg")
+        .innerHTML(),
+    ).not.toBe(maximizedIcon);
+    // OS-driven state changes must update the renderer too, including after reload.
+    await window.evaluate((win) => win.maximize());
+    await expect(restore).toBeVisible();
+    await page.reload();
+    await expect(restore).toBeVisible();
+    await window.evaluate((win) => win.unmaximize());
+    await expect(page.getByRole("button", { name: "Maximize window", exact: true })).toBeVisible();
+    await window.evaluate((win) => win.setFullScreen(true));
+    await expect(page.locator(".desktop-app")).toHaveAttribute("data-fullscreen", "true");
+    await window.evaluate((win) => win.setFullScreen(false));
+    await expect(page.locator(".desktop-app")).toHaveAttribute("data-fullscreen", "false");
+  } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("native minimize control works when the window manager supports minimization", async () => {
+  test.skip(
+    process.platform === "linux" && process.env.LUMO_NATIVE_WINDOW_TESTS !== "1",
+    "Requires a managed display with LUMO_NATIVE_WINDOW_TESTS=1.",
+  );
+  test.skip(process.platform === "darwin", "macOS uses native traffic lights.");
+  const dir = await mkdtemp(join(tmpdir(), "lumo-minimize-e2e-"));
+  const app = await launch(dir);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByRole("button", { name: "Minimize window", exact: true })).toBeVisible();
+    const window = await app.browserWindow(page);
+    // Probe Electron directly first: some compositors (including WSLg) ignore minimization.
+    await window.evaluate((win) => win.minimize());
+    let supported = false;
+    try {
+      await expect
+        .poll(() => window.evaluate((win) => win.isMinimized()), { timeout: 2000 })
+        .toBe(true);
+      supported = true;
+    } catch {
+      /* Host does not implement the native operation. */
+    }
+    test.skip(!supported, "The compositor ignores Electron's native minimize API.");
+    await window.evaluate((win) => win.restore());
+    await expect.poll(() => window.evaluate((win) => win.isMinimized())).toBe(false);
+    await page.getByRole("button", { name: "Minimize window", exact: true }).click();
+    await expect.poll(() => window.evaluate((win) => win.isMinimized())).toBe(true);
+    await window.evaluate((win) => win.restore());
+    await expect.poll(() => window.evaluate((win) => win.isMinimized())).toBe(false);
+  } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("desktop login, real API, workspace parity, logout, restart and sandbox boundaries", async () => {
   const testInfo = test.info();
   const dir = await mkdtemp(join(tmpdir(), "lumo-desktop-e2e-"));
@@ -75,12 +229,24 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
     let page = await app.firstWindow();
     await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("desktop-login.png") });
-    expect(
-      await page.evaluate(() => ({
-        require: typeof (window as unknown as { require: unknown }).require,
-        process: typeof (window as unknown as { process: unknown }).process,
-      })),
-    ).toEqual({ require: "undefined", process: "undefined" });
+    const globals = await page.evaluate(() => {
+      const renderer = window as unknown as {
+        require?: unknown;
+        process?: { versions?: { node?: unknown }; getBuiltinModule?: unknown };
+      };
+      return {
+        require: typeof renderer.require,
+        process: typeof renderer.process,
+        nodeVersion: typeof renderer.process?.versions?.node,
+        getBuiltinModule: typeof renderer.process?.getBuiltinModule,
+      };
+    });
+    // Vite dependencies may inject a browser process shim; Node must remain unavailable.
+    expect(globals.require).toBe("undefined");
+    expect(globals.nodeVersion).toBe("undefined");
+    expect(globals.getBuiltinModule).toBe("undefined");
+    if (process.env.LUMO_PACKAGED_DESKTOP || !process.env.ELECTRON_RENDERER_URL)
+      expect(globals.process).toBe("undefined");
     const preferences = await app.evaluate(({ BrowserWindow }) => {
       const settings = (
         BrowserWindow.getAllWindows()[0]!.webContents as unknown as {

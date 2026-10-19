@@ -48,6 +48,7 @@ describe("authentication and guards", () => {
     const { router } = await renderRoute(`/invite?token=${inviteToken}`);
     expect(await screen.findByRole("heading", { name: "Sign in to Lumo" })).toBeInTheDocument();
     expect(router.state.location.searchStr).toContain(inviteToken);
+    expect(screen.queryByRole("group", { name: "Window controls" })).not.toBeInTheDocument();
   });
   test("signs in and restores the last workspace", async () => {
     server.state.authenticated = false;

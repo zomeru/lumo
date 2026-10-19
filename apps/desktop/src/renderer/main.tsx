@@ -7,9 +7,13 @@ import { StrictMode } from "react";
 
 import "@lumo/ui/styles.css";
 import { createRoot } from "react-dom/client";
+
+import type { WindowApi } from "../window-api";
+import { DesktopChrome } from "./window-chrome";
 declare global {
   interface Window {
     lumo: {
+      window: WindowApi;
       request: Transport;
       webOrigin: () => Promise<string>;
       openExternal: (url: string) => Promise<void>;
@@ -27,6 +31,8 @@ const root = document.getElementById("root");
 if (!root) throw new Error("Missing app root");
 createRoot(root).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <DesktopChrome api={window.lumo.window}>
+      <RouterProvider router={router} />
+    </DesktopChrome>
   </StrictMode>,
 );

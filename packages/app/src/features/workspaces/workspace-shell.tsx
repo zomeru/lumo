@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
+import { AppHeader } from "../../chrome";
 import { clearWorkspaceCache, sessionQuery, workspaceQuery, workspacesQuery } from "../../lib/api";
 
 const navigationLink =
@@ -229,13 +230,14 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
   return (
     <div className="min-h-dvh">
       <aside
+        data-app-sidebar=""
         hidden={menuOpen}
         className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-sidebar lg:flex"
       >
         {navigation}
       </aside>
       <div className="flex min-h-dvh min-w-0 flex-col lg:ml-60">
-        <header className="flex min-h-16 items-center justify-between gap-3 border-b bg-surface px-4 sm:px-8">
+        <AppHeader className="flex min-h-16 items-center justify-between gap-3 border-b bg-surface px-4 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
               <DialogTrigger asChild>
@@ -273,7 +275,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
               </Link>
             </Button>
           </div>
-        </header>
+        </AppHeader>
         <main
           id="main-content"
           className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-7 sm:px-8 sm:py-9 xl:px-10"
