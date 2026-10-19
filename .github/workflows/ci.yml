@@ -46,6 +46,10 @@ jobs:
       - run: pnpm check:all
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      - run: pnpm desktop:package
+      - run: xvfb-run -a pnpm test:desktop
+        env:
+          LUMO_PACKAGED_DESKTOP: apps/desktop/release/linux-unpacked/lumo
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -76,5 +80,5 @@ jobs:
       - run: pnpm deps:check
       - run: pnpm deps:unused
       - run: pnpm check-types
-      - run: pnpm test --project web --project contracts --project env --project auth
+      - run: pnpm test --project web --project contracts --project env --project auth --project shared --project api-client --project desktop
       - run: pnpm build
