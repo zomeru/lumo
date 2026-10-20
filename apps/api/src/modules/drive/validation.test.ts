@@ -6,6 +6,7 @@ test("recognizes previewable formats and verifies common signatures", () => {
   expect(previewType("image/svg+xml")).toBeUndefined();
   expect(previewType("text/html")).toBeUndefined();
   expect(previewType("application/pdf")).toBe("application/pdf");
+  expect(previewType("text/markdown")).toBe("text/plain");
   for (const [mime, bytes] of [
     ["image/png", [137, 80, 78, 71, 13, 10, 26, 10]],
     ["image/jpeg", [255, 216, 255]],

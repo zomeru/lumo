@@ -57,6 +57,7 @@ async function audit(
 export function createWorkspaceService(
   db: Database,
   revokeAccess?: (tx: Transaction, workspaceId: string, userId: string) => Promise<void>,
+  roleChanged?: (tx: Transaction, workspaceId: string, userId: string) => Promise<void>,
 ) {
   // All workspace writes share this lock. Membership is checked AFTER acquiring it,
   // so a concurrent demotion/removal cannot authorize a later mutation.
@@ -225,6 +226,7 @@ export function createWorkspaceService(
           .update(membership)
           .set({ role: next })
           .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, targetId)));
+        await roleChanged?.(tx, workspaceId, targetId);
         await audit(tx, workspaceId, actorId, `member.role.${next}`, targetId);
       });
     },

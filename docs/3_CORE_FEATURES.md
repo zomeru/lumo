@@ -1,5 +1,7 @@
 # Core Features & Functional Requirements
 
+> Office implementation update (October 20, 2026): Docs, Sheets and Slides use ONLYOFFICE Docs Cloud through `packages/app/src/features/office` and the existing Hono/Drive/S3 services. Wiki uses CodeMirror 6 + Yjs for Markdown source editing, with sanitized GFM preview. This extends the separately approved Wiki-only fallback after the Cloud Markdown fidelity test failed. Earlier Univer references and proposed `packages/univer` trees below are historical design rationale, not the implemented editor or a package to scaffold. See [implementation and operations](onlyoffice-implementation-notes.md). Native mobile Office remains future work.
+
 **Project:** Internal Collaboration & Productivity Platform  
 **Document:** `docs/CORE_FEATURES.md`  
 **Version:** 1.0  
@@ -428,7 +430,7 @@ Screen-sharing support requires validation of the Agora React Native SDK in Expo
 
 The collaborative office module provides document, spreadsheet, and presentation editing.
 
-**Selected technology: Univer**
+**Selected technology: ONLYOFFICE Docs for Docs/Sheets/Slides; CodeMirror 6 + Yjs for Wiki.**
 
 All documents belong to a workspace and are integrated with Drive.
 
@@ -501,7 +503,7 @@ Comment-only access may be introduced if supported by the selected editor integr
 - Document revisions must be stored according to the persistence design.
 - Autosave and recovery must be tested.
 
-**Implementation note:** Univer's Docs, Sheets, Slides, and collaborative capabilities must be validated against the selected version, plugins, licensing, and backend integration. Mobile uses an authenticated hosted editor in react-native-webview after a usability proof of concept; native screens must not import the DOM editor. Validate touch editing, keyboard handling, save/recovery, short-lived scoped editor authorization, allowed origins, and bridge messages. If unusable, offer an authorized preview with an explicit browser editing handoff and confirm that capability limit before rollout.
+**Implementation note:** The web/Electron implementation uses signed ONLYOFFICE sessions, verified save callbacks, canonical Drive files and immutable S3 versions. Wiki uses durable Yjs state with Markdown snapshots. Native mobile remains unimplemented; its hosted editor still requires an explicit usability and authorization proof.
 
 ---
 

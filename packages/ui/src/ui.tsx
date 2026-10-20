@@ -96,17 +96,22 @@ export function PageHeading({
   title,
   children,
   actions,
+  icon,
 }: {
   eyebrow: string;
   title: string;
   children?: ReactNode;
   actions?: ReactNode;
+  icon?: ReactNode;
 }) {
   return (
     <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
         <span className="mb-2 block text-xs font-medium text-muted-foreground">{eyebrow}</span>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{title}</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-[28px]">
+          {icon}
+          {title}
+        </h1>
         {children && <p className="mt-2 max-w-2xl">{children}</p>}
       </div>
       {actions && <div className="flex items-center gap-2 pt-1">{actions}</div>}

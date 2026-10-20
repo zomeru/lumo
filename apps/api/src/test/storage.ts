@@ -79,10 +79,10 @@ export function memoryStorage() {
       async (key) => `https://test.s3.us-east-1.amazonaws.com/${key}?signed=true`,
     ),
     read: vi.fn<Storage["read"]>(async (key) => Readable.from(get(key).data)),
-    write: vi.fn<Storage["write"]>(async (key, stream) => {
+    write: vi.fn<Storage["write"]>(async (key, stream, mimeType = "application/zip") => {
       const chunks: Buffer[] = [];
       for await (const chunk of stream) chunks.push(Buffer.from(chunk as Uint8Array));
-      put(key, Buffer.concat(chunks), "application/zip");
+      put(key, Buffer.concat(chunks), mimeType);
     }),
   };
   return { storage, objects, uploads, put, sha };

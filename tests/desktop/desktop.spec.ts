@@ -13,6 +13,7 @@ import {
 } from "@playwright/test";
 
 import { verifyDrive } from "../drive-flow";
+import { verifyFileModules } from "../file-modules-flow";
 import { verifyDesktopScrolling } from "./scrollbars";
 
 const require = createRequire(import.meta.url);
@@ -26,7 +27,9 @@ async function launch(dir: string, capture = false) {
     "DATABASE_URL",
     "TEST_DATABASE_URL",
     "SMTP_URL",
-    ...Object.keys(clientEnv).filter((key) => key.startsWith("AWS_")),
+    ...Object.keys(clientEnv).filter(
+      (key) => key.startsWith("AWS_") || key.startsWith("ONLYOFFICE_"),
+    ),
   ])
     delete clientEnv[key];
   const args = [
@@ -534,6 +537,19 @@ test("live native screen capture publishes a second track and stops it", async (
     "Requires explicit native capture opt-in and a supported graphical capture host.",
   );
   await liveMeeting(browser, true);
+});
+
+test("packaged-protocol file modules preserve navigation, creation scope and aliases", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "lumo-file-modules-e2e-"));
+  const app = await launch(dir);
+  try {
+    const page = await app.firstWindow();
+    await register(page, "Desktop Files", `desktop-files-${Date.now()}@example.com`);
+    await verifyFileModules(page);
+  } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("packaged-protocol Drive shares real folder workflows with web", async ({

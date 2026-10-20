@@ -4,6 +4,7 @@ import {
   driveUploadSchema,
   type DriveUpload,
 } from "@lumo/contracts/drive";
+import { officeUploadFormat, type OfficeUploadModule } from "@lumo/contracts/files";
 
 import { api } from "../../lib/api";
 import { drivePath } from "./drive-api";
@@ -78,6 +79,7 @@ export async function uploadDriveFile({
   onInitialized,
   previous,
   finalizeOnly,
+  module,
 }: {
   workspaceId: string;
   parentId: string | null;
@@ -87,6 +89,7 @@ export async function uploadDriveFile({
   onInitialized: (session: DriveUpload) => void;
   previous?: DriveUpload;
   finalizeOnly?: boolean;
+  module?: OfficeUploadModule;
 }) {
   const base = drivePath(workspaceId);
   const checksum = file.size < 16 * 1024 ** 2 ? await sha256(file) : undefined;
@@ -98,7 +101,10 @@ export async function uploadDriveFile({
       body: {
         parentId,
         name: file.name,
-        mimeType: file.type || "application/octet-stream",
+        mimeType: module
+          ? officeUploadFormat(module).mime
+          : file.type || "application/octet-stream",
+        module,
         size: file.size,
         checksum,
       },

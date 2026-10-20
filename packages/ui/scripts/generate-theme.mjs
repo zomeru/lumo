@@ -1,6 +1,7 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 import { themes, tokens } from "../src/tokens.ts";
+import { onlyofficeTheme } from "./onlyoffice-themes.mjs";
 
 const variables = (values) =>
   Object.entries(values)
@@ -44,4 +45,19 @@ if (process.argv.includes("--check")) {
   }
 } else {
   await writeFile(path, css);
+}
+
+const officeDirectory = new URL("../onlyoffice/", import.meta.url);
+if (!process.argv.includes("--check")) await mkdir(officeDirectory, { recursive: true });
+for (const [mode, palette] of Object.entries(themes)) {
+  const officePath = new URL(`theme-lumo-${mode}.json`, officeDirectory);
+  const theme = onlyofficeTheme(mode, palette);
+  if (process.argv.includes("--check")) {
+    const current = JSON.parse(await readFile(officePath, "utf8"));
+    if (JSON.stringify(current) !== JSON.stringify(theme)) {
+      throw new Error("Office theme is out of date. Run pnpm --filter @lumo/ui theme:generate.");
+    }
+  } else {
+    await writeFile(officePath, JSON.stringify(theme, null, 2) + "\n");
+  }
 }

@@ -84,7 +84,7 @@ export function DriveDialog({
       if (action.kind === "purge") return command(`${base}/${item.id}/permanent`, "DELETE");
     },
     onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: ["workspace", workspaceId, "drive"] });
+      await client.invalidateQueries({ queryKey: ["workspace", workspaceId] });
       close();
     },
   });
@@ -265,7 +265,7 @@ function ShareForm({ workspaceId, item }: { workspaceId: string; item: DriveItem
         permission ? { userId: id, permission } : {},
       ),
     onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: ["workspace", workspaceId, "drive"] });
+      await client.invalidateQueries({ queryKey: ["workspace", workspaceId] });
       setMemberId("");
     },
   });
@@ -375,6 +375,7 @@ function Preview({ workspaceId, item }: { workspaceId: string; item: DriveItem }
     "image/webp",
     "application/pdf",
     "text/plain",
+    "text/markdown",
     "text/csv",
     "application/json",
   ].includes(item.mimeType);

@@ -5,14 +5,22 @@ import { api } from "../../lib/api";
 import { getPlatform } from "../../platform";
 
 export const drivePath = (workspaceId: string) => `/workspaces/${workspaceId}/drive`;
-export const driveQuery = (workspaceId: string, input: Partial<DriveListInput> = {}) =>
+export const driveQuery = (
+  workspaceId: string,
+  input: Partial<DriveListInput> = {},
+  documents = false,
+) =>
   queryOptions({
-    queryKey: ["workspace", workspaceId, "drive", input],
+    queryKey: ["workspace", workspaceId, documents ? "documents" : "drive", input],
     queryFn: ({ signal }) => {
       const search = new URLSearchParams();
       for (const [key, value] of Object.entries(input))
         if (value !== undefined) search.set(key, String(value));
-      return api(`${drivePath(workspaceId)}?${search}`, driveListSchema, { signal });
+      return api(
+        `${documents ? `/workspaces/${workspaceId}/documents` : drivePath(workspaceId)}?${search}`,
+        driveListSchema,
+        { signal },
+      );
     },
     refetchInterval: 15000,
     retry: false,

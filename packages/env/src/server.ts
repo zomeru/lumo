@@ -5,6 +5,16 @@ const origin = z.url().refine((value) => {
   return ["http:", "https:"].includes(url.protocol) && url.origin === value;
 }, "Use an exact HTTP(S) origin without a trailing slash");
 
+const officeOrigin = origin.refine((value) => {
+  const url = new URL(value);
+  return (
+    url.protocol === "https:" &&
+    !url.username &&
+    !url.password &&
+    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+  );
+}, "Use an externally reachable HTTPS origin without credentials, paths or a trailing slash");
+
 export const databaseUrlSchema = z.string().refine((value) => {
   try {
     const url = new URL(value);
@@ -49,6 +59,10 @@ const serverSchema = z
       .refine((value) => new URL(value).protocol === "https:" && new URL(value).origin === value)
       .optional(),
     LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug"]).default("info"),
+    ONLYOFFICE_DOCUMENT_SERVER_URL: officeOrigin.optional(),
+    ONLYOFFICE_JWT_SECRET: z.string().min(32).optional(),
+    ONLYOFFICE_PUBLIC_API_BASE_URL: officeOrigin.optional(),
+    ONLYOFFICE_MODE: z.enum(["cloud", "self-hosted"]).default("cloud"),
     AWS_REGION: z.string().min(1).optional(),
     AWS_S3_BUCKET: z
       .string()
@@ -74,6 +88,19 @@ const serverSchema = z
       .default("*"),
   })
   .superRefine((value, ctx) => {
+    const officeFields = [
+      "ONLYOFFICE_DOCUMENT_SERVER_URL",
+      "ONLYOFFICE_JWT_SECRET",
+      "ONLYOFFICE_PUBLIC_API_BASE_URL",
+    ] as const;
+    if (officeFields.some((field) => value[field] !== undefined))
+      for (const field of officeFields)
+        if (!value[field])
+          ctx.addIssue({
+            code: "custom",
+            path: [field],
+            message: "Configure all three ONLYOFFICE connection settings together",
+          });
     if (Boolean(value.AWS_REGION) !== Boolean(value.AWS_S3_BUCKET))
       ctx.addIssue({
         code: "custom",

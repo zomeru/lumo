@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { fileModuleSchema, officeUploadModuleSchema } from "./files";
 import { idSchema, paginationSchema } from "./index";
 
 export const driveNameSchema = z
@@ -18,15 +19,32 @@ export const driveNameSchema = z
 export const driveViewSchema = z.enum(["my", "recent", "starred", "shared", "trash"]);
 export const driveListInputSchema = paginationSchema.extend({
   view: driveViewSchema.default("my"),
+  module: fileModuleSchema.optional(),
+  ownership: z.enum(["all", "owned", "shared"]).optional(),
   parentId: idSchema.optional(),
   sort: z.enum(["name", "size", "type", "updatedAt"]).default("name"),
   direction: z.enum(["asc", "desc"]).default("asc"),
-  type: z.enum(["all", "folder", "image", "pdf", "text", "other"]).default("all"),
+  type: z
+    .enum([
+      "all",
+      "folder",
+      "image",
+      "pdf",
+      "text",
+      "other",
+      "office",
+      "document",
+      "sheet",
+      "slide",
+      "wiki",
+    ])
+    .default("all"),
 });
 export const driveFolderInputSchema = z
   .object({ name: driveNameSchema, parentId: idSchema.nullable().default(null) })
   .strict();
 export const driveUploadInputSchema = driveFolderInputSchema.extend({
+  module: officeUploadModuleSchema.optional(),
   size: z
     .number()
     .int()

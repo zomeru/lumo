@@ -70,7 +70,14 @@ export function createS3Storage(env: ServerEnv): Storage {
           ContentLength: size,
           ChecksumSHA256: checksum,
         }),
-        signOptions,
+        {
+          ...signOptions,
+          // UploadPart inherits the object's type from CreateMultipartUpload.
+          // The SDK adds a default Content-Type which browser part PUTs omit.
+          // Bind the part's bytes/length, without signing that incidental header.
+          signableHeaders: new Set(["content-length"]),
+          unsignableHeaders: new Set(["content-type"]),
+        },
       ),
     async parts(key, uploadId) {
       const parts: StoragePart[] = [];
@@ -166,10 +173,15 @@ export function createS3Storage(env: ServerEnv): Storage {
       if (!(result.Body instanceof Readable)) throw new Error("Missing S3 stream");
       return result.Body;
     },
-    async write(key, stream) {
+    async write(key, stream, mimeType = "application/zip") {
       const upload = new Upload({
         client,
-        params: { ...object(key), Body: stream, ContentType: "application/zip" },
+        params: {
+          ...object(key),
+          Body: stream,
+          ContentType: mimeType,
+          ChecksumAlgorithm: "SHA256",
+        },
         queueSize: 2,
         leavePartsOnError: false,
       });

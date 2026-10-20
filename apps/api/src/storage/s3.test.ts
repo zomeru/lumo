@@ -43,10 +43,18 @@ test("signs short-lived PUT, part and GET URLs with exact sizes/checksums and sa
   expect(put.protocol).toBe("https:");
   expect(put.searchParams.get("X-Amz-Expires")).toBe("120");
   expect(put.searchParams.get("X-Amz-SignedHeaders")).toContain("content-length");
+  expect(put.searchParams.get("X-Amz-SignedHeaders")).toContain("content-type");
   expect(put.searchParams.get("X-Amz-SignedHeaders")).toContain("x-amz-checksum-sha256");
   const part = new URL(await storage.partUrl("drive-staging/workspace/file", "upload", 2, 8, hash));
   expect(part.searchParams.get("partNumber")).toBe("2");
   expect(part.searchParams.get("uploadId")).toBe("upload");
+  // Browser part PUTs send only the checksum. Signing the SDK's implicit type
+  // produces SignatureDoesNotMatch for every multipart transfer.
+  expect(part.searchParams.get("X-Amz-SignedHeaders")?.split(";")).toEqual([
+    "content-length",
+    "host",
+    "x-amz-checksum-sha256",
+  ]);
   const download = new URL(await storage.downloadUrl("drive/workspace/file", 'file"名.pdf'));
   expect(download.searchParams.get("response-content-disposition")).toContain("attachment;");
   expect(download.searchParams.get("response-content-type")).toBe("application/octet-stream");

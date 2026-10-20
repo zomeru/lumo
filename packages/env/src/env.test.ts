@@ -112,3 +112,63 @@ test("Drive configuration validates paired storage settings and MIME policy with
     "DRIVE_MAX_FILE_BYTES",
   );
 });
+
+const office = {
+  ONLYOFFICE_DOCUMENT_SERVER_URL: "https://docs.example.com",
+  ONLYOFFICE_PUBLIC_API_BASE_URL: "https://api.example.com",
+  ONLYOFFICE_JWT_SECRET: "synthetic-tenant-secret-for-tests-only",
+};
+test("ONLYOFFICE is optional together, with server-only settings and an explicit deployment mode", () => {
+  expect(readServerEnv(valid).ONLYOFFICE_DOCUMENT_SERVER_URL).toBeUndefined();
+  expect(readServerEnv({ ...valid, ...office })).toMatchObject({
+    ...office,
+    ONLYOFFICE_MODE: "cloud",
+  });
+  expect(
+    readServerEnv({ ...valid, ...office, ONLYOFFICE_MODE: "self-hosted" }).ONLYOFFICE_MODE,
+  ).toBe("self-hosted");
+  expect(
+    readWebEnv({ ...office, VITE_ONLYOFFICE_JWT_SECRET: office.ONLYOFFICE_JWT_SECRET }),
+  ).toEqual({ VITE_API_URL: "" });
+});
+
+test.each([
+  "ONLYOFFICE_DOCUMENT_SERVER_URL",
+  "ONLYOFFICE_PUBLIC_API_BASE_URL",
+  "ONLYOFFICE_JWT_SECRET",
+] as const)(
+  "rejects partial ONLYOFFICE configuration missing %s without echoing secrets",
+  (field) => {
+    expect(() => readServerEnv({ ...valid, ...office, [field]: undefined })).toThrow(field);
+    expect(() => readServerEnv({ ...valid, ...office, [field]: undefined })).not.toThrow(
+      office.ONLYOFFICE_JWT_SECRET,
+    );
+  },
+);
+
+test.each([
+  "http://docs.example.com",
+  "https://docs.example.com/",
+  "https://docs.example.com/path",
+  "https://docs.example.com?token=secret",
+  "https://user:secret@docs.example.com",
+  "https://docs.example.com#fragment",
+  "https://localhost",
+  "https://127.0.0.1",
+  "https://[::1]",
+])("ONLYOFFICE requires exact external HTTPS origins: %s", (url) => {
+  for (const field of ["ONLYOFFICE_DOCUMENT_SERVER_URL", "ONLYOFFICE_PUBLIC_API_BASE_URL"])
+    expect(() => readServerEnv({ ...valid, ...office, [field]: url })).toThrow(field);
+});
+
+test("rejects weak ONLYOFFICE secrets and unknown modes without exposing their values", () => {
+  expect(() =>
+    readServerEnv({ ...valid, ...office, ONLYOFFICE_JWT_SECRET: "private-short-value" }),
+  ).toThrow("ONLYOFFICE_JWT_SECRET");
+  expect(() =>
+    readServerEnv({ ...valid, ...office, ONLYOFFICE_JWT_SECRET: "private-short-value" }),
+  ).not.toThrow("private-short-value");
+  expect(() => readServerEnv({ ...valid, ...office, ONLYOFFICE_MODE: "docspace" })).toThrow(
+    "ONLYOFFICE_MODE",
+  );
+});

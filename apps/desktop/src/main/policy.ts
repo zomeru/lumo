@@ -56,8 +56,17 @@ export function externalUrl(value: unknown, webOrigin: string) {
   return url.href;
 }
 
-export function rendererCsp(developmentOrigin?: string, nonce?: string) {
+export function rendererCsp(
+  developmentOrigin?: string,
+  nonce?: string,
+  officeOrigin?: string,
+  apiOrigin?: string,
+) {
+  const office = officeOrigin ? ` ${remoteOrigin(officeOrigin)}` : "";
   const scripts = developmentOrigin && nonce ? ` 'nonce-${nonce}'` : "";
-  const websocket = developmentOrigin ? ` ${developmentOrigin.replace(/^http/, "ws")}` : "";
-  return `default-src 'self'; script-src 'self'${scripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:${websocket}; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src https://*.amazonaws.com https://*.amazonaws.com.cn; frame-ancestors 'none'; form-action 'self'`;
+  const websocket = [developmentOrigin, apiOrigin]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => ` ${remoteOrigin(value).replace(/^http/, "ws")}`)
+    .join("");
+  return `default-src 'self'; script-src 'self'${scripts}${office}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:${websocket}; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src https://*.amazonaws.com https://*.amazonaws.com.cn${office}; frame-ancestors 'none'; form-action 'self'`;
 }

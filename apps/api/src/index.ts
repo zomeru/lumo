@@ -1,3 +1,5 @@
+import { Server } from "node:http";
+
 import { serve } from "@hono/node-server";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { createAuth } from "@lumo/auth";
@@ -6,6 +8,7 @@ import { readServerEnv } from "@lumo/env/server";
 import pino from "pino";
 
 import { createApp } from "./app.ts";
+import { listenForWiki } from "./modules/office/wiki-notifications";
 import { cleanupStorage } from "./storage/cleanup";
 import { createS3Storage } from "./storage/s3";
 
@@ -39,6 +42,12 @@ maintenance.unref();
 const server = serve({ fetch: app.fetch, hostname: env.HOST, port: env.PORT }, () =>
   logger.info({ port: env.PORT }, "Lumo API ready"),
 );
+if (!(server instanceof Server)) throw new Error("Wiki requires the HTTP upgrade server");
+app.wiki.attach(server);
+// A dedicated LISTEN connection forwards durable Wiki updates between API instances.
+const notifications = await listenForWiki(pool, app.wiki, () =>
+  logger.error("Wiki notification connection or refresh failed; reconnect will retry"),
+);
 
 let stopping = false;
 function shutdown() {
@@ -50,10 +59,14 @@ function shutdown() {
     process.exitCode = 1;
   }, 10000);
   timeout.unref();
-  server.close(() => {
-    void pool.end().finally(() => clearTimeout(timeout));
+  void app.wiki.close().finally(() => {
+    void notifications.close().finally(() => {
+      server.close(() => {
+        void pool.end().finally(() => clearTimeout(timeout));
+      });
+      if ("closeIdleConnections" in server) server.closeIdleConnections();
+    });
   });
-  if ("closeIdleConnections" in server) server.closeIdleConnections();
 }
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);

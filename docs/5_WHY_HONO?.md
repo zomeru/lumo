@@ -1,5 +1,7 @@
 # Hono vs Express, NestJS, Fastify, and Koa for the Collaboration Platform API
 
+> Office implementation update (October 20, 2026): Docs, Sheets and Slides use ONLYOFFICE Docs Cloud through `packages/app/src/features/office` and the existing Hono/Drive/S3 services. Wiki uses CodeMirror 6 + Yjs for Markdown source editing, with sanitized GFM preview. This extends the separately approved Wiki-only fallback after the Cloud Markdown fidelity test failed. Earlier Univer references and proposed `packages/univer` trees below are historical design rationale, not the implemented editor or a package to scaffold. See [implementation and operations](onlyoffice-implementation-notes.md). Native mobile Office remains future work.
+
 ## Executive summary
 
 For the planned **Turborepo + TypeScript + React/Vite + Capacitor + Electron + Node.js** collaboration platform, I recommend keeping **Hono as the primary API framework**, running on **Node.js LTS**.
@@ -31,7 +33,7 @@ Most importantly, our backend is not intended to be one giant real-time server. 
 - `apps/worker`: BullMQ background jobs
 - Agora Chat: messaging
 - Agora RTC: meetings/calls
-- Univer: office editing
+- ONLYOFFICE Docs: office editing; CodeMirror 6 + Yjs: Wiki
 
 That separation makes several NestJS advantages, especially integrated Socket.IO gateways, less valuable to us. Nest does provide first-class, platform-agnostic WebSocket gateways with both Socket.IO and `ws` adapters, but we have deliberately chosen to keep that concern outside the API process. citeturn17view2turn18search20
 
@@ -52,7 +54,7 @@ flowchart LR
     REDIS["Redis"]
     S3["S3 / R2"]
     AGORA["Agora<br/>Chat + RTC"]
-    UNIVER["Univer"]
+    UNIVER["ONLYOFFICE Docs"]
 
     WEB --> API
     MOBILE --> API

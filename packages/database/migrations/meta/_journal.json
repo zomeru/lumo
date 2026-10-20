@@ -36,6 +36,20 @@
       "when": 1792398079120,
       "tag": "0004_shiny_speed",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792458019499,
+      "tag": "0005_tiresome_wolf_cub",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792458433435,
+      "tag": "0006_absent_galactus",
+      "breakpoints": true
     }
   ]
 }

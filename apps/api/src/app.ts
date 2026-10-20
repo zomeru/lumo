@@ -2,8 +2,13 @@ import { randomUUID } from "node:crypto";
 
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Auth } from "@lumo/auth";
-import type { Database } from "@lumo/database";
-import { conversation, conversationMember } from "@lumo/database/schema";
+import type { Database, Transaction } from "@lumo/database";
+import {
+  conversation,
+  conversationMember,
+  officeDocument,
+  membership,
+} from "@lumo/database/schema";
 import type { ServerEnv } from "@lumo/env/server";
 import { chatIdentity } from "@lumo/shared";
 import { Scalar } from "@scalar/hono-api-reference";
@@ -21,6 +26,11 @@ import { AppError } from "./lib/errors.ts";
 import { enforceRateLimit } from "./middleware/rate-limit.ts";
 import { collaborationRoutes } from "./modules/collaboration.routes";
 import { driveRoutes } from "./modules/drive/drive.routes";
+import { createDriveService } from "./modules/drive/drive.service";
+import { officeRoutes, officeMachineRoutes } from "./modules/office/office.routes";
+import { createOfficeService } from "./modules/office/office.service";
+import { createOfficeProvider, officeKey, type OfficeProvider } from "./modules/office/provider";
+import { createWikiHub } from "./modules/office/wiki-hub";
 import { userRoutes } from "./modules/users/user.routes.ts";
 import { workspaceRoutes } from "./modules/workspaces/workspace.routes.ts";
 import { createWorkspaceService } from "./modules/workspaces/workspace.service.ts";
@@ -35,6 +45,7 @@ export function createApp({
   clientIp = () => "direct",
   provider = createAgora(env),
   storage = createS3Storage(env),
+  officeProvider = createOfficeProvider(env),
 }: {
   db: Database;
   auth: Auth;
@@ -42,32 +53,85 @@ export function createApp({
   clientIp?: (c: Context) => string;
   provider?: CollaborationProvider;
   storage?: Storage;
+  officeProvider?: OfficeProvider;
 }) {
   const app = new OpenAPIHono<ApiContext>();
   const logger = pino({ level: env.LOG_LEVEL });
-  const workspaces = createWorkspaceService(db, async (tx, workspaceId, userId) => {
-    const groups = await tx
-      .select({
-        id: conversation.providerGroupId,
-        conversationId: conversation.id,
-        kind: conversation.kind,
-      })
-      .from(conversation)
-      .innerJoin(conversationMember, eq(conversationMember.conversationId, conversation.id))
-      .where(and(eq(conversation.workspaceId, workspaceId), eq(conversationMember.userId, userId)));
-    const direct = groups
-      .filter((group) => group.kind === "direct")
-      .map((group) => group.conversationId);
-    if (direct.length)
-      await tx
-        .update(conversation)
-        .set({ directKey: null })
-        .where(inArray(conversation.id, direct));
-    if (!groups.some((group) => group.id)) return;
-    const identity = chatIdentity(workspaceId, userId);
-    await provider.deactivate(identity);
-    for (const group of groups) if (group.id) await provider.removeMember(group.id, identity);
-  });
+  async function disconnectOffice(
+    tx: Transaction,
+    workspaceId: string,
+    userId: string,
+    force = false,
+  ): Promise<void> {
+    const [member] = await tx
+      .select()
+      .from(membership)
+      .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, userId)));
+    const documents = await tx
+      .select()
+      .from(officeDocument)
+      .where(
+        and(
+          eq(officeDocument.workspaceId, workspaceId),
+          sql`${officeDocument.kind} <> 'wiki'`,
+          sql`${officeDocument.state} <> 'idle'`,
+        ),
+      );
+    for (const document of documents) {
+      if (!force && member) {
+        try {
+          const access = await drive.policy.access(
+            tx,
+            workspaceId,
+            userId,
+            member.role,
+            document.id,
+          );
+          if (access.permission !== "viewer") continue;
+        } catch (error) {
+          if (!(error instanceof AppError && error.status === 404)) throw error;
+        }
+      }
+      await officeProvider.command({
+        c: "drop",
+        key: officeKey(workspaceId, document.id, document.generation, env.API_ORIGIN),
+        users: [userId],
+      });
+    }
+  }
+  const workspaces = createWorkspaceService(
+    db,
+    async (tx, workspaceId, userId) => {
+      await disconnectOffice(tx, workspaceId, userId, true);
+      const groups = await tx
+        .select({
+          id: conversation.providerGroupId,
+          conversationId: conversation.id,
+          kind: conversation.kind,
+        })
+        .from(conversation)
+        .innerJoin(conversationMember, eq(conversationMember.conversationId, conversation.id))
+        .where(
+          and(eq(conversation.workspaceId, workspaceId), eq(conversationMember.userId, userId)),
+        );
+      const direct = groups
+        .filter((group) => group.kind === "direct")
+        .map((group) => group.conversationId);
+      if (direct.length)
+        await tx
+          .update(conversation)
+          .set({ directKey: null })
+          .where(inArray(conversation.id, direct));
+      if (!groups.some((group) => group.id)) return;
+      const identity = chatIdentity(workspaceId, userId);
+      await provider.deactivate(identity);
+      for (const group of groups) if (group.id) await provider.removeMember(group.id, identity);
+    },
+    disconnectOffice,
+  );
+  const drive = createDriveService(db, workspaces, storage, env, disconnectOffice);
+  const office = createOfficeService(db, workspaces, drive, storage, env, officeProvider);
+  const wiki = createWikiHub(db, office, storage, env);
   app.use("*", secureHeaders());
   app.use("*", async (c, next) => {
     const start = performance.now();
@@ -88,6 +152,19 @@ export function createApp({
       workspaceId: c.get("workspaceId"),
     });
   });
+  // Provider capabilities replace browser sessions only for these exact machine routes.
+  app.route(
+    "/api/internal/onlyoffice",
+    officeMachineRoutes(office, (error) =>
+      logger.warn(
+        { code: error instanceof AppError ? error.code : "OFFICE_INTERNAL_ERROR" },
+        "Office machine request failed",
+      ),
+    ),
+  );
+  app.get("/api/config/office", (c) =>
+    c.json({ documentServerUrl: env.ONLYOFFICE_DOCUMENT_SERVER_URL ?? null }),
+  );
   app.use(
     "/api/*",
     cors({
@@ -168,7 +245,13 @@ export function createApp({
   app.route("/api/v1", userRoutes(db, workspaces));
   app.route("/api/v1", workspaceRoutes(workspaces));
   app.route("/api/v1", collaborationRoutes(db, workspaces, provider));
-  app.route("/api/v1", driveRoutes(db, workspaces, storage, env));
+  app.route("/api/v1", driveRoutes(db, workspaces, storage, env, drive));
+  app.route(
+    "/api/v1",
+    officeRoutes(office, drive, (workspaceId, actor, name, id) =>
+      wiki.issue(workspaceId, actor, name, id),
+    ),
+  );
   app.openAPIRegistry.registerComponent("securitySchemes", "cookieAuth", {
     type: "apiKey",
     in: "cookie",
@@ -232,5 +315,5 @@ export function createApp({
       logger.error({ requestId: c.get("requestId"), errorType: error.name }, "Request failed");
     return c.json({ error: { code, message, requestId: c.get("requestId") } }, status);
   });
-  return app;
+  return Object.assign(app, { wiki });
 }

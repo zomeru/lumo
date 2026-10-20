@@ -7,7 +7,9 @@
     ".": "./src/index.ts",
     "./permissions": "./src/permissions.ts",
     "./collaboration": "./src/collaboration.ts",
-    "./drive": "./src/drive.ts"
+    "./drive": "./src/drive.ts",
+    "./office": "./src/office.ts",
+    "./files": "./src/files.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"

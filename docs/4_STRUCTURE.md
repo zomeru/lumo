@@ -1,5 +1,7 @@
 # Turborepo Monorepo Architecture & Folder Structure
 
+> Office implementation update (October 20, 2026): Docs, Sheets and Slides use ONLYOFFICE Docs Cloud through `packages/app/src/features/office` and the existing Hono/Drive/S3 services. Wiki uses CodeMirror 6 + Yjs for Markdown source editing, with sanitized GFM preview. This extends the separately approved Wiki-only fallback after the Cloud Markdown fidelity test failed. Earlier Univer references and proposed `packages/univer` trees below are historical design rationale, not the implemented editor or a package to scaffold. See [implementation and operations](onlyoffice-implementation-notes.md). Native mobile Office remains future work.
+
 **Project:** Internal Collaboration & Productivity Platform  
 **Document:** `docs/MONOREPO_STRUCTURE.md`  
 **Version:** 1.0  
@@ -43,7 +45,7 @@ The architecture is designed to support:
 | Calls | Agora RTC |
 | Presence | Socket.IO |
 | Notifications | Socket.IO + push providers |
-| Office suite | Univer |
+| Office suite | ONLYOFFICE Docs; CodeMirror 6 + Yjs for Wiki |
 | Storage | S3-compatible object storage |
 | Testing | Vitest, Playwright, Appium |
 | CI/CD | GitHub Actions |
@@ -1044,39 +1046,13 @@ Provide a separate `src/native/` implementation using Agora React Native Chat/RT
 
 **Security:** Agora server credentials and token-signing secrets belong exclusively in backend services.
 
-### 5.11 `packages/univer`
+### 5.11 Office integration in `packages/app`
 
-**Responsibility:** Web/desktop Univer editor integration and the hosted mobile editor route contract.
+The current implementation lives in `packages/app/src/features/office`, alongside the reused Drive screens. Distinct shared TanStack routes open Docs, Sheets, Slides, Wiki, Drive and All Files; legacy Documents links redirect to the corresponding module. There is no extra Office runtime package: web and Electron already share this code.
 
-Contains:
+`apps/api/src/modules/office` owns ONLYOFFICE configuration/callbacks, immutable version transitions, the Wiki hub and CommonMark conversion. `packages/contracts/office` exposes the shared DTOs. `packages/database` owns Office associations, retained revisions, callback receipts and Wiki state/tree/connection tables. Existing Drive and storage services remain authoritative for file identity and permissions.
 
-- Univer initialization.
-- Docs editor integration.
-- Sheets editor integration.
-- Slides editor integration.
-- Editor configuration.
-- Supported collaboration adapters.
-- Supported persistence adapters.
-
-Example:
-
-```text
-packages/univer/src/
-├── core/
-│   ├── create-editor.ts
-│   └── editor-config.ts
-├── docs/
-├── sheets/
-├── slides/
-├── collaboration/
-└── persistence/
-```
-
-Univer collaboration, storage, and import/export capabilities must be implemented according to the supported SDK, plugins, and licensing.
-
-Do not build an unsupported collaboration protocol merely to fit this folder structure.
-
-Mobile does not import this DOM package. Its `office-webview.tsx` opens an authenticated hosted editor route using react-native-webview. Validate touch/keyboard behavior, performance, persistence, short-lived scoped authorization, origin/navigation allowlists, and typed bridge messages with server-side document authorization. If unsuitable, mobile offers an authorized preview with explicit browser editing handoff; confirm the capability limit before rollout.
+ONLYOFFICE owns binary Office synchronization. Wiki alone uses CodeMirror 6 + Yjs and authenticated WebSocket tickets, durable PostgreSQL updates, cross-instance notifications and private Markdown snapshots. Mobile is still future work and must not import these DOM editors.
 
 ### 5.12 `packages/utils`
 
@@ -2011,7 +1987,7 @@ Complete:
 | Realtime service | Socket.IO for presence and notifications |
 | Messaging | Agora Chat |
 | Calls | Agora RTC |
-| Office editing | Univer |
+| Office editing | ONLYOFFICE Docs |
 | Drive | Custom application module |
 | Primary database | PostgreSQL |
 | ORM | Drizzle |

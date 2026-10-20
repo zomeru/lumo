@@ -33,3 +33,7 @@ globalThis.ResizeObserver = class {
   unobserve() {}
   disconnect() {}
 };
+
+// CodeMirror measures text selections using Range geometry, absent in jsdom.
+Range.prototype.getBoundingClientRect = () => new DOMRect();
+Range.prototype.getClientRects = () => Object.assign([], { item: () => null });

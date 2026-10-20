@@ -3,6 +3,8 @@ import { Readable } from "node:stream";
 
 import type { Role } from "@lumo/contracts";
 import type { DriveItem, DriveListInput, DriveUploadInput } from "@lumo/contracts/drive";
+import { acceptsOfficeUpload, officeUploadFormat, fileModules } from "@lumo/contracts/files";
+import { officeFormats } from "@lumo/contracts/office";
 import { canManageSettings } from "@lumo/contracts/permissions";
 import type { Database, Transaction } from "@lumo/database";
 import {
@@ -13,6 +15,10 @@ import {
   membership,
   user,
   auditEvent,
+  officeDocument,
+  officeVersion,
+  wikiPage,
+  wikiConnection,
 } from "@lumo/database/schema";
 import type { ServerEnv } from "@lumo/env/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -76,6 +82,7 @@ export function createDriveService(
   workspaces: ReturnType<typeof createWorkspaceService>,
   storage: Storage,
   env: ServerEnv,
+  permissionsChanged?: (tx: Transaction, workspaceId: string, userId: string) => Promise<void>,
 ) {
   async function chain(tx: Transaction, workspaceId: string, id: string) {
     const rows: Item[] = [];
@@ -206,9 +213,30 @@ export function createDriveService(
     if (row.status !== "ready" || row.kind !== "file")
       conflict("The file is not ready for download.");
   }
+  async function editableTree(tx: Transaction, workspaceId: string, id: string) {
+    const ids = (await descendants(tx, workspaceId, id)).map((v) => v.id);
+    const active = await tx
+      .select({ id: officeDocument.id })
+      .from(officeDocument)
+      .where(
+        and(
+          inArray(officeDocument.id, ids),
+          sql`((${officeDocument.kind} <> 'wiki' and ${officeDocument.state} <> 'idle') or (${officeDocument.kind} = 'wiki' and exists (select 1 from ${wikiConnection} wc where wc.document_id = ${officeDocument.id} and wc.expires_at > now())))`,
+        ),
+      )
+      .limit(1);
+    if (active.length)
+      conflict(
+        "Close all editors and wait for the final save before moving, deleting or restoring this item.",
+      );
+  }
 
   const service = {
-    async list(workspaceId: string, userId: string, input: DriveListInput) {
+    async list(workspaceId: string, userId: string, input: DriveListInput, inventory = false) {
+      inventory ||=
+        input.module === "all" || ["docs", "sheets", "slides", "wiki"].includes(input.module ?? "");
+      const moduleKind = input.module ? fileModules[input.module].kind : null;
+      if (moduleKind) input = { ...input, type: moduleKind };
       return scope(workspaceId, userId, async (tx, role) => {
         let breadcrumbs: { id: string; name: string }[] = [],
           canWrite = input.view === "my";
@@ -256,24 +284,35 @@ export function createDriveService(
         const folder = input.parentId
           ? sql`d.parent_id = ${input.parentId}`
           : input.view === "my" && !input.q
-            ? sql`d.parent_id is null and d.owner_id = ${userId}`
+            ? inventory
+              ? sql`true`
+              : sql`(d.parent_id is null or not exists (select 1 from acl parent_acl where parent_acl.id = d.parent_id and parent_acl.rank > 0 and not parent_acl.trashed))`
             : sql`true`;
         const mode =
           input.view === "starred" && !input.parentId
             ? sql`f.item_id is not null`
             : input.view === "shared" && !input.parentId
-              ? sql`d.owner_id <> ${userId} and exists (select 1 from drive_shares ds where ds.item_id = d.id and ds.user_id = ${userId})`
+              ? inventory
+                ? sql`d.owner_id <> ${userId}`
+                : sql`d.owner_id <> ${userId} and exists (select 1 from drive_shares ds where ds.item_id = d.id and ds.user_id = ${userId})`
               : sql`true`;
         const fileType =
-          input.type === "all"
-            ? sql`true`
-            : input.type === "folder"
-              ? sql`d.kind = 'folder'`
-              : input.type === "pdf"
-                ? sql`d.mime_type = 'application/pdf'`
-                : input.type === "other"
-                  ? sql`d.kind = 'file' and d.mime_type not like 'image/%' and d.mime_type not like 'text/%' and d.mime_type <> 'application/pdf'`
-                  : sql`d.mime_type like ${input.type + "/%"}`;
+          input.type === "office"
+            ? sql`d.kind = 'file' and d.mime_type in (${sql.join(
+                Object.values(officeFormats).map((v) => sql`${v.mime}`),
+                sql`, `,
+              )})`
+            : input.type in officeFormats
+              ? sql`d.kind = 'file' and d.mime_type = ${officeFormats[input.type as keyof typeof officeFormats].mime}`
+              : input.type === "all"
+                ? sql`true`
+                : input.type === "folder"
+                  ? sql`d.kind = 'folder'`
+                  : input.type === "pdf"
+                    ? sql`d.mime_type = 'application/pdf'`
+                    : input.type === "other"
+                      ? sql`d.kind = 'file' and d.mime_type not like 'image/%' and d.mime_type not like 'text/%' and d.mime_type <> 'application/pdf'`
+                      : sql`d.mime_type like ${input.type + "/%"}`;
         const sort = {
           name: sql`lower(d.name)`,
           size: sql`d.size`,
@@ -287,7 +326,7 @@ export function createDriveService(
           rank: number;
           shared: boolean;
         }>(sql`${tree} select d.id, acl.rank, acl.shared from acl join drive_items d on d.id = acl.id left join drive_items p on p.id = d.parent_id left join drive_stars f on f.item_id = d.id and f.user_id = ${userId}
-          where acl.rank > 0 and d.status in ('ready','failed') and ${view} and ${folder} and ${mode} and ${fileType} and d.name ilike ${"%" + input.q.replace(/[\\%_]/g, "\\$&") + "%"}
+          where acl.rank > 0 and d.status in ('ready','failed') and ${view} and ${folder} and ${mode} and ${fileType} and ${input.ownership === "owned" ? sql`d.owner_id = ${userId}` : input.ownership === "shared" ? sql`d.owner_id <> ${userId}` : sql`true`} and d.name ilike ${"%" + input.q.replace(/[\\%_]/g, "\\$&") + "%"}
           order by (d.kind = 'folder') desc, ${sort} ${direction}, d.id asc limit ${input.limit + 1} offset ${input.offset}`);
         const totals = await tx.execute<{ size: string; count: string }>(
           sql`${tree} select coalesce(sum(d.size),0)::text as size, count(*)::text as count from acl join drive_items d on d.id = acl.id where acl.rank > 0 and not acl.trashed and d.status = 'ready' and d.kind = 'file'`,
@@ -359,6 +398,14 @@ export function createDriveService(
       });
     },
     async initialize(workspaceId: string, userId: string, input: DriveUploadInput) {
+      if (
+        input.module &&
+        (!acceptsOfficeUpload(input.module, input.name, input.mimeType) ||
+          input.mimeType !== officeUploadFormat(input.module).mime)
+      )
+        throw new AppError(400, "INVALID_MODULE_FILE", "Choose a supported file for this module.");
+      if (input.module && input.size > 64 * 1024 ** 2)
+        throw new AppError(413, "OFFICE_FILE_TOO_LARGE", "The editor supports files up to 64 MiB.");
       if (input.size > env.DRIVE_MAX_FILE_BYTES)
         throw new AppError(
           413,
@@ -582,6 +629,13 @@ export function createDriveService(
         writable(value);
         if (value.row.status !== "ready") conflict("Wait for the upload to finish.");
         if (input.parentId !== undefined) {
+          await editableTree(tx, workspaceId, id);
+          const mapped = await tx
+            .select({ id: wikiPage.id })
+            .from(wikiPage)
+            .where(sql`${wikiPage.id} = ${id} or ${wikiPage.folderId} = ${id}`)
+            .limit(1);
+          if (mapped.length) conflict("Move Wiki pages from the Wiki tree.");
           // Moving changes inherited access. Only a manager may change that boundary.
           manageable(value);
           await destination(tx, workspaceId, userId, role, input.parentId);
@@ -605,6 +659,15 @@ export function createDriveService(
       await scope(workspaceId, userId, async (tx, role) => {
         const value = await access(tx, workspaceId, userId, role, id);
         writable(value);
+        await editableTree(tx, workspaceId, id);
+        const [page] = await tx
+          .select({ id: wikiPage.id })
+          .from(wikiPage)
+          .where(eq(wikiPage.id, id));
+        if (page)
+          conflict(
+            "Move this page and its subtree to Trash from Wiki, or trash its containing Drive folder.",
+          );
         const ids = (await descendants(tx, workspaceId, id)).map((v) => v.id);
         await tx
           .update(item)
@@ -617,6 +680,7 @@ export function createDriveService(
       await scope(workspaceId, userId, async (tx, role) => {
         const value = await access(tx, workspaceId, userId, role, id, true);
         manageable(value);
+        await editableTree(tx, workspaceId, id);
         if (!value.row.deletedAt || value.chain.slice(1).some((v) => v.deletedAt))
           conflict("Restore the parent folder first.");
         await destination(tx, workspaceId, userId, role, value.row.parentId);
@@ -634,9 +698,21 @@ export function createDriveService(
       await scope(workspaceId, userId, async (tx, role) => {
         const value = await access(tx, workspaceId, userId, role, id, true);
         manageable(value);
+        await editableTree(tx, workspaceId, id);
         if (!value.row.deletedAt) conflict("Move this item to Trash first.");
         const ids = (await descendants(tx, workspaceId, id)).map((v) => v.id);
         const rows = await tx.select().from(item).where(inArray(item.id, ids));
+        const versions = await tx
+          .select({ key: officeVersion.objectKey })
+          .from(officeVersion)
+          .where(inArray(officeVersion.documentId, ids));
+        for (const version of versions) {
+          await cleanupIntent(tx, version.key, new Date());
+          await tx
+            .update(storageCleanup)
+            .set({ notBefore: new Date() })
+            .where(eq(storageCleanup.key, version.key));
+        }
         for (const row of rows)
           for (const key of [row.objectKey, row.stagingKey])
             if (key) {
@@ -719,6 +795,7 @@ export function createDriveService(
             .values({ workspaceId, itemId: id, userId: targetId, permission })
             .onConflictDoUpdate({ target: [share.itemId, share.userId], set: { permission } });
         else await tx.delete(share).where(and(eq(share.itemId, id), eq(share.userId, targetId)));
+        await permissionsChanged?.(tx, workspaceId, targetId);
         await audit(tx, workspaceId, userId, permission ? "shared" : "share.revoked", id);
       });
     },
@@ -742,6 +819,7 @@ export function createDriveService(
   };
   return {
     ...service,
+    policy: { access, destination, writable, manageable, dto, descendants, editableTree, chain },
     async copy(
       workspaceId: string,
       userId: string,

@@ -79,7 +79,19 @@ void app.whenReady().then(async () => {
     await shell.openExternal(externalUrl(url, webOrigin));
   });
   const rendererRoot = resolve(dirname, "../renderer");
-  const csp = rendererCsp();
+  const officeConfig = await fetch(`${apiOrigin}/api/config/office`, {
+    redirect: "error",
+    signal: AbortSignal.timeout(10000),
+  })
+    .then(async (response) =>
+      response.ok ? ((await response.json()) as { documentServerUrl?: unknown }) : undefined,
+    )
+    .catch(() => undefined);
+  const officeOrigin =
+    typeof officeConfig?.documentServerUrl === "string"
+      ? remoteOrigin(officeConfig.documentServerUrl)
+      : undefined;
+  const csp = rendererCsp(undefined, undefined, officeOrigin, apiOrigin);
   protocol.handle("lumo", async (req) => {
     const url = new URL(req.url);
     if (url.hostname !== "app" || req.method !== "GET") return new Response(null, { status: 403 });
@@ -122,7 +134,9 @@ void app.whenReady().then(async () => {
       callback({
         responseHeaders: {
           ...details.responseHeaders,
-          "Content-Security-Policy": [rendererCsp(devOrigin, import.meta.env.LUMO_CSP_NONCE)],
+          "Content-Security-Policy": [
+            rendererCsp(devOrigin, import.meta.env.LUMO_CSP_NONCE, officeOrigin, apiOrigin),
+          ],
         },
       });
     });

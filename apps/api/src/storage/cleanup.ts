@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { Database } from "@lumo/database";
-import { driveItem, storageCleanup, workspace } from "@lumo/database/schema";
+import { driveItem, storageCleanup, workspace, officeVersion } from "@lumo/database/schema";
 import { and, asc, eq, inArray, lte, or, sql } from "drizzle-orm";
 
 import type { Storage } from "./storage";
@@ -17,12 +17,20 @@ export async function cleanupStorage(db: Database, storage: Storage) {
   for (const candidate of due) {
     try {
       await db.transaction(async (tx) => {
-        const [file] = await tx
+        let [file] = await tx
           .select()
           .from(driveItem)
           .where(
             or(eq(driveItem.objectKey, candidate.key), eq(driveItem.stagingKey, candidate.key)),
           );
+        if (!file) {
+          const [revision] = await tx
+            .select({ file: driveItem })
+            .from(officeVersion)
+            .innerJoin(driveItem, eq(driveItem.id, officeVersion.documentId))
+            .where(eq(officeVersion.objectKey, candidate.key));
+          file = revision?.file;
+        }
         // Match the lock ordering used by Drive and membership mutations.
         if (file)
           await tx
@@ -30,6 +38,7 @@ export async function cleanupStorage(db: Database, storage: Storage) {
             .from(workspace)
             .where(eq(workspace.id, file.workspaceId))
             .for("update");
+        if (file) [file] = await tx.select().from(driveItem).where(eq(driveItem.id, file.id));
         const [job] = await tx
           .select()
           .from(storageCleanup)
@@ -38,6 +47,15 @@ export async function cleanupStorage(db: Database, storage: Storage) {
           )
           .for("update", { skipLocked: true });
         if (!job) return;
+        const [retained] = await tx
+          .select({ id: officeVersion.id })
+          .from(officeVersion)
+          .where(eq(officeVersion.objectKey, job.key))
+          .limit(1);
+        if (retained && file?.status !== "deleting") {
+          await tx.delete(storageCleanup).where(eq(storageCleanup.id, job.id));
+          return;
+        }
         if (job.uploadId) await storage.abort(job.key, job.uploadId);
         await storage.remove(job.key);
         await tx.delete(storageCleanup).where(eq(storageCleanup.id, job.id));
@@ -70,6 +88,8 @@ export async function cleanupStorage(db: Database, storage: Storage) {
       id: string;
     }>(sql`select d.id from drive_items d where d.status = 'deleting'
       and not exists (select 1 from storage_cleanup c where c.key = d.object_key or c.key = d.staging_key)
+      and not exists (select 1 from storage_cleanup c join office_document_versions v on v.object_key = c.key where v.document_id = d.id)
+      and not exists (select 1 from wiki_pages child where child.parent_id = d.id)
       and not exists (select 1 from drive_items child where child.parent_id = d.id) limit 1000`);
     if (!leaves.rows.length) break;
     await db.delete(driveItem).where(

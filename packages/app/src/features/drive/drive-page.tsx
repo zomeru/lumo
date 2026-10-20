@@ -1,5 +1,13 @@
 import type { DriveItem, DriveListInput, DriveUpload, DriveView } from "@lumo/contracts/drive";
 import {
+  acceptsOfficeUpload,
+  officeUploadFormat,
+  fileModules,
+  fileOwnership,
+  type FileModule,
+} from "@lumo/contracts/files";
+import { officeFileKind } from "@lumo/contracts/office";
+import {
   Badge,
   Button,
   Checkbox,
@@ -28,6 +36,7 @@ import {
   useToast,
 } from "@lumo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
   ChevronRight,
   Download,
@@ -47,7 +56,10 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { command } from "../../lib/api";
+import { ApiError, command, sessionQuery } from "../../lib/api";
+import { moduleIcons, officeLocation } from "../office/file-modules";
+import { NewDocument } from "../office/new-document";
+import { officeQuery } from "../office/office-api";
 import { downloadDrive, drivePath, driveQuery, formatBytes } from "./drive-api";
 import { DriveDialog, type DriveAction } from "./drive-dialogs";
 import { uploadDriveFile } from "./upload";
@@ -67,12 +79,15 @@ const views: { value: DriveView; label: string }[] = [
   { value: "my", label: "My Files" },
   { value: "recent", label: "Recent" },
   { value: "starred", label: "Starred" },
-  { value: "shared", label: "Shared With Me" },
   { value: "trash", label: "Trash" },
 ];
 function FileIcon({ item }: { item: DriveItem }) {
-  const Icon =
-    item.kind === "folder"
+  const kind = officeFileKind(item);
+  const Icon = kind
+    ? moduleIcons[
+        ({ document: "docs", sheet: "sheets", slide: "slides", wiki: "wiki" } as const)[kind]
+      ]
+    : item.kind === "folder"
       ? Folder
       : item.mimeType.startsWith("image/")
         ? FileImage
@@ -87,16 +102,30 @@ function FileIcon({ item }: { item: DriveItem }) {
 }
 export function DrivePage({
   workspaceId,
-  search,
   navigate,
+  module = "drive",
+  search: suppliedSearch,
 }: {
   workspaceId: string;
+  module?: Exclude<FileModule, "wiki">;
   search: DriveListInput;
   navigate: (patch: Partial<DriveListInput>) => void;
 }) {
+  const config = fileModules[module];
+  const documents = module === "docs" || module === "sheets" || module === "slides";
+  const search: DriveListInput = {
+    ...suppliedSearch,
+    module,
+    type: config.kind ?? (module === "all" ? suppliedSearch.type : "all"),
+    view: suppliedSearch.view === "shared" ? "my" : suppliedSearch.view,
+  };
+  const actor = useQuery(sessionQuery());
+  const Icon = moduleIcons[module];
+  const routeNavigate = useNavigate();
+  const [creating, setCreating] = useState(false);
   const client = useQueryClient(),
     notify = useToast();
-  const listing = useQuery(driveQuery(workspaceId, search));
+  const listing = useQuery(driveQuery(workspaceId, search, documents));
   const [layout, setLayout] = useState<"list" | "grid">("list");
   const [selected, setSelected] = useState<string[]>([]),
     [action, setAction] = useState<DriveAction | null>(null);
@@ -109,8 +138,7 @@ export function DrivePage({
   const input = useRef<HTMLInputElement>(null);
   const parentId = search.parentId ?? null;
   const base = drivePath(workspaceId);
-  const invalidate = () =>
-    client.invalidateQueries({ queryKey: ["workspace", workspaceId, "drive"] });
+  const invalidate = () => client.invalidateQueries({ queryKey: ["workspace", workspaceId] });
   const mutation = useMutation({
     mutationFn: ({ path, method, body }: { path: string; method?: string; body?: unknown }) =>
       command(base + path, method, body),
@@ -148,6 +176,7 @@ export function DrivePage({
       void uploadDriveFile({
         workspaceId,
         parentId: job.parentId,
+        module: documents ? module : undefined,
         file: job.file,
         signal: job.controller.signal,
         previous: job.session,
@@ -192,6 +221,19 @@ export function DrivePage({
       setError(new Error("Choose up to 100 files per upload."));
       return;
     }
+    if (
+      documents &&
+      files.some(
+        (file) => !acceptsOfficeUpload(module, file.name, file.type) || file.size > 64 * 1024 ** 2,
+      )
+    ) {
+      setError(
+        new Error(
+          `Choose .${officeUploadFormat(module).extension} files up to 64 MiB for ${config.title}.`,
+        ),
+      );
+      return;
+    }
     for (const file of files) {
       const id = crypto.randomUUID();
       jobs.current.set(id, {
@@ -210,9 +252,29 @@ export function DrivePage({
     setSelected([]);
     navigate({ ...patch, offset: patch.offset ?? 0 });
   }
+  async function openMarkdown(item: DriveItem) {
+    setError(null);
+    try {
+      await client.fetchQuery(officeQuery(workspaceId, item.id));
+      if (!mounted.current) return;
+      await routeNavigate({
+        to: "/w/$workspaceId/wiki/$pageId",
+        params: { workspaceId, pageId: item.id },
+      });
+    } catch (cause) {
+      if (!mounted.current) return;
+      if (cause instanceof ApiError && cause.code === "OFFICE_UNSUPPORTED")
+        setAction({ kind: "preview", item });
+      else setError(cause instanceof Error ? cause : new Error("Unable to open this file."));
+    }
+  }
   function open(item: DriveItem) {
     if (item.kind === "folder") change({ parentId: item.id, q: "", offset: 0 });
-    else setAction({ kind: "preview", item });
+    else if (officeFileKind(item)) {
+      const kind = officeFileKind(item)!;
+      if (kind === "wiki") void openMarkdown(item);
+      else void routeNavigate(officeLocation(workspaceId, item.id, kind));
+    } else setAction({ kind: "preview", item });
   }
   function menuItems(item: DriveItem, context = false) {
     const MenuItem = context ? ContextMenuItem : DropdownMenuItem;
@@ -223,7 +285,11 @@ export function DrivePage({
         {!trash && (
           <>
             <MenuItem onSelect={() => open(item)}>
-              {item.kind === "folder" ? "Open folder" : "Preview"}
+              {item.kind === "folder"
+                ? "Open folder"
+                : officeFileKind(item)
+                  ? "Open editor"
+                  : "Preview"}
             </MenuItem>
             <MenuItem
               disabled={download.isPending}
@@ -344,7 +410,7 @@ export function DrivePage({
   return (
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section
-      aria-label="Drive"
+      aria-label={config.title}
       className="relative min-h-96"
       onDragOver={(event) => {
         event.preventDefault();
@@ -361,23 +427,50 @@ export function DrivePage({
     >
       <PageHeading
         eyebrow="Your workspace, organized"
-        title="Drive"
+        title={config.title}
+        icon={<Icon className="size-6" aria-hidden="true" />}
         actions={
           <>
-            <Button onClick={() => setAction({ kind: "folder" })} disabled={!canUpload}>
-              <FolderPlus aria-hidden="true" />
-              New folder
-            </Button>
-            <Button variant="primary" disabled={!canUpload} onClick={() => input.current?.click()}>
+            {module !== "drive" && (
+              <Button variant="primary" onClick={() => setCreating(true)} disabled={!canUpload}>
+                <Icon aria-hidden="true" />
+                {module === "all" ? "New file" : `New ${config.singular}`}
+              </Button>
+            )}
+            {!documents && (
+              <Button onClick={() => setAction({ kind: "folder" })} disabled={!canUpload}>
+                <FolderPlus aria-hidden="true" />
+                New folder
+              </Button>
+            )}
+            <Button
+              variant={documents ? "secondary" : "primary"}
+              disabled={!canUpload}
+              onClick={() => input.current?.click()}
+            >
               <Upload aria-hidden="true" />
               Upload
             </Button>
           </>
         }
       />
+      {creating && (
+        <NewDocument
+          workspaceId={workspaceId}
+          parentId={parentId}
+          initialKind={config.kind ?? "document"}
+          allowTypeSelection={module === "all"}
+          close={() => setCreating(false)}
+        />
+      )}
       <input
         ref={input}
         type="file"
+        accept={
+          documents
+            ? `.${officeUploadFormat(module).extension},${officeUploadFormat(module).mime}`
+            : undefined
+        }
         multiple
         className="sr-only"
         aria-label="Upload files"
@@ -433,17 +526,35 @@ export function DrivePage({
           value={search.q}
           onChange={(event) => change({ q: event.target.value })}
         />
+        {module === "all" && (
+          <SelectField
+            label="File type"
+            value={search.type}
+            onValueChange={(type) => change({ type: type as DriveListInput["type"] })}
+            options={[
+              { value: "all", label: "All types" },
+              { value: "document", label: "Docs" },
+              { value: "sheet", label: "Sheets" },
+              { value: "slide", label: "Slides" },
+              { value: "wiki", label: "Wiki" },
+              { value: "folder", label: "Folders" },
+              { value: "image", label: "Images" },
+              { value: "pdf", label: "PDFs" },
+              { value: "text", label: "Text files" },
+              { value: "other", label: "Other files" },
+            ]}
+          />
+        )}
         <SelectField
-          label="File type"
-          value={search.type}
-          onValueChange={(type) => change({ type: type as DriveListInput["type"] })}
+          label="Ownership"
+          value={search.ownership ?? "all"}
+          onValueChange={(ownership) =>
+            change({ ownership: ownership as DriveListInput["ownership"] })
+          }
           options={[
-            { value: "all", label: "All types" },
-            { value: "folder", label: "Folders" },
-            { value: "image", label: "Images" },
-            { value: "pdf", label: "PDFs" },
-            { value: "text", label: "Text files" },
-            { value: "other", label: "Other files" },
+            { value: "all", label: "Owned and shared" },
+            { value: "owned", label: "Owned by me" },
+            { value: "shared", label: "Shared with me" },
           ]}
         />
         <SelectField
@@ -471,7 +582,9 @@ export function DrivePage({
         <nav aria-label="Folder breadcrumbs" className="flex flex-wrap items-center gap-1 text-sm">
           <Button size="sm" variant="ghost" onClick={() => change({ parentId: undefined, q: "" })}>
             <HardDrive aria-hidden="true" />
-            {views.find((v) => v.value === search.view)?.label}
+            {search.view === "my" && module !== "drive"
+              ? config.title
+              : views.find((v) => v.value === search.view)?.label}
           </Button>
           {listing.data?.breadcrumbs.map((crumb) => (
             <span key={crumb.id} className="flex items-center gap-1">
@@ -520,9 +633,11 @@ export function DrivePage({
               ? "No matching files"
               : search.view === "trash"
                 ? "Trash is empty"
-                : "No files here yet"
+                : documents
+                  ? `No ${config.title.toLowerCase()} yet`
+                  : "No files here yet"
           }
-          icon={<HardDrive aria-hidden="true" />}
+          icon={<Icon aria-hidden="true" />}
           className="min-h-56 border-solid"
         >
           {search.q
@@ -530,7 +645,9 @@ export function DrivePage({
             : search.view === "trash"
               ? "Deleted items will appear here."
               : canUpload
-                ? "Upload files or drag them onto this page."
+                ? documents
+                  ? `Create a ${config.singular} or upload .${officeUploadFormat(module).extension} files.`
+                  : "Upload files or drag them onto this page."
                 : "Files shared with you will appear here."}
         </EmptyState>
       ) : layout === "list" ? (
@@ -565,6 +682,9 @@ export function DrivePage({
                         <div className="min-w-0">
                           {fileName(item)}
                           <span className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <Badge className="text-[10px]">
+                              {fileOwnership(item.ownerId, actor.data?.user.id ?? "")}
+                            </Badge>
                             {item.shared ? <Users className="size-3" aria-hidden="true" /> : null}
                             {item.kind === "folder" ? "Folder" : item.mimeType}
                             {item.status !== "ready" ? ` · ${item.status}` : ""}
@@ -610,6 +730,9 @@ export function DrivePage({
                   <div className="mt-3">{fileName(item)}</div>
                   <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                     {item.shared && <Users className="size-3" aria-hidden="true" />}
+                    <Badge className="text-[10px]">
+                      {fileOwnership(item.ownerId, actor.data?.user.id ?? "")}
+                    </Badge>{" "}
                     {item.ownerName} · {item.kind === "folder" ? "Folder" : formatBytes(item.size)}
                   </p>
                 </article>

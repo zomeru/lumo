@@ -1,3 +1,4 @@
+import { fileModules } from "@lumo/contracts/files";
 import { canManageSettings } from "@lumo/contracts/permissions";
 import {
   Avatar,
@@ -16,13 +17,12 @@ import {
   cn,
 } from "@lumo/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowUpRight,
   ChevronRight,
   CircleHelp,
   FileText,
-  Folder,
   House,
   LayoutGrid,
   Menu,
@@ -36,6 +36,7 @@ import { useState, type ReactNode } from "react";
 
 import { AppHeader } from "../../chrome";
 import { clearWorkspaceCache, sessionQuery, workspaceQuery, workspacesQuery } from "../../lib/api";
+import { moduleRoutes, moduleIcons } from "../office/file-modules";
 
 const navigationLink =
   "flex min-h-9 items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-[current=page]:bg-accent aria-[current=page]:font-medium aria-[current=page]:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0";
@@ -50,6 +51,8 @@ function NavigationGroup({ label, children }: { label: string; children: ReactNo
   );
 }
 export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const editorLayout = /\/(?:documents|docs|sheets|slides)\/[^/]+$|\/wiki(?:\/|$)/.test(pathname);
   const ws = useQuery(workspaceQuery(workspaceId));
   const joined = useQuery(workspacesQuery());
   const session = useQuery(sessionQuery());
@@ -152,14 +155,31 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           </Link>
         </NavigationGroup>
         <NavigationGroup label="Create">
+          {(["docs", "sheets", "slides", "wiki", "drive"] as const).map((module) => {
+            const Icon = moduleIcons[module];
+            return (
+              <Link
+                key={module}
+                className={navigationLink}
+                to={moduleRoutes[module]}
+                params={{ workspaceId }}
+                activeOptions={{ includeSearch: false }}
+                onClick={() => setMenuOpen(false)}
+              >
+                <Icon aria-hidden="true" />
+                {fileModules[module].title}
+              </Link>
+            );
+          })}
           <Link
             className={navigationLink}
-            to="/w/$workspaceId/drive"
+            to={moduleRoutes.all}
             params={{ workspaceId }}
+            activeOptions={{ includeSearch: false }}
             onClick={() => setMenuOpen(false)}
           >
-            <Folder aria-hidden="true" />
-            Drive
+            <moduleIcons.all aria-hidden="true" />
+            {fileModules.all.title}
           </Link>
         </NavigationGroup>
         <NavigationGroup label="Workspace">
@@ -190,17 +210,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             More tools<Badge className="ml-auto text-[10px]">Soon</Badge>
           </summary>
           <div className="mt-1 grid gap-0.5">
-            {[
-              "Docs",
-              "Sheets",
-              "Slides",
-              "Tasks",
-              "Projects",
-              "Approvals",
-              "Leave",
-              "Attendance",
-              "Hiring",
-            ].map((item) => (
+            {["Tasks", "Projects", "Approvals", "Leave", "Attendance", "Hiring"].map((item) => (
               <button
                 type="button"
                 disabled
@@ -246,8 +256,13 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
       >
         {navigation}
       </aside>
-      <div className="flex min-h-dvh min-w-0 flex-col lg:ml-60">
-        <AppHeader className="flex min-h-16 items-center justify-between gap-3 border-b bg-surface px-4 sm:px-8">
+      <div
+        className={cn(
+          "flex min-w-0 flex-col lg:ml-60",
+          editorLayout ? "h-dvh overflow-hidden" : "min-h-dvh",
+        )}
+      >
+        <AppHeader className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b bg-surface px-4 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
               <DialogTrigger asChild>
@@ -288,18 +303,24 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
         </AppHeader>
         <main
           id="main-content"
-          className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-7 sm:px-8 sm:py-9 xl:px-10"
+          className={
+            editorLayout
+              ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+              : "mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-7 sm:px-8 sm:py-9 xl:px-10"
+          }
         >
           <ErrorMessage error={error} />
           {switching ? <Loading label="Switching workspace…" /> : <Outlet key={workspaceId} />}
         </main>
-        <footer className="flex items-center justify-between gap-3 border-t px-5 py-4 text-[10px] text-muted-foreground sm:px-8">
-          <span>Lumo · Everything, connected.</span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-            Your team’s space
-          </span>
-        </footer>
+        {!editorLayout && (
+          <footer className="flex items-center justify-between gap-3 border-t px-5 py-4 text-[10px] text-muted-foreground sm:px-8">
+            <span>Lumo · Everything, connected.</span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+              Your team’s space
+            </span>
+          </footer>
+        )}
       </div>
     </div>
   );

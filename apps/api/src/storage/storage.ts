@@ -33,7 +33,7 @@ export interface Storage {
   remove(this: void, key: string): Promise<void>;
   downloadUrl(this: void, key: string, name: string, mimeType?: string): Promise<string>;
   read(this: void, key: string): Promise<Readable>;
-  write(this: void, key: string, stream: Readable): Promise<void>;
+  write(this: void, key: string, stream: Readable, mimeType?: string): Promise<void>;
 }
 export const PART_SIZE = 8 * 1024 ** 2;
 export const MULTIPART_THRESHOLD = 16 * 1024 ** 2;

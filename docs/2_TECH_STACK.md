@@ -1,5 +1,7 @@
 # Technology Stack & Architecture
 
+> Office implementation update (October 20, 2026): Docs, Sheets and Slides use ONLYOFFICE Docs Cloud through `packages/app/src/features/office` and the existing Hono/Drive/S3 services. Wiki uses CodeMirror 6 + Yjs for Markdown source editing, with sanitized GFM preview. This extends the separately approved Wiki-only fallback after the Cloud Markdown fidelity test failed. Earlier Univer references and proposed `packages/univer` trees below are historical design rationale, not the implemented editor or a package to scaffold. See [implementation and operations](onlyoffice-implementation-notes.md). Native mobile Office remains future work.
+
 **Project:** Internal Collaboration & Productivity Platform  
 **Document:** `docs/TECH_STACK.md`  
 **Version:** 1.0  
@@ -208,73 +210,27 @@ PostgreSQL will be the durable source of truth for notification records. Socket.
 
 ## 4. Collaborative Office Suite
 
-### Selected Technology: Univer
-
-**Univer** is the selected editor technology for Docs, Sheets, and Slides.
+### Selected technology: ONLYOFFICE Docs Cloud
 
 | Module | Technology | Responsibility |
 |---|---|---|
-| Docs | Univer | Document editing |
-| Sheets | Univer | Spreadsheet editing |
-| Slides | Univer | Presentation editing |
-| Drive | Custom React / React Native + Hono | File management and storage |
+| Docs | ONLYOFFICE Docs API (`word`, `.docx`) | Rich text and real-time coauthoring |
+| Sheets | ONLYOFFICE Docs API (`cell`, `.xlsx`) | Spreadsheet editing and coauthoring |
+| Slides | ONLYOFFICE Docs API (`slide`, `.pptx`) | Presentation editing and coauthoring |
+| Wiki | CodeMirror 6 + Yjs | Collaborative Markdown source, GFM preview and page navigation |
+| Drive | Existing React + Hono + private AWS S3 | Canonical files, folders, ACLs and lifecycle |
 
-### 4.1 Docs
+### 4.1 Integration and persistence
 
-Planned functionality:
+Web and Electron share the lazy editor modules in `packages/app`. Hono signs complete editor configurations and validates provider callbacks. An Office document retains its original Drive ID, location and permissions. Immutable revisions live in the existing private S3 bucket; PostgreSQL stores metadata, checksums, generations, audit events and revision pointers. A force-save preserves the editing key; a final save advances the generation. Signed source capabilities work without iframe cookies.
 
-- Create and edit documents.
-- Rich-text formatting.
-- Document sharing.
-- Access permissions.
-- Document persistence.
-- Revision history.
-- Real-time collaboration.
+Wiki keeps a relational page tree and stores durable Yjs state and updates in PostgreSQL. Debounced UTF-8 Markdown snapshots and version history reuse S3/Drive. Wiki parent containers apply existing Drive inheritance; there is no separate share database. The native Cloud Markdown preflight returned `.md` but changed headings and fenced-code languages. The user approved the Wiki-only fallback.
 
-### 4.2 Sheets
+### 4.2 Runtime and licensing requirements
 
-Planned functionality:
+The Cloud tenant needs a reachable HTTPS backend, matching server-only JWT secret, and supported Docs API entitlement. The trial is temporary; production needs a licensed Cloud contract or a tested self-hosted cutover. Provider synchronization is used only for Office binaries; Yjs is confined to Wiki. Electron permits the configured provider's exact script/frame origin and keeps all app IPC unavailable to remote subframes.
 
-- Create and edit spreadsheets.
-- Cell formatting.
-- Formulas and calculations.
-- Multiple sheets.
-- Import/export where supported.
-- Spreadsheet persistence.
-- Real-time collaboration.
-
-### 4.3 Slides
-
-Planned functionality:
-
-- Create and edit presentations.
-- Slide management.
-- Text and visual elements.
-- Presentation layouts.
-- Import/export where supported.
-- Presentation persistence.
-- Real-time collaboration.
-
-### 4.4 Univer Integration Requirements
-
-Univer will be integrated into the web/desktop React application through a dedicated editor module. Mobile opens an authenticated hosted editor route in react-native-webview, subject to a touch/keyboard/performance proof of concept. Univer is a web editor, so its DOM implementation must not be imported into native screens. If the proof of concept fails, mobile offers an authorized preview and an explicit browser handoff for editing; this capability limit must be approved before rollout. The WebView bridge must validate messages and allowed origins, use short-lived scoped authorization, and enforce the same workspace/document permissions without exposing long-lived credentials.
-
-**The following must be validated before production implementation:**
-
-1. Docs, Sheets, and Slides capabilities in the selected Univer version.
-2. Real-time collaborative editing support for each editor type.
-3. Whether collaboration requires paid Univer services, plugins, or separate infrastructure.
-4. Document persistence and recovery.
-5. Import/export compatibility with DOCX, XLSX, and PPTX.
-6. Licensing and commercial deployment requirements.
-7. Editor performance with large documents and spreadsheets.
-8. Mobile editor WebView compatibility on iOS and Android, including authentication, keyboard input, touch interactions, and file handling.
-9. Compatibility with Electron.
-10. Conflict handling, revision history, and permissions.
-
-**Architectural rule:** Do not assume that installing Univer automatically provides a production-ready collaborative editing backend for all three editor types.
-
-The collaboration and persistence architecture must follow Univer's supported APIs, capabilities, and licensing model.
+Mobile is outside this implementation. A future hosted mobile editor needs its own touch, navigation, authorization and performance validation. Installing the SDK alone does not establish persistence or authorization. See the implementation notes for tested behavior, limits and operational recovery.
 
 ---
 
@@ -756,9 +712,9 @@ These should be resolved through targeted proofs of concept before committing to
 | Presence | Socket.IO |
 | In-app notifications | Socket.IO |
 | Mobile push | APNs + FCM |
-| Docs | Univer |
-| Sheets | Univer |
-| Slides | Univer |
+| Docs | ONLYOFFICE Docs |
+| Sheets | ONLYOFFICE Docs |
+| Slides | ONLYOFFICE Docs |
 | Drive | Custom React / React Native + Hono |
 | File storage | S3-compatible object storage |
 | Search | PostgreSQL full-text search |

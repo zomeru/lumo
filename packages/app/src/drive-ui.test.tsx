@@ -170,14 +170,14 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   clickSpy.mockRestore();
 });
-async function show(search = "") {
+async function show(search = "", module = "drive") {
   const router = createAppRouter(
-    createMemoryHistory({ initialEntries: [`/w/${teamId}/drive${search}`] }),
+    createMemoryHistory({ initialEntries: [`/w/${teamId}/${module}${search}`] }),
     client,
   );
   await router.load();
   render(<RouterProvider router={router} />);
-  await screen.findByRole("heading", { name: "Drive" });
+  await screen.findByRole("heading", { name: module === "files" ? "All Files" : "Drive" });
   return { user: userEvent.setup(), router };
 }
 async function menu(user: ReturnType<typeof userEvent.setup>, name: string, action: string) {
@@ -221,7 +221,7 @@ test("nested navigation, breadcrumbs and new folders update without refresh", as
   expect(await screen.findByRole("button", { name: "notes.txt" })).toBeVisible();
 });
 test("stars, search, filters and sorting persist in the route", async () => {
-  const { user, router } = await show();
+  const { user, router } = await show("", "files");
   await user.click(await screen.findByRole("button", { name: "Star notes.txt" }));
   await screen.findByRole("button", { name: "Unstar notes.txt" });
   await user.click(screen.getByRole("button", { name: "Starred" }));
@@ -527,4 +527,26 @@ test("upload queue is bounded, queued transfers cancel and page navigation cance
       ),
     ).toBe(true),
   );
+});
+
+test("standalone Markdown previews in Drive without becoming a Wiki page; access failures stay denied", async () => {
+  const markdown = items.find((v) => v.id === fileId)!;
+  markdown.name = "notes.md";
+  markdown.mimeType = "text/markdown";
+  const path = `GET /api/v1/workspaces/${teamId}/documents/${fileId}`;
+  server.state.overrides.set(path, () =>
+    server.json({ error: { code: "OFFICE_UNSUPPORTED", message: "Not a Wiki page" } }, 400),
+  );
+  const { user } = await show();
+  await user.click(await screen.findByRole("button", { name: "notes.md" }));
+  expect(
+    await screen.findByText("Preview contents <script>rendered as text</script>"),
+  ).toBeVisible();
+  await user.keyboard("{Escape}");
+  server.state.overrides.set(path, () =>
+    server.json({ error: { code: "NOT_FOUND", message: "Access changed" } }, 404),
+  );
+  await user.click(screen.getByRole("button", { name: "notes.md" }));
+  expect(await screen.findByText("Access changed")).toBeVisible();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });

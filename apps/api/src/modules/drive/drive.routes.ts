@@ -33,6 +33,7 @@ export function driveRoutes(
   workspaces: ReturnType<typeof createWorkspaceService>,
   storage: Storage,
   env: ServerEnv,
+  service?: ReturnType<typeof createDriveService>,
 ) {
   const app = new OpenAPIHono<ApiContext>({
     defaultHook: (result) => {
@@ -40,7 +41,7 @@ export function driveRoutes(
         throw new AppError(400, "INVALID_INPUT", "Check the request fields and try again.");
     },
   });
-  const drive = createDriveService(db, workspaces, storage, env);
+  const drive = service ?? createDriveService(db, workspaces, storage, env);
   const params = z.object({ workspaceId: idSchema });
   const itemParams = params.extend({ itemId: idSchema });
   const shareParams = itemParams.extend({ userId: idSchema });

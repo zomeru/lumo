@@ -2,6 +2,7 @@ import { AppError } from "../../lib/errors";
 
 // Active content is always an attachment. Only these formats receive inline URLs.
 export function previewType(mime: string) {
+  if (mime === "text/markdown") return "text/plain";
   return [
     "image/png",
     "image/jpeg",

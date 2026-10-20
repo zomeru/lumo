@@ -1,6 +1,6 @@
 # Lumo
 
-A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. Web and Electron share the account/workspace UI, contacts, invitations, Messenger, meetings and Drive.
+A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. Web and Electron share the account/workspace UI, contacts, invitations, Messenger, meetings, Drive, Office and Wiki.
 
 ## What works
 
@@ -10,9 +10,11 @@ A workspace collaboration platform built with React, Vite, TanStack Router and Q
 - Private and invite-only workspaces, email-bound invitations, expiry, revocation, and single-use acceptance.
 - Owner, admin, moderator, and member roles; member removal, role changes, ownership transfer, and leaving.
 - Workspace settings, profile editing, a searchable member directory, and administrative audit events.
+- Collaborative Docs, Sheets and Slides through ONLYOFFICE Docs Cloud, with server-signed sessions, private Drive files and immutable version history.
+- Collaborative Markdown Wiki with CodeMirror 6 + Yjs, inherited Drive access, hierarchical pages and durable Markdown snapshots.
 - Responsive dark UI based on the reference screenshots, with loading, error, empty, and access-denied states.
 
-Presence, application notifications, Univer editors, work management, HR, SSO, Expo, workspace deletion/retention, join requests, and guest roles are pending. Their navigation is disabled where shown. Private workspaces currently use authorized invitations; they do not accept self-joins or join requests. Personal workspaces remain private and cannot transfer ownership. Workspace language and currency are saved preferences; UI translation and financial features are not implemented.
+Presence, application notifications, work management, HR, SSO, Expo, workspace deletion/retention, join requests, and guest roles are pending. Their navigation is disabled where shown. Private workspaces currently use authorized invitations; they do not accept self-joins or join requests. Personal workspaces remain private and cannot transfer ownership. Workspace language and currency are saved preferences; UI translation and financial features are not implemented.
 
 ## Packages
 
@@ -192,3 +194,11 @@ Provider-dependent tests are gated and reported as skipped without explicit opt-
 Drive is available in the shared workspace navigation on web and Electron. It supports private S3 uploads with progress/cancel/retry, nested folders, inherited viewer/editor sharing, previews, search/sort/filter, grid/list views, stars, Trash/restore, recursive copy/move and ZIP downloads. PostgreSQL stores file references and permissions; object keys and AWS credentials stay on the API. API owners/admins manage workspace content through the existing roles.
 
 Apply migration `0004_shiny_speed.sql` with `pnpm db:migrate`, set API-only `AWS_REGION`/`AWS_S3_BUCKET`, and configure the private bucket's IAM, encryption, CORS and lifecycle rules. See [Drive setup, permissions and operational limits](docs/drive-storage.md) for deployment instructions and test commands. Signature validation is implemented; comprehensive antivirus scanning and upload resume across page reloads are not included.
+
+## Office and Wiki
+
+Office editor appearance follows Lumo's Light/Dark/System mode without reopening active documents. Exact brand-color theme files and the Docs Cloud provisioning limitation are described in [Office theming](docs/onlyoffice-theming.md).
+
+Configure the server-only ONLYOFFICE settings in `apps/api/.env.example`, apply `pnpm db:migrate`, and include `office/*` in the existing bucket role's object permissions. No second bucket or storage credentials are used. Hosted Docs Cloud requires publicly reachable HTTPS callbacks and source URLs; keep development tunnel addresses out of commits. Run `pnpm --filter @lumo/api onlyoffice:check` for a safe reachability diagnostic.
+
+Docs, Sheets and Slides reuse Drive uploads, sharing, copy, trash and restore. All Files unifies the authorized inventory; My Files includes owned and shared items with ownership filters. Dedicated modules constrain creation and uploads to their own formats. Wiki provides Edit, Preview and Split modes with a formatting toolbar. See [file management and Markdown editor results](docs/file-management-improvements.md). Wiki shares parent-page access through its Drive container. Close all editors before moving, deleting or restoring active content; history restoration creates a new revision. See [implementation, verification and operations](docs/onlyoffice-implementation-notes.md) for the tested Cloud version, trial limits, Wiki fallback evidence, migration/recovery procedures and self-hosted cutover.

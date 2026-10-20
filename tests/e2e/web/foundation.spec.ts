@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 import { verifyDrive } from "../../drive-flow";
+import { verifyFileModules } from "../../file-modules-flow";
 
 async function selectOption(page: Page, label: string, option: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();
@@ -91,6 +92,12 @@ test("account, setup, Drive, invitations, switching and revocation work with the
   const colleagueContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const colleague = await colleagueContext.newPage();
   await register(colleague, "Bob Rivera", colleagueEmail);
+  // Exercise module navigation with a separate user so the combined flow remains
+  // within the real per-user API limit and four signups per IP per minute.
+  if (testInfo.project.name === "mobile-chromium")
+    await colleague.setViewportSize(page.viewportSize()!);
+  await verifyFileModules(colleague);
+  await colleague.setViewportSize({ width: 1280, height: 900 });
   await verifyEmail(colleague, colleagueEmail);
   await colleague.goto(link);
   await expect(colleague.getByText("Acme Studio", { exact: true })).toBeVisible();
