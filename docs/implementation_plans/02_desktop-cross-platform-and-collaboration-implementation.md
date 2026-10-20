@@ -1,4 +1,4 @@
-# 07 — Lumo Desktop, Shared Platform Architecture, Messenger, Contacts, Invitations & Meetings
+# 02 — Lumo Desktop, Shared Platform Architecture, Messenger, Contacts, Invitations & Meetings
 
 > **Status:** Implementation plan and acceptance criteria for Codex  
 > **Project:** Lumo (workspace-based collaboration platform)  

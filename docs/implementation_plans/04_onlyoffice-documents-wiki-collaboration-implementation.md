@@ -1,4 +1,4 @@
-# 08 — Lumo ONLYOFFICE Collaborative Docs, Sheets, Slides & Wiki + Drive Stabilization
+# 04 — Lumo ONLYOFFICE Collaborative Docs, Sheets, Slides & Wiki + Drive Stabilization
 
 > **Status:** Implementation specification for Codex (not a completed implementation)
 > **Project:** Lumo workspace collaboration platform
