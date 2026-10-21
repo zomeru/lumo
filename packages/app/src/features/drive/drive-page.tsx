@@ -107,7 +107,7 @@ function FileIcon({ item }: { item: DriveItem }) {
 export function DrivePage({
   workspaceId,
   navigate,
-  module = "drive",
+  module = "all",
   search: suppliedSearch,
 }: {
   workspaceId: string;

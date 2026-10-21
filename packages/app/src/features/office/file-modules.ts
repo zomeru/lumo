@@ -15,7 +15,7 @@ export const moduleRoutes = {
   slides: "/w/$workspaceId/slides",
   wiki: "/w/$workspaceId/wiki",
   drive: "/w/$workspaceId/drive",
-  all: "/w/$workspaceId/files",
+  all: "/w/$workspaceId/drive",
 } as const;
 export const kindModules = {
   document: "docs",

@@ -3,7 +3,7 @@ import { expect, type Page } from "@playwright/test";
 export async function verifyDrive(page: Page, screenshot: string) {
   const home = new URL(page.url()).pathname.replace(/\/$/, "");
   await page.goto(new URL(home + "/drive", page.url()).href);
-  await expect(page.getByRole("heading", { name: "Drive", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Drive (All Files)", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "No files here yet" })).toBeVisible();
   async function create(name: string) {
     await page.getByRole("button", { name: "New folder", exact: true }).click();

@@ -206,7 +206,7 @@ async function show(path = `docs/${id}`) {
 }
 test("All Files reuses Drive inventory and offers all four creation kinds", async () => {
   const { user } = await show("files");
-  await screen.findByRole("heading", { name: "All Files" });
+  await screen.findByRole("heading", { name: "Drive (All Files)" });
   await user.click(screen.getByRole("button", { name: "New file" }));
   await user.clear(screen.getByLabelText("Name"));
   await user.type(screen.getByLabelText("Name"), "New report");
@@ -450,8 +450,10 @@ test.each([
       within(nav)
         .getAllByRole("link")
         .map((link) => link.textContent)
-        .filter((text) => ["Docs", "Sheets", "Slides", "Wiki", "Drive"].includes(text ?? "")),
-    ).toEqual(["Docs", "Sheets", "Slides", "Wiki", "Drive"]);
+        .filter((text) =>
+          ["Docs", "Sheets", "Slides", "Wiki", "Drive (All Files)"].includes(text ?? ""),
+        ),
+    ).toEqual(["Docs", "Sheets", "Slides", "Wiki", "Drive (All Files)"]);
     expect(screen.queryByLabelText("File type")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Shared With Me" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Upload files")).toHaveAttribute(

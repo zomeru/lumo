@@ -177,7 +177,7 @@ async function show(search = "", module = "drive") {
   );
   await router.load();
   render(<RouterProvider router={router} />);
-  await screen.findByRole("heading", { name: module === "files" ? "All Files" : "Drive" });
+  await screen.findByRole("heading", { name: "Drive (All Files)" });
   return { user: userEvent.setup(), router };
 }
 async function menu(user: ReturnType<typeof userEvent.setup>, name: string, action: string) {
@@ -187,7 +187,10 @@ async function menu(user: ReturnType<typeof userEvent.setup>, name: string, acti
 test("shared route lists files, switches layout, selects files and downloads a ZIP", async () => {
   const { user } = await show();
   expect(await screen.findByRole("button", { name: "notes.txt" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Drive" })).toHaveAttribute("href", `/w/${teamId}/drive`);
+  expect(screen.getByRole("link", { name: "Drive (All Files)" })).toHaveAttribute(
+    "href",
+    `/w/${teamId}/drive`,
+  );
   await user.click(screen.getByRole("button", { name: "Grid view" }));
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
   await user.click(screen.getByRole("checkbox", { name: "Select notes.txt" }));
@@ -215,7 +218,7 @@ test("nested navigation, breadcrumbs and new folders update without refresh", as
   expect(await screen.findByRole("button", { name: "Subfolder" })).toBeVisible();
   await user.click(
     within(screen.getByRole("navigation", { name: "Folder breadcrumbs" })).getByRole("button", {
-      name: "My Files",
+      name: "Drive (All Files)",
     }),
   );
   expect(await screen.findByRole("button", { name: "notes.txt" })).toBeVisible();
@@ -389,7 +392,7 @@ test("drag/drop shows an overlay and active uploads can be canceled", async () =
   server.state.overrides.set(`POST ${base}/${fileId}/cancel`, () => server.json({ ok: true }));
   const { user } = await show();
   await screen.findByRole("button", { name: "notes.txt" });
-  const region = screen.getByRole("region", { name: "Drive" });
+  const region = screen.getByRole("region", { name: "Drive (All Files)" });
   fireEvent.dragOver(region);
   expect(screen.getByText("Drop files to upload")).toBeVisible();
   fireEvent.drop(region, { dataTransfer: { files: [new globalThis.File(["drop"], "drop.txt")] } });
@@ -481,7 +484,7 @@ test("pagination clears selections and read-only empty views explain shared cont
   expect(await screen.findByText("Files shared with you will appear here.")).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Previous" }));
   expect(await screen.findByRole("button", { name: "notes.txt" })).toBeVisible();
-  fireEvent.drop(screen.getByRole("region", { name: "Drive" }), {
+  fireEvent.drop(screen.getByRole("region", { name: "Drive (All Files)" }), {
     dataTransfer: { files: [new globalThis.File(["x"], "x.txt")] },
   });
   expect(await screen.findByRole("alert")).toHaveTextContent("Choose a folder you can upload to.");
@@ -515,8 +518,8 @@ test("upload queue is bounded, queued transfers cancel and page navigation cance
   expect(upload.run).toHaveBeenCalledTimes(2);
   await user.click(screen.getByRole("button", { name: "Cancel upload three.txt" }));
   expect(await screen.findByText("canceled")).toBeVisible();
-  fireEvent.dragOver(screen.getByRole("region", { name: "Drive" }));
-  fireEvent.dragLeave(screen.getByRole("region", { name: "Drive" }), {
+  fireEvent.dragOver(screen.getByRole("region", { name: "Drive (All Files)" }));
+  fireEvent.dragLeave(screen.getByRole("region", { name: "Drive (All Files)" }), {
     relatedTarget: document.body,
   });
   await router.navigate({ to: "/w/$workspaceId", params: { workspaceId: teamId } });

@@ -28,8 +28,8 @@ export const fileModules = {
   sheets: { title: "Sheets", singular: "spreadsheet", kind: "sheet" },
   slides: { title: "Slides", singular: "presentation", kind: "slide" },
   wiki: { title: "Wiki", singular: "Wiki page", kind: "wiki" },
-  drive: { title: "Drive", singular: "file", kind: null },
-  all: { title: "All Files", singular: "file", kind: null },
+  drive: { title: "Drive (All Files)", singular: "file", kind: null },
+  all: { title: "Drive (All Files)", singular: "file", kind: null },
 } as const;
 export const officeUploadModuleSchema = z.enum(["docs", "sheets", "slides"]);
 export type OfficeUploadModule = z.infer<typeof officeUploadModuleSchema>;

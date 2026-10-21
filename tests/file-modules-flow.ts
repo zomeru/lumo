@@ -10,8 +10,7 @@ export async function verifyFileModules(page: Page) {
     ["Sheets", "sheets", "New spreadsheet", ".xlsx"],
     ["Slides", "slides", "New presentation", ".pptx"],
     ["Wiki", "wiki", "New Wiki page", ""],
-    ["Drive", "drive", "New folder", ""],
-    ["All Files", "files", "New file", ""],
+    ["Drive (All Files)", "drive", "New file", ""],
   ] as const;
   for (const [title, route, action, extension] of modules) {
     const menu = page.getByRole("button", { name: /navigation/i });
@@ -25,14 +24,14 @@ export async function verifyFileModules(page: Page) {
     await expect(navigation.getByRole("link", { name: "Docs", exact: true })).toBeVisible();
     const labels = await navigation.getByRole("link").allTextContents();
     const start = labels.indexOf("Docs");
-    expect(labels.slice(start, start + 6)).toEqual(modules.map(([name]) => name));
+    expect(labels.slice(start, start + 5)).toEqual(modules.map(([name]) => name));
     await navigation.getByRole("link", { name: title, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${workspacePath}/${route}(?:\\?|$)`));
     await expect(page.getByRole("heading", { name: title, level: 1, exact: true })).toBeVisible();
     await expect(navigation.locator('a[aria-current="page"]')).toHaveText(title);
     await expect(page.getByRole("button", { name: "Shared with Me", exact: false })).toHaveCount(0);
     await expect(page.getByRole("combobox", { name: "File type", exact: true })).toHaveCount(
-      title === "All Files" ? 1 : 0,
+      title === "Drive (All Files)" ? 1 : 0,
     );
     if (extension) {
       await expect(page.getByLabel("Upload files", { exact: true })).toHaveAttribute(
@@ -44,7 +43,7 @@ export async function verifyFileModules(page: Page) {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("combobox", { name: "Type", exact: true })).toHaveCount(
-      title === "All Files" ? 1 : 0,
+      title === "Drive (All Files)" ? 1 : 0,
     );
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
@@ -52,6 +51,9 @@ export async function verifyFileModules(page: Page) {
     await expect(page.getByRole("heading", { name: title, level: 1, exact: true })).toBeVisible();
     await expect(navigation.locator('a[aria-current="page"]')).toHaveText(title);
   }
+  await page.goto(new URL(`${workspacePath}/files?type=pdf&q=report`, page.url()).href);
+  await expect(page).toHaveURL(/\/drive\?.*q=report/);
+  await expect(page.getByRole("heading", { name: "Drive (All Files)", exact: true })).toBeVisible();
   for (const [type, title, route] of [
     ["document", "Docs", "docs"],
     ["sheet", "Sheets", "sheets"],
