@@ -17,6 +17,7 @@ import { verifyDrive } from "../drive-flow";
 import { verifyFileModules } from "../file-modules-flow";
 import { verifyHr } from "../hr-flow";
 import { verifyProfile } from "../profile-flow";
+import { acknowledgeRegistration } from "../registration-flow";
 import { verifyDesktopScrolling } from "./scrollbars";
 
 const require = createRequire(import.meta.url);
@@ -62,6 +63,7 @@ async function register(page: Page, name: string, email: string) {
   await page.getByLabel("Full name").fill(name);
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
+  await acknowledgeRegistration(page, password);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/w\/[a-f0-9-]+/);
   await expect(
@@ -372,6 +374,7 @@ test("live Agora sends messages from browser to desktop and back", async ({ brow
     await other.getByLabel("Full name").fill("Colleague");
     await other.getByLabel("Email address").fill(`colleague-${Date.now()}@example.com`);
     await other.getByLabel("Password", { exact: true }).fill(password);
+    await acknowledgeRegistration(other, password);
     await other.getByRole("button", { name: "Create account" }).click();
     await expect(other).toHaveURL(/\/w\//);
     // Personal workspace cannot become public; create a real public team through the authenticated browser API.

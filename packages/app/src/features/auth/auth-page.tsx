@@ -1,20 +1,59 @@
 import { credentialsSchema, registrationSchema } from "@lumo/contracts";
-import { Brand, Button, Card, ErrorMessage, Field, ThemeMenu } from "@lumo/ui";
+import { legalVersions } from "@lumo/contracts/legal";
+import { Button, Card, ErrorMessage, Field, ThemeMenu } from "@lumo/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Check, MessageSquare } from "lucide-react";
 import { useState } from "react";
 
 import { AppHeader } from "../../chrome";
+import { BrandLink } from "../../components/brand-link";
 import { command, sessionQuery } from "../../lib/api";
+import type { LegalDocument } from "../public/legal-content";
+import { LegalConsent } from "./legal-consent";
 
 export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?: string }) {
   const navigate = useNavigate();
   const client = useQueryClient();
   const [validation, setValidation] = useState<Error | null>(null);
   const register = mode === "register";
+  const [fields, setFields] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [touched, setTouched] = useState({
+    name: false,
+    email: false,
+    password: false,
+    confirmPassword: false,
+  });
+  const [reviewed, setReviewed] = useState<Record<LegalDocument, boolean>>({
+    terms: false,
+    privacy: false,
+  });
+  const [accepted, setAccepted] = useState(false);
+  const consent = {
+    accepted,
+    termsVersion: legalVersions.terms,
+    privacyVersion: legalVersions.privacy,
+  };
+  const registrationValid =
+    registrationSchema.safeParse({ ...fields, consent }).success &&
+    reviewed.terms &&
+    reviewed.privacy;
+  const nameError =
+    register && touched.name && !fields.name.trim() ? "Enter your full name." : undefined;
+  const emailError =
+    register && touched.email && !credentialsSchema.shape.email.safeParse(fields.email).success
+      ? "Enter a valid email address."
+      : undefined;
+  const passwordError =
+    register && touched.password && (fields.password.length < 12 || fields.password.length > 128)
+      ? "Use between 12 and 128 characters."
+      : undefined;
+  const confirmationError =
+    register && touched.confirmPassword && fields.password !== fields.confirmPassword
+      ? "Passwords do not match. Enter the same password in both fields."
+      : undefined;
   const submit = useMutation({
-    mutationFn: (body: Record<string, string>) =>
+    mutationFn: (body: unknown) =>
       command(`/api/auth/${register ? "sign-up" : "sign-in"}/email`, "POST", body),
     onSuccess: async () => {
       await client.cancelQueries();
@@ -37,9 +76,9 @@ export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?
         <ThemeMenu />
       </AppHeader>
       <div className="hidden flex-col justify-between border-r bg-sidebar px-12 py-10 lg:flex xl:px-20">
-        <Brand />
+        <BrandLink to="/" />
         <div>
-          <span className="mb-3 block text-xs font-medium text-primary">
+          <span className="mb-3 block text-xs font-medium text-accent-foreground">
             Your team’s next chapter
           </span>
           <h1 className="my-5 text-4xl leading-tight tracking-tight xl:text-5xl">
@@ -77,13 +116,13 @@ export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?
           </div>
         </div>
       </div>
-      <div className="flex flex-col items-center justify-center gap-8 px-5 py-10 sm:px-10">
+      <div className="flex flex-col items-center justify-center gap-6 px-5 pt-16 pb-8 sm:px-10">
         <div className="w-full max-w-sm lg:hidden">
-          <Brand />
+          <BrandLink to="/" />
         </div>
         <Card
           asChild
-          className="w-full max-w-sm border-0 bg-transparent p-0 shadow-none sm:p-0 [&>p]:my-3 [&>form]:mt-7"
+          className="w-full max-w-sm border-0 bg-transparent p-0 shadow-none sm:p-0 [&>p]:my-3 [&>form]:mt-5"
         >
           <div>
             <span className="mb-3 block text-xs font-medium text-primary">
@@ -102,25 +141,50 @@ export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?
             )}
             <form
               className="grid gap-4"
+              onChange={(event) => {
+                const target = event.target;
+                if (target instanceof HTMLInputElement && target.name in fields) {
+                  setFields((current) => ({ ...current, [target.name]: target.value }));
+                  setValidation(null);
+                }
+              }}
               onSubmit={(event) => {
                 event.preventDefault();
                 const body = Object.fromEntries(new FormData(event.currentTarget)) as Record<
                   string,
                   string
                 >;
-                const result = (register ? registrationSchema : credentialsSchema).safeParse(body);
+                const payload = register ? { ...body, consent } : body;
+                const result = (register ? registrationSchema : credentialsSchema).safeParse(
+                  payload,
+                );
                 if (!result.success) {
                   setValidation(
                     new Error(result.error.issues[0]?.message ?? "Check your details."),
                   );
                   return;
                 }
+                if (register && (!reviewed.terms || !reviewed.privacy)) {
+                  setValidation(
+                    new Error("Read and acknowledge both legal documents before continuing."),
+                  );
+                  return;
+                }
+                if (submit.isPending) return;
                 setValidation(null);
-                submit.mutate(body);
+                submit.mutate(result.data);
               }}
             >
               {register && (
-                <Field label="Full name" name="name" autoComplete="name" required maxLength={100} />
+                <Field
+                  label="Full name"
+                  name="name"
+                  autoComplete="name"
+                  required
+                  maxLength={100}
+                  error={nameError}
+                  onBlur={() => setTouched((current) => ({ ...current, name: true }))}
+                />
               )}
               <Field
                 label="Email address"
@@ -129,6 +193,8 @@ export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?
                 autoComplete="email"
                 required
                 maxLength={254}
+                error={emailError}
+                onBlur={() => setTouched((current) => ({ ...current, email: true }))}
               />
               <Field
                 label="Password"
@@ -138,14 +204,40 @@ export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?
                 required
                 minLength={12}
                 maxLength={128}
-                hint={register ? "Use at least 12 characters." : undefined}
+                hint={register ? "Use between 12 and 128 characters." : undefined}
+                error={passwordError}
+                onBlur={() => setTouched((current) => ({ ...current, password: true }))}
               />
+              {register && (
+                <>
+                  <Field
+                    label="Confirm Password"
+                    name="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={12}
+                    maxLength={128}
+                    error={confirmationError}
+                    onBlur={() => setTouched((current) => ({ ...current, confirmPassword: true }))}
+                  />
+                  <LegalConsent
+                    reviewed={reviewed}
+                    onReview={(document) =>
+                      setReviewed((current) => ({ ...current, [document]: true }))
+                    }
+                    accepted={accepted}
+                    onAcceptedChange={setAccepted}
+                  />
+                </>
+              )}
               <ErrorMessage error={validation ?? submit.error} />
               <Button
                 variant="primary"
                 type="submit"
                 className="w-full"
-                disabled={submit.isPending}
+                loading={submit.isPending}
+                disabled={submit.isPending || (register && !registrationValid)}
               >
                 {submit.isPending ? "Please wait…" : register ? "Create account" : "Sign in"}
                 <ArrowRight aria-hidden="true" />

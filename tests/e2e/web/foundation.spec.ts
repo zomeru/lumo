@@ -7,6 +7,7 @@ import { verifyCalendar } from "../../calendar-flow";
 import { verifyDrive } from "../../drive-flow";
 import { verifyFileModules } from "../../file-modules-flow";
 import { verifyProfile } from "../../profile-flow";
+import { acknowledgeRegistration } from "../../registration-flow";
 
 async function selectOption(page: Page, label: string, option: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();
@@ -30,6 +31,7 @@ async function register(page: Page, name: string, email: string) {
   await page.getByLabel("Full name").fill(name);
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
+  await acknowledgeRegistration(page, password);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/w\/[a-f0-9-]+\/?$/);
 }

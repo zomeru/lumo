@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 
 import { expect, type Page } from "@playwright/test";
 
+import { acknowledgeRegistration } from "./registration-flow";
+
 type Reply = { status: number; body: unknown };
 async function api(page: Page, path: string, method = "GET", body?: unknown): Promise<Reply> {
   return page.evaluate(
@@ -50,6 +52,7 @@ export async function verifyHr(owner: Page, colleague: Page, screenshot: (name: 
   await colleague.getByLabel("Full name").fill("HR Colleague");
   await colleague.getByLabel("Email address").fill(email);
   await colleague.getByLabel("Password", { exact: true }).fill("Strong-hr-test-password-2026!");
+  await acknowledgeRegistration(colleague, "Strong-hr-test-password-2026!");
   await colleague.getByRole("button", { name: "Create account" }).click();
   await expect(colleague).toHaveURL(/\/w\/[a-f0-9-]+/);
   let verification = "";

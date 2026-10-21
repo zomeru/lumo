@@ -63,6 +63,19 @@ describe("authentication and guards", () => {
     await user.type(screen.getByLabelText("Full name"), "Alice Chen");
     await user.type(screen.getByLabelText("Email address"), "alice@example.com");
     await user.type(screen.getByLabelText("Password"), "Strong-password-2026!");
+    await user.type(screen.getByLabelText("Confirm Password"), "Strong-password-2026!");
+    for (const name of ["Terms of Use", "Privacy Policy"]) {
+      await user.click(screen.getByRole("link", { name }));
+      const region = screen.getByRole("region", { name: `${name} document` });
+      Object.defineProperties(region, {
+        clientHeight: { value: 300 },
+        scrollHeight: { value: 600 },
+        scrollTop: { value: 300 },
+      });
+      fireEvent.scroll(region);
+      await user.click(screen.getByRole("button", { name: "Acknowledge document" }));
+    }
+    await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "Create account" }));
     expect(
       await screen.findByRole("heading", { name: "Make yourself at home, Alice" }),
