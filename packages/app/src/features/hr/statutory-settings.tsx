@@ -3,7 +3,7 @@ import {
   statutoryConfigurationsSchema,
   type StatutoryConfigurationInput,
 } from "@lumo/contracts/payroll";
-import { formatDateTime } from "@lumo/shared/date-time";
+import { formatDate, formatDateTime } from "@lumo/shared/date-time";
 import {
   Badge,
   Button,
@@ -575,11 +575,11 @@ export function StatutorySettingsPanel({ workspaceId }: { workspaceId: string })
           {query.data.configurations.map((configuration) => (
             <details className="mb-3 rounded-lg border p-3" key={configuration.id}>
               <summary className="cursor-pointer text-sm font-medium text-foreground">
-                {configuration.effectiveFrom} · {configuration.label}
+                {formatDate(configuration.effectiveFrom)} · {configuration.label}
               </summary>
               <Badge>Immutable version</Badge>
               <p className="my-2 text-xs">
-                Reviewed through {configuration.validThrough} · {configuration.reason}
+                Reviewed through {formatDate(configuration.validThrough)} · {configuration.reason}
               </p>
               <p className="text-xs">
                 Saved {formatDateTime(configuration.createdAt)} · Reference {configuration.id}

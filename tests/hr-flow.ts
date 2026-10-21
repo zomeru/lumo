@@ -112,6 +112,17 @@ export async function verifyHr(owner: Page, colleague: Page, screenshot: (name: 
   await navigate(owner, "People");
   await expect(owner.getByRole("heading", { name: "HR Colleague", exact: true })).toBeVisible();
   await owner.screenshot({ path: screenshot("people"), fullPage: true });
+  await owner.getByRole("button", { name: "Org chart", exact: true }).click();
+  await expect(
+    owner.getByRole("button", { name: "View profile: HR Colleague, Engineer" }),
+  ).toBeVisible();
+  await expect(owner.locator('section[aria-label="Reporting hierarchy"] svg path')).not.toHaveCount(
+    0,
+  );
+  await owner.getByRole("button", { name: "Zoom out", exact: true }).click();
+  await owner.getByRole("button", { name: "Fit to view", exact: true }).click();
+  await owner.screenshot({ path: screenshot("org-chart"), fullPage: true });
+
   const colleagueOrigin = new URL(colleague.url()).origin;
   await colleague.goto(`${colleagueOrigin}/w/${workspaceId}/leave`);
   await expect(colleague.getByRole("heading", { name: "Leave", exact: true })).toBeVisible();
@@ -175,7 +186,7 @@ export async function verifyHr(owner: Page, colleague: Page, screenshot: (name: 
   await owner.screenshot({ path: screenshot("statutory-settings"), fullPage: true });
   await owner.getByRole("button", { name: "Save statutory configuration" }).click();
   await expect(
-    owner.getByText("2026-01-01 · E2E reviewed statutory configuration", { exact: true }),
+    owner.getByText("Jan. 1, 2026 · E2E reviewed statutory configuration", { exact: true }),
   ).toBeVisible();
   const statutory = (
     await api(owner, `/workspaces/${workspaceId}/hr/payroll/statutory-configurations`)

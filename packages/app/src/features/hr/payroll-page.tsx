@@ -271,7 +271,7 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
                   <TableCell>
                     {people.data?.people.find((p) => p.userId === row.userId)?.name ?? row.userId}
                   </TableCell>
-                  <TableCell>{row.effectiveFrom}</TableCell>
+                  <TableCell>{formatDate(row.effectiveFrom)}</TableCell>
                   <TableCell>{money(row.salaryMinor)}</TableCell>
                   <TableCell>{row.reason}</TableCell>
                   <TableCell>

@@ -5,6 +5,7 @@ import {
   payrollSettingsSchema,
   type HrAccess,
 } from "@lumo/contracts/hr";
+import { formatDate } from "@lumo/shared/date-time";
 import { Button, Card, ErrorMessage, Field, SelectField } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
@@ -162,7 +163,7 @@ export function PayrollSettingsPanel({
             </HrForm>
             {settings.data?.settings.map((s) => (
               <p key={s.id} className="mt-3 border-t pt-3">
-                {s.effectiveFrom} · {s.frequency} · PHP · {s.reason}
+                {formatDate(s.effectiveFrom)} · {s.frequency} · PHP · {s.reason}
               </p>
             ))}
           </Card>

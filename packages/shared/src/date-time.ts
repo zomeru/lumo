@@ -16,7 +16,14 @@ const months = [
 function parse(value: DateValue) {
   if (value == null || value === "") return null;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (Number.isNaN(date.getTime())) return null;
+  if (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    date.toISOString().slice(0, 10) !== value
+  )
+    return null;
+  return date;
 }
 /** Calendar dates have no timezone; instants use the user's timezone by default. */
 export function formatDate(value: DateValue, timeZone?: string): string {

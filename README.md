@@ -1,6 +1,6 @@
 # Lumo
 
-A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. Web and Electron share the account/workspace UI, contacts, invitations, Messenger, meetings, Drive, Office, Wiki and People & HR.
+A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. Web and Electron share the account/workspace UI, People directory, invitations, Messenger, meetings, Drive, Office, Wiki and People & HR.
 
 ## What works
 
@@ -9,7 +9,10 @@ A workspace collaboration platform built with React, Vite, TanStack Router and Q
 - Three-step team workspace setup, workspace switching, remembered selection, and public discovery/joining.
 - Private and invite-only workspaces, email-bound invitations, expiry, revocation, and single-use acceptance.
 - Owner, admin, moderator, and member roles; member removal, role changes, ownership transfer, and leaving.
-- Workspace settings, profile editing, a searchable member directory, and administrative audit events.
+- Workspace settings, an account dialog that preserves the current module, a compact People directory with messaging, and administrative audit events.
+- A connected organization tree with search, expand/collapse, zoom, pan and profile access, built from existing manager assignments.
+- Calendar as the single meeting scheduling interface; Meetings retains the meeting list, links and joining controls.
+- Drive (All Files) unifies file inventory, uploads, organization and creation while Docs, Sheets, Slides and Wiki retain their specialized screens. Legacy Contacts, All Files and Profile URLs redirect to their current destinations.
 - Collaborative Docs, Sheets and Slides through ONLYOFFICE Docs Cloud, with server-signed sessions, private Drive files and immutable version history.
 - Collaborative Markdown Wiki with CodeMirror 6 + Yjs, inherited Drive access, hierarchical pages and durable Markdown snapshots.
 - Integrated Approvals, Leave, Attendance, Payroll, Onboarding and People with explicit HR capabilities, private documents, auditable workflows and shared web/Electron screens.
@@ -64,6 +67,12 @@ pnpm --filter @lumo/api dev
 ```
 
 Register at `/register`. Registration opens the personal workspace immediately; subsequent sign-ins restore the last authorized workspace. Use **New workspace** for team setup or **Browse & create workspaces** for discovery. Account settings and sign-out are available through **Your profile & account**.
+
+### Profile photos and display dates
+
+Open **Your profile & account** to edit your profile over the current workspace. Profile photos accept JPEG, PNG and WebP up to 5 MiB (configurable with `AVATAR_MAX_BYTES`, capped at 5 MiB). Crop, zoom and reposition before saving. Images are limited to 8192 pixels per side and 16 megapixels; the API validates and re-encodes a 256-pixel WebP without source metadata. Avatars use the existing private S3 storage and versioned identifiers; authenticated URL requests require the owner or a shared workspace membership. Electron resolves images through its authenticated API transport. Replacing or removing a photo removes the previous storage object.
+
+The shared date utilities display dates as `Jan. 30, 2026` and timestamps as `Jan. 30, 2026, 10:30 PM`. Instants follow the viewer’s timezone unless a workflow specifies the workspace/scheduling timezone; calendar-only values such as leave dates retain their original day. Forms and chronological sorting continue using machine-readable values.
 
 ### Verification mail and invitations
 

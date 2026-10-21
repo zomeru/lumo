@@ -261,7 +261,7 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
                   {p.accrualHalfDaysMonthly / 2} days/month
                 </p>
                 <p>
-                  Effective {p.effectiveFrom} · version {p.version}
+                  Effective {formatDate(p.effectiveFrom)} · version {p.version}
                 </p>
                 <Button
                   size="sm"

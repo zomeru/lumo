@@ -927,7 +927,7 @@ test("statutory editor persists rates, peso limits, brackets and rounding as a r
     philhealth: { totalBps: 450, premiumCapMinor: 450000 },
     bir: { monthly: [{}, { bps: 1250 }] },
   });
-  await user.click(await screen.findByText("2026-11-01 · November Accounting review"));
+  await user.click(await screen.findByText("Nov. 1, 2026 · November Accounting review"));
   expect(screen.getByText("Immutable version")).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Use as new configuration draft" }));
   expect(screen.getByLabelText("SSS employee rate (%)")).toHaveValue(4.75);
@@ -1007,7 +1007,7 @@ test("statutory legal exemptions, collection timing, bases, EC and tax rounding 
     collection: "second_cutoff",
   });
   expect(saved.bir).toMatchObject({ enabled: false, rounding: "up_centavo" });
-  await user.click(await screen.findByText("2026-11-01 · Reviewed Philippine rules"));
+  await user.click(await screen.findByText("Nov. 1, 2026 · Reviewed Philippine rules"));
   expect(screen.getAllByText("Reviewed employee statutory exemption eligibility")).toHaveLength(4);
 });
 test("statutory settings errors remain visible and grants-only administrators never fetch statutory data", async () => {
@@ -1021,7 +1021,8 @@ test("statutory settings errors remain visible and grants-only administrators ne
 });
 
 test("organization visualization connects nodes and supports collapse, search, zoom and profiles", async () => {
-  HTMLElement.prototype.scrollTo = vi.fn<HTMLElement["scrollTo"]>();
+  HTMLElement.prototype.scrollTo =
+    vi.fn<(options?: ScrollToOptions | number, y?: number) => void>();
   const { user } = await show("people");
   await user.click(screen.getByRole("button", { name: "Org chart" }));
   await screen.findByRole("button", { name: /View profile: Bob Rivera/ });

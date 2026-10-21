@@ -12,6 +12,12 @@ import {
   Loading,
   PageHeading,
   SelectField,
+  Table,
+  TableHeader,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
 } from "@lumo/ui";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -83,28 +89,52 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
       ) : meetings.isPending ? (
         <Loading />
       ) : meetings.data?.meetings.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {meetings.data.meetings.map((item) => (
-            <Card asChild key={item.id} className="[&>p]:my-3 [&>form]:mt-4">
-              <article key={item.id}>
-                <Badge>
-                  {meetingState(item, now)} · {item.access}
-                </Badge>
-                <h2>{item.title}</h2>
-                <p>
-                  {item.startsAt ? formatDateTime(item.startsAt) : "Meet now"} ·{" "}
-                  {item.durationMinutes} minutes
-                </p>
-                <Button asChild>
-                  <Link to="/meetings/$meetingId" params={{ meetingId: item.id }}>
-                    <Video aria-hidden="true" />
-                    Open meeting
-                  </Link>
-                </Button>
-              </article>
-            </Card>
-          ))}
-        </div>
+        <Table aria-label="Workspace meetings">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Meeting</TableHead>
+              <TableHead>Schedule</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Access</TableHead>
+              <TableHead>
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {meetings.data.meetings.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>
+                  <h2 className="text-sm font-medium">{item.title}</h2>
+                </TableCell>
+                <TableCell>
+                  <p className="whitespace-nowrap text-sm">
+                    {item.startsAt ? formatDateTime(item.startsAt) : "Meet now"}
+                  </p>
+                  <small>{item.durationMinutes} minutes</small>
+                </TableCell>
+                <TableCell>
+                  <Badge>
+                    {meetingState(item, now)} · {item.access}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-xs">
+                  {item.access === "open"
+                    ? "Anyone with a Lumo account and link"
+                    : "Workspace members"}
+                </TableCell>
+                <TableCell>
+                  <Button asChild size="sm">
+                    <Link to="/meetings/$meetingId" params={{ meetingId: item.id }}>
+                      <Video aria-hidden="true" />
+                      Open meeting
+                    </Link>
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       ) : (
         <p className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-surface px-5 py-10 text-center text-muted-foreground">
           No meetings yet.

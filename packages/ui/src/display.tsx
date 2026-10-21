@@ -145,11 +145,11 @@ export function TableRow({ className, ...props }: ComponentProps<"tr">) {
 }
 export function TableHead({ className, ...props }: ComponentProps<"th">) {
   return (
-    <th className={cn("h-10 px-4 text-left font-medium whitespace-nowrap", className)} {...props} />
+    <th className={cn("h-9 px-3 text-left font-medium whitespace-nowrap", className)} {...props} />
   );
 }
 export function TableCell({ className, ...props }: ComponentProps<"td">) {
-  return <td className={cn("px-4 py-3 align-middle", className)} {...props} />;
+  return <td className={cn("px-3 py-2.5 align-middle", className)} {...props} />;
 }
 export function TableCaption({ className, ...props }: ComponentProps<"caption">) {
   return (

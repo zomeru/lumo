@@ -20,7 +20,7 @@ export async function verifyDrive(page: Page, screenshot: string) {
   await create("Brand kit");
   await page
     .getByRole("navigation", { name: "Folder breadcrumbs" })
-    .getByRole("button", { name: "My Files" })
+    .getByRole("button", { name: "Drive (All Files)" })
     .click();
   await expect(page.getByRole("button", { name: "Design assets", exact: true })).toBeVisible();
   await menu("Design assets", "Rename");

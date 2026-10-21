@@ -264,7 +264,7 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
               </TableHeader>
               <TableBody>
                 {data?.days.map((d) => (
-                  <TableRow key={`${d.userId}:${formatDate(d.date)}`}>
+                  <TableRow key={`${d.userId}:${d.date}`}>
                     {tab === "Team attendance" && (
                       <TableCell>
                         {people.data?.people.find((p) => p.userId === d.userId)?.name ?? "Member"}
@@ -349,7 +349,7 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
                 {people.data?.people.find((p) => p.userId === s.userId)?.name ?? "Member"}
               </strong>
               <p>
-                Effective {s.effectiveFrom} · weekdays {s.weekdays.join(", ")} · grace{" "}
+                Effective {formatDate(s.effectiveFrom)} · weekdays {s.weekdays.join(", ")} · grace{" "}
                 {s.graceMinutes} minutes · {s.timezone}
               </p>
             </Card>
@@ -370,7 +370,7 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
             <Field label="Holiday name" name="name" required />
           </HrForm>
           {holidays.data?.holidays.map((h) => (
-            <p key={formatDate(h.date)} className="mt-3">
+            <p key={h.date} className="mt-3">
               {formatDate(h.date)} · {h.name}
             </p>
           ))}

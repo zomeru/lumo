@@ -15,7 +15,7 @@ test("formats instants in the selected timezone with a twelve hour clock", () =>
   expect(formatTime(Date.parse("2026-01-30T12:00:00Z"), "UTC")).toBe("12:00 PM");
 });
 test("does not fabricate unavailable or invalid dates", () => {
-  for (const value of [null, undefined, "", "invalid"]) {
+  for (const value of [null, undefined, "", "invalid", "2026-02-30"]) {
     expect(formatDate(value)).toBe("—");
     expect(formatDateTime(value)).toBe("—");
     expect(formatTime(value)).toBe("—");
