@@ -17,7 +17,11 @@ export const requestSchema = z
     body: z.unknown().optional(),
   })
   .strict()
-  .refine((value) => JSON.stringify(value).length <= 32768);
+  .refine(
+    (value) =>
+      JSON.stringify(value).length <=
+      (value.path === "/api/v1/me/avatar" && value.method === "PUT" ? 7 * 1024 * 1024 : 32768),
+  );
 export function trustedRenderer(url: string, developmentOrigin?: string) {
   try {
     const u = new URL(url);
@@ -68,5 +72,5 @@ export function rendererCsp(
     .filter((value): value is string => Boolean(value))
     .map((value) => ` ${remoteOrigin(value).replace(/^http/, "ws")}`)
     .join("");
-  return `default-src 'self'; script-src 'self'${scripts}${office}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:${websocket}; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src https://*.amazonaws.com https://*.amazonaws.com.cn${office}; frame-ancestors 'none'; form-action 'self'`;
+  return `default-src 'self'; script-src 'self'${scripts}${office}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: wss:${websocket}; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src https://*.amazonaws.com https://*.amazonaws.com.cn${office}; frame-ancestors 'none'; form-action 'self'`;
 }

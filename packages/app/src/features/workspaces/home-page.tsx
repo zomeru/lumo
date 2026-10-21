@@ -1,14 +1,5 @@
 import { canInvite } from "@lumo/contracts/permissions";
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  ErrorMessage,
-  Loading,
-  PageHeading,
-  Skeleton,
-} from "@lumo/ui";
+import { Badge, Button, Card, ErrorMessage, Loading, PageHeading, Skeleton } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
@@ -23,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { AppAvatar as Avatar } from "../../components/app-avatar";
 import { membersQuery, sessionQuery, workspaceQuery } from "../../lib/api";
 
 export function HomePage({ workspaceId }: { workspaceId: string }) {
@@ -75,6 +67,7 @@ export function HomePage({ workspaceId }: { workspaceId: string }) {
                 <Avatar
                   key={member.userId}
                   name={member.name}
+                  src={member.image ?? undefined}
                   className="border-2 border-surface"
                 />
               ))}

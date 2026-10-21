@@ -1,7 +1,6 @@
 import { fileModules } from "@lumo/contracts/files";
 import { canManageSettings } from "@lumo/contracts/permissions";
 import {
-  Avatar,
   Badge,
   Brand,
   Button,
@@ -36,7 +35,9 @@ import {
 import { useState, type ReactNode } from "react";
 
 import { AppHeader } from "../../chrome";
+import { AppAvatar as Avatar } from "../../components/app-avatar";
 import { clearWorkspaceCache, sessionQuery, workspaceQuery, workspacesQuery } from "../../lib/api";
+import { ProfileButton } from "../auth/profile-dialog";
 import { hrIcons } from "../hr/hr-icons";
 import { HrInbox } from "../hr/hr-inbox";
 import { moduleRoutes, moduleIcons } from "../office/file-modules";
@@ -45,7 +46,7 @@ const navigationLink =
   "flex min-h-9 items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-[current=page]:bg-accent aria-[current=page]:font-medium aria-[current=page]:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0";
 function NavigationGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="mt-6">
+    <div className="mt-4">
       <span className="mb-2 block px-3 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
         {label}
       </span>
@@ -128,15 +129,6 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           <House aria-hidden="true" />
           Home
         </Link>
-        <Link
-          className={navigationLink}
-          to="/w/$workspaceId/contacts"
-          params={{ workspaceId }}
-          onClick={() => setMenuOpen(false)}
-        >
-          <Users aria-hidden="true" />
-          Contacts
-        </Link>
         <NavigationGroup label="Connect">
           <Link
             className={navigationLink}
@@ -184,16 +176,6 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
               </Link>
             );
           })}
-          <Link
-            className={navigationLink}
-            to={moduleRoutes.all}
-            params={{ workspaceId }}
-            activeOptions={{ includeSearch: false }}
-            onClick={() => setMenuOpen(false)}
-          >
-            <moduleIcons.all aria-hidden="true" />
-            {fileModules.all.title}
-          </Link>
         </NavigationGroup>
         <NavigationGroup label="People & HR">
           <Link
@@ -273,7 +255,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             </Link>
           )}
         </NavigationGroup>
-        <details className="mt-6">
+        <details className="mt-4">
           <summary className="flex list-none items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
             <LayoutGrid className="size-3.5" aria-hidden="true" />
             More tools<Badge className="ml-auto text-[10px]">Soon</Badge>
@@ -302,18 +284,18 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           Make something great together.
         </p>
       </div>
-      <Link
-        to="/profile"
+      <ProfileButton
+        variant="ghost"
         onClick={() => setMenuOpen(false)}
-        className="flex items-center gap-2.5 border-t px-4 py-4 hover:bg-muted"
+        className="h-auto w-full justify-start gap-2.5 rounded-none border-t px-4 py-4 text-left hover:bg-muted"
       >
-        <Avatar name={session.data.user.name} />
+        <Avatar name={session.data.user.name} src={session.data.user.image ?? undefined} />
         <span className="min-w-0 flex-1 truncate text-xs font-medium">
           {session.data.user.name}
           <small className="mt-0.5 text-[10px] font-normal">Your profile & account</small>
         </span>
         <ChevronRight className="size-3.5 text-muted-foreground" aria-hidden="true" />
-      </Link>
+      </ProfileButton>
     </>
   );
   return (
@@ -376,7 +358,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           className={
             editorLayout
               ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden"
-              : "mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-7 sm:px-8 sm:py-9 xl:px-10"
+              : "mx-auto w-full max-w-7xl flex-1 space-y-5 px-4 py-5 sm:px-8 sm:py-6 xl:px-10"
           }
         >
           <ErrorMessage error={error} />

@@ -66,3 +66,21 @@ test("development and packaged policies deny runtime script evaluation and scope
   expect(development).not.toContain("unsafe-eval");
   expect(rendererCsp("http://127.0.0.1:5174")).not.toContain("nonce-");
 });
+
+test("desktop permits bounded avatar uploads only at their dedicated endpoint", () => {
+  const body = { data: "a".repeat(40000), mimeType: "image/webp" };
+  expect(requestSchema.safeParse({ path: "/api/v1/me/avatar", method: "PUT", body }).success).toBe(
+    true,
+  );
+  expect(requestSchema.safeParse({ path: "/api/v1/me", method: "PUT", body }).success).toBe(false);
+  expect(requestSchema.safeParse({ path: "/api/v1/me/avatar", method: "POST", body }).success).toBe(
+    false,
+  );
+  expect(
+    requestSchema.safeParse({
+      path: "/api/v1/me/avatar",
+      method: "PUT",
+      body: "a".repeat(7 * 1024 * 1024),
+    }).success,
+  ).toBe(false);
+});

@@ -17,7 +17,7 @@ export function mockApi() {
       name: "Alice Chen",
       email: "alice@example.com",
       emailVerified: true,
-      image: null,
+      image: null as string | null,
       jobTitle: "Engineer",
       department: "Product",
     },
@@ -88,6 +88,7 @@ export function mockApi() {
       const path = url.pathname;
       const body =
         typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      if (path === "/api/v1/me/avatar/config") return json({ maxBytes: 5242880 });
       const override = state.overrides.get(`${method} ${path}`);
       if (override) return override(body, url);
       if (path.startsWith("/api/auth/")) {
@@ -103,6 +104,35 @@ export function mockApi() {
         }
         return json({ user: state.user, activeWorkspaceId: state.activeWorkspaceId });
       }
+      if (path.endsWith("/hr/access"))
+        return json({
+          userId,
+          owner: true,
+          grants: [],
+          hasReports: false,
+          timezone: "UTC",
+          currency: "USD",
+        });
+      if (path.endsWith("/hr/departments")) return json({ departments: [] });
+      if (path.endsWith("/hr/people"))
+        return json({
+          people: state.members
+            .filter((member) =>
+              member.name.toLowerCase().includes((url.searchParams.get("q") ?? "").toLowerCase()),
+            )
+            .map((member) => ({
+              ...member,
+              employeeCode: "",
+              departmentId: null,
+              managerId: null,
+              employmentType: "employee",
+              status: "active",
+              hireDate: null,
+              endDate: null,
+              location: "",
+            })),
+          nextOffset: null,
+        });
       if (path === "/api/v1/me/active-workspace") {
         state.activeWorkspaceId = body.workspaceId as string;
         return json({ ok: true });

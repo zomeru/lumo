@@ -6,6 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { verifyCalendar } from "../../calendar-flow";
 import { verifyDrive } from "../../drive-flow";
 import { verifyFileModules } from "../../file-modules-flow";
+import { verifyProfile } from "../../profile-flow";
 
 async function selectOption(page: Page, label: string, option: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();
@@ -72,6 +73,7 @@ test("account, setup, Drive, invitations, switching and revocation work with the
   await expect(page).toHaveURL(/\/login/);
   await register(page, "Alice Chen", ownerEmail);
   const personalHome = page.url();
+  await verifyProfile(page, testInfo.outputPath("profile-crop.png"));
   await verifyCalendar(page, testInfo.outputPath("calendar.png"));
   await page.goto(personalHome);
   await verifyDrive(page, testInfo.outputPath("drive.png"));
@@ -116,7 +118,7 @@ test("account, setup, Drive, invitations, switching and revocation work with the
   await expect(
     colleague.getByRole("heading", { name: "Make yourself at home, Bob" }),
   ).toBeVisible();
-  await colleague.getByRole("link", { name: /Contacts/ }).click();
+  await colleague.getByRole("link", { name: "People", exact: true }).click();
   await expect(colleague.getByRole("heading", { name: "Alice Chen" })).toBeVisible();
   await expect(colleague.getByRole("link", { name: /Settings/ })).toHaveCount(0);
 
@@ -154,7 +156,7 @@ test("account, setup, Drive, invitations, switching and revocation work with the
     true,
   );
   await openNav(page);
-  await page.getByRole("link", { name: /Your profile & account/ }).click();
+  await page.getByRole("button", { name: /Your profile & account/ }).click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page).toHaveURL(/\/login/);
   await page.getByLabel("Email address").fill(ownerEmail);

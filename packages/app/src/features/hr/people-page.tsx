@@ -2,7 +2,6 @@ import { conversationSchema } from "@lumo/contracts/collaboration";
 import { canHr, type Person } from "@lumo/contracts/hr";
 import { canInvite } from "@lumo/contracts/permissions";
 import {
-  Avatar,
   Badge,
   Button,
   Card,
@@ -25,6 +24,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { AppAvatar as Avatar } from "../../components/app-avatar";
 import { api, sessionQuery, workspaceQuery } from "../../lib/api";
 import { HrAdmin } from "./hr-admin";
 import {
@@ -219,7 +219,9 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
                           filters.setFilters({
                             sort: key,
                             order:
-                              filters.sort === key && filters.order !== "desc" ? "desc" : "asc",
+                              (filters.sort ?? "name") === key && filters.order !== "desc"
+                                ? "desc"
+                                : "asc",
                             offset: 0,
                           })
                         }

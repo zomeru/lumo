@@ -7,7 +7,6 @@ import {
 } from "@lumo/contracts/permissions";
 import { formatDate } from "@lumo/shared/date-time";
 import {
-  Avatar,
   Badge,
   Button,
   Card,
@@ -28,6 +27,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { AppAvatar as Avatar } from "../../components/app-avatar";
 import {
   clearWorkspaceCache,
   command,
@@ -243,7 +243,7 @@ export function MembersPage({ workspaceId }: { workspaceId: string }) {
                 className="flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
                 key={member.userId}
               >
-                <Avatar name={member.name} />
+                <Avatar name={member.name} src={member.image ?? undefined} />
                 <div className="min-w-28 flex-1 wrap-anywhere text-sm">
                   <strong>
                     {member.name}

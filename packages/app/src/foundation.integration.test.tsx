@@ -171,8 +171,10 @@ describe("workspace shell and contacts", () => {
   test("searches members and shows empty results", async () => {
     const { user } = await renderRoute(`/w/${teamId}/contacts`);
     await screen.findByRole("heading", { name: "Bob Rivera" });
-    await user.type(screen.getByLabelText("Search members by name"), "No matching person");
-    expect(await screen.findByRole("heading", { name: "No members found" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Search people"), "No matching person");
+    expect(
+      await screen.findByRole("heading", { name: "No people match your search" }),
+    ).toBeInTheDocument();
   });
   test("opens mobile navigation and exposes only implemented actions", async () => {
     const { user } = await renderRoute(`/w/${teamId}`);
@@ -315,7 +317,7 @@ describe("profile, settings and invitations", () => {
   test("unverified users receive verification guidance", async () => {
     server.state.user.emailVerified = false;
     await renderRoute(`/invite?token=${inviteToken}`);
-    expect(await screen.findByRole("link", { name: "Open your profile" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Open your profile" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Accept invitation" })).not.toBeInTheDocument();
   });
   test("expired or wrong-identity invitations reveal no protected details", async () => {
@@ -359,15 +361,35 @@ describe("failure, pagination and stale-session recovery", () => {
     expect(screen.queryByText("Bob Rivera")).not.toBeInTheDocument();
   });
   test("contacts paginate without preserving the previous page", async () => {
-    server.state.overrides.set(`GET /api/v1/workspaces/${teamId}/members`, (_body, url) =>
+    server.state.overrides.set(`GET /api/v1/workspaces/${teamId}/hr/people`, (_body, url) =>
       server.json({
-        members: url.searchParams.get("offset") === "0" ? server.state.members : [],
-        nextOffset: url.searchParams.get("offset") === "0" ? 50 : null,
+        people:
+          url.searchParams.get("offset") === "0"
+            ? server.state.members.map((member) => ({
+                ...member,
+                employeeCode: "",
+                departmentId: null,
+                managerId: null,
+                employmentType: "employee",
+                status: "active",
+                hireDate: null,
+                endDate: null,
+                location: "",
+              }))
+            : [],
+        nextOffset:
+          url.searchParams.get("limit") === "100"
+            ? null
+            : url.searchParams.get("offset") === "0"
+              ? 50
+              : null,
       }),
     );
     const { user } = await renderRoute(`/w/${teamId}/contacts`);
     await user.click(await screen.findByRole("button", { name: "Next" }));
-    expect(await screen.findByRole("heading", { name: "No members found" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "No people match your search" }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Previous" }));
     expect(await screen.findByRole("heading", { name: "Bob Rivera" })).toBeInTheDocument();
   });
@@ -415,7 +437,7 @@ describe("failure, pagination and stale-session recovery", () => {
   });
   test("member query errors expose a retryable message without stale contacts", async () => {
     server.state.overrides.set(
-      `GET /api/v1/workspaces/${teamId}/members`,
+      `GET /api/v1/workspaces/${teamId}/hr/people`,
       () => new Response("service unavailable", { status: 503 }),
     );
     await renderRoute(`/w/${teamId}/contacts`);
@@ -472,4 +494,27 @@ test("section navigation rechecks access without rewriting an unchanged active w
     await router.navigate({ to: "/w/$workspaceId/contacts", params: { workspaceId: teamId } });
   });
   expect(writes()).toHaveLength(1);
+});
+
+test("profile modal preserves the current workspace, module and filters and restores focus", async () => {
+  const { user, router } = await renderRoute(`/w/${teamId}/calendar`);
+  await screen.findByRole("heading", { name: "Calendar" });
+  const before = router.state.location.href;
+  const trigger = screen.getByRole("button", { name: /Your profile & account/ });
+  await user.click(trigger);
+  expect(await screen.findByRole("dialog", { name: "Your profile" })).toBeVisible();
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(router.state.location.href).toBe(before);
+  expect(trigger).toHaveFocus();
+});
+test("legacy profile URLs restore the last workspace and close over its home", async () => {
+  server.state.activeWorkspaceId = teamId;
+  const { user, router } = await renderRoute("/profile");
+  expect(await screen.findByRole("dialog", { name: "Your profile" })).toBeVisible();
+  expect(router.state.location.pathname).toBe(`/w/${teamId}`);
+  await user.click(screen.getByRole("button", { name: "Close dialog" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(router.state.location.pathname).toBe(`/w/${teamId}`);
+  expect(router.state.location.search.profile).toBeUndefined();
 });

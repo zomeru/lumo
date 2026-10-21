@@ -1,6 +1,12 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
 import * as contracts from "@lumo/contracts";
+import {
+  avatarConfigSchema,
+  avatarInputSchema,
+  avatarResultSchema,
+  avatarUrlSchema,
+} from "@lumo/contracts/avatar";
 
 import type { ApiContext } from "./lib/context";
 /** Existing routes retain their behavior; documentation consumes their real DTO/input schemas. */
@@ -17,6 +23,15 @@ export function documentFoundation(app: OpenAPIHono<ApiContext>) {
     status?: number;
   }[] = [
     { method: "get", path: "/api/v1/me", response: contracts.meSchema },
+    { method: "get", path: "/api/v1/me/avatar/config", response: avatarConfigSchema },
+    {
+      method: "put",
+      path: "/api/v1/me/avatar",
+      input: avatarInputSchema,
+      response: avatarResultSchema,
+    },
+    { method: "delete", path: "/api/v1/me/avatar", response: avatarResultSchema },
+    { method: "get", path: "/api/v1/avatars/{id}/{version}", response: avatarUrlSchema },
     {
       method: "patch",
       path: "/api/v1/me",

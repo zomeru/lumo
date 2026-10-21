@@ -3,9 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { ProfileProvider } from "../features/auth/profile-dialog";
 import { ApiError, sessionQuery } from "../lib/api";
 
 export const Route = createFileRoute("/_authenticated")({
+  validateSearch: (search: Record<string, unknown>): { profile?: boolean } =>
+    search.profile === true || search.profile === "true" ? { profile: true } : {},
   beforeLoad: async ({ context, location }) => {
     try {
       return { session: await context.queryClient.fetchQuery(sessionQuery()) };
@@ -46,5 +49,9 @@ function SessionBoundary() {
       </main>
     );
   if (!session.data) return <Loading label="Restoring your session…" />;
-  return <Outlet />;
+  return (
+    <ProfileProvider>
+      <Outlet />
+    </ProfileProvider>
+  );
 }

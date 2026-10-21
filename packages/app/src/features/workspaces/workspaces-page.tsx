@@ -26,6 +26,7 @@ import {
   workspacesQuery,
 } from "../../lib/api";
 import { getPlatform } from "../../platform";
+import { ProfileButton } from "../auth/profile-dialog";
 
 export function WorkspacesPage() {
   const client = useQueryClient();
@@ -51,9 +52,7 @@ export function WorkspacesPage() {
         <Brand />
         <div className="flex items-center gap-2">
           <ThemeMenu />
-          <Button asChild>
-            <Link to="/profile">Your profile</Link>
-          </Button>
+          <ProfileButton>Your profile</ProfileButton>
         </div>
       </AppHeader>
       <PageHeading

@@ -68,6 +68,12 @@ const serverSchema = z
       .string()
       .regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
       .optional(),
+    AVATAR_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1024)
+      .max(5 * 1024 * 1024)
+      .default(5 * 1024 * 1024),
     DRIVE_MAX_FILE_BYTES: z.coerce
       .number()
       .int()

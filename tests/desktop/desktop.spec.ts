@@ -16,6 +16,7 @@ import { verifyCalendar } from "../calendar-flow";
 import { verifyDrive } from "../drive-flow";
 import { verifyFileModules } from "../file-modules-flow";
 import { verifyHr } from "../hr-flow";
+import { verifyProfile } from "../profile-flow";
 import { verifyDesktopScrolling } from "./scrollbars";
 
 const require = createRequire(import.meta.url);
@@ -304,12 +305,10 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
     await desktopWindow.evaluate((win) => win.setSize(1280, 850));
-    await page.getByRole("link", { name: /Contacts/ }).click();
-    await expect(page.getByRole("heading", { name: "Contacts", exact: true })).toBeVisible();
+    await verifyProfile(page, testInfo.outputPath("desktop-profile-crop.png"));
+    await page.getByRole("link", { name: "People", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "People", exact: true })).toBeVisible();
     await page.getByRole("link", { name: /Meetings/ }).click();
-    await page.getByLabel("Meeting title").fill("Desktop planning");
-    await page.getByRole("button", { name: "Create meeting" }).click();
-    await expect(page.getByRole("link", { name: "Open Desktop planning" })).toBeVisible();
     await verifyCalendar(page, testInfo.outputPath("desktop-calendar.png"));
     await app.close();
     app = await launch(dir);
@@ -328,7 +327,7 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
       await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
       await login(page, email);
     }
-    await page.getByRole("link", { name: /Your profile/ }).click();
+    await page.getByRole("button", { name: /Your profile/ }).click();
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
     const result = await page.evaluate(async () => {

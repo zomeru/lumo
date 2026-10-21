@@ -2,7 +2,6 @@ import { conversationSchema, conversationsSchema } from "@lumo/contracts/collabo
 import { chatIdentity, type ChatMessage } from "@lumo/shared";
 import { formatDateTime } from "@lumo/shared/date-time";
 import {
-  Avatar,
   Badge,
   Button,
   Card,
@@ -26,6 +25,7 @@ import { useNavigate, Link } from "@tanstack/react-router";
 import { MessageSquare, Plus, RefreshCw, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { AppAvatar as Avatar } from "../../components/app-avatar";
 import { api, command, membersQuery, sessionQuery } from "../../lib/api";
 import { connectChat } from "./chat";
 export function MessengerPage({
@@ -247,6 +247,9 @@ function ConversationView({
   const names = new Map(
     people.data?.members.map((person) => [chatIdentity(workspaceId, person.userId), person.name]),
   );
+  const photos = new Map(
+    people.data?.members.map((person) => [chatIdentity(workspaceId, person.userId), person.image]),
+  );
   async function send(value: string, retryId?: string) {
     if (!connection.current) return;
     setBusy(true);
@@ -304,7 +307,10 @@ function ConversationView({
               key={message.id}
               className="flex gap-3 rounded-md px-1 py-3 hover:bg-muted/30 [&_time]:text-xs [&_time]:text-muted-foreground [&_p]:mt-1 [&_p]:whitespace-pre-wrap [&_p]:wrap-anywhere [&_p]:text-foreground"
             >
-              <Avatar name={names.get(message.sender) ?? "Member"} />
+              <Avatar
+                name={names.get(message.sender) ?? "Member"}
+                src={photos.get(message.sender) ?? undefined}
+              />
               <div className="min-w-0 flex-1">
                 <strong>{names.get(message.sender) ?? "Workspace member"}</strong>{" "}
                 <time dateTime={new Date(message.time).toISOString()}>

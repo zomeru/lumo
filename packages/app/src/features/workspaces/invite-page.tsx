@@ -11,6 +11,7 @@ import {
   refreshWorkspaces,
   sessionQuery,
 } from "../../lib/api";
+import { ProfileButton } from "../auth/profile-dialog";
 
 export function InvitePage({ token }: { token: string }) {
   const preview = useQuery(invitePreviewQuery(token));
@@ -62,8 +63,9 @@ export function InvitePage({ token }: { token: string }) {
                 </Button>
               ) : (
                 <p className="my-3 block rounded-md border border-primary/15 bg-accent px-3 py-2.5 text-sm text-accent-foreground">
-                  Verify your email before accepting. <Link to="/profile">Open your profile</Link>,
-                  then return to this invitation link.
+                  Verify your email before accepting.{" "}
+                  <ProfileButton variant="link">Open your profile</ProfileButton>, then return to
+                  this invitation link.
                 </p>
               )}
             </>

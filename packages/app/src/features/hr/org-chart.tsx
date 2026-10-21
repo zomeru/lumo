@@ -1,8 +1,9 @@
 import type { Person } from "@lumo/contracts/hr";
-import { Avatar, Button, EmptyState, Field, cn } from "@lumo/ui";
+import { Button, EmptyState, Field, cn } from "@lumo/ui";
 import { Maximize, Minus, Plus } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
+import { AppAvatar as Avatar } from "../../components/app-avatar";
 import { buildOrgTree, layoutOrgTree } from "./org-tree";
 
 export function OrgChart({
@@ -48,7 +49,9 @@ export function OrgChart({
     viewport.current?.scrollTo({
       left: (target.x + 112) * zoom - viewport.current.clientWidth / 2,
       top: target.y * zoom - 80,
-      behavior: "smooth",
+      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
     });
   }
   if (!people.length) return <EmptyState title="No people in the organization yet" />;
@@ -183,7 +186,12 @@ export function OrgChart({
                     "absolute h-[108px] w-56 rounded-lg border bg-surface shadow-xs",
                     matches.some((p) => p.userId === node.id) && "ring-2 ring-primary",
                   )}
-                  style={{ left: node.x, top: node.y }}
+                  style={{
+                    left: node.x,
+                    top: node.y,
+                    contentVisibility: "auto",
+                    containIntrinsicSize: "224px 108px",
+                  }}
                 >
                   <button
                     type="button"

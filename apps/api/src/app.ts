@@ -37,6 +37,7 @@ import { officeRoutes, officeMachineRoutes } from "./modules/office/office.route
 import { createOfficeService } from "./modules/office/office.service";
 import { createOfficeProvider, officeKey, type OfficeProvider } from "./modules/office/provider";
 import { createWikiHub } from "./modules/office/wiki-hub";
+import { avatarRoutes } from "./modules/users/avatar.routes";
 import { userRoutes } from "./modules/users/user.routes.ts";
 import { workspaceRoutes } from "./modules/workspaces/workspace.routes.ts";
 import { createWorkspaceService } from "./modules/workspaces/workspace.service.ts";
@@ -206,14 +207,16 @@ export function createApp({
       maxAge: 600,
     }),
   );
-  app.use(
-    "/api/*",
+  app.use("/api/*", (c, next) =>
     bodyLimit({
-      maxSize: 32 * 1024,
+      maxSize:
+        c.req.path === "/api/v1/me/avatar" && c.req.method === "PUT"
+          ? Math.ceil(env.AVATAR_MAX_BYTES / 3) * 4 + 1024
+          : 32 * 1024,
       onError: () => {
         throw new AppError(413, "BODY_TOO_LARGE", "Request body is too large.");
       },
-    }),
+    })(c, next),
   );
   app.use("/api/*", async (c, next) => {
     if (!["GET", "HEAD", "OPTIONS"].includes(c.req.method)) {
@@ -273,6 +276,7 @@ export function createApp({
     await next();
   });
   app.route("/api/v1", userRoutes(db, workspaces));
+  app.route("/api/v1", avatarRoutes(db, storage, env));
   app.route("/api/v1", workspaceRoutes(workspaces));
   app.route("/api/v1", hrRoutes(workspaces, storage));
   app.route("/api/v1", collaborationRoutes(db, workspaces, provider));

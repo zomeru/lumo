@@ -1,26 +1,22 @@
-import {
-  Brand,
-  Button,
-  Card,
-  ErrorMessage,
-  Field,
-  Loading,
-  PageHeading,
-  ThemeMenu,
-} from "@lumo/ui";
+import { Button, Card, ErrorMessage, Field, Loading, ThemeMenu } from "@lumo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 
 import { command, sessionQuery } from "../../lib/api";
+import { AvatarEditor } from "./avatar-editor";
 
-export function ProfilePage() {
+export function ProfileForm() {
   const client = useQueryClient();
   const navigate = useNavigate();
   const session = useQuery(sessionQuery());
   const save = useMutation({
     mutationFn: (body: Record<string, FormDataEntryValue>) => command("/me", "PATCH", body),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["session"] }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["session"] }),
+        client.invalidateQueries({ queryKey: ["workspace"] }),
+      ]);
+    },
   });
   const verify = useMutation({
     mutationFn: () =>
@@ -36,22 +32,12 @@ export function ProfilePage() {
   });
   if (!session.data) return <Loading />;
   return (
-    <main id="main-content" className="mx-auto grid max-w-2xl gap-6 px-5 py-10 sm:px-8">
-      <Brand />
-      <Link
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
-        to="/workspaces"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        Your workspaces
-      </Link>
-      <PageHeading eyebrow="Your account" title="Your profile">
-        Help your colleagues put a name to a face.
-      </PageHeading>
+    <div className="grid gap-4">
+      <AvatarEditor name={session.data.user.name} image={session.data.user.image} />
       <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
         <section>
           <form
-            className="grid gap-4"
+            className="grid gap-4 sm:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
               save.mutate(Object.fromEntries(new FormData(e.currentTarget)));
@@ -59,6 +45,7 @@ export function ProfilePage() {
           >
             <Field
               label="Full name"
+              autoComplete="name"
               name="name"
               defaultValue={session.data.user.name}
               required
@@ -66,6 +53,7 @@ export function ProfilePage() {
             />
             <Field
               label="Job title"
+              autoComplete="organization-title"
               name="jobTitle"
               defaultValue={session.data.user.jobTitle}
               maxLength={100}
@@ -88,7 +76,12 @@ export function ProfilePage() {
                 Profile saved.
               </output>
             )}
-            <Button variant="primary" type="submit" disabled={save.isPending}>
+            <Button
+              className="sm:col-span-2"
+              variant="primary"
+              type="submit"
+              disabled={save.isPending}
+            >
               {save.isPending ? "Saving…" : "Save profile"}
             </Button>
           </form>
@@ -123,6 +116,6 @@ export function ProfilePage() {
       <Button variant="destructive" disabled={logout.isPending} onClick={() => logout.mutate()}>
         Sign out
       </Button>
-    </main>
+    </div>
   );
 }
