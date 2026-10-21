@@ -21,7 +21,7 @@ test("renders the application shell and home page", async () => {
 test("navigates between file-based routes", async () => {
   const user = userEvent.setup();
   const router = await renderRoute();
-  await user.click(screen.getByRole("link", { name: "About" }));
+  await user.click(screen.getByRole("link", { name: "About Us" }));
   expect(await screen.findByRole("heading", { name: "About Lumo" })).toBeInTheDocument();
   expect(router.state.location.pathname).toBe("/about");
   await user.click(screen.getAllByRole("link", { name: "Home" })[0]!);

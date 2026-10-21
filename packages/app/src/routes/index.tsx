@@ -19,9 +19,6 @@ function HomePage() {
         <BrandLink to="/" compact />
         <nav aria-label="Main navigation">
           <ThemeMenu />
-          <Link className="hidden text-muted-foreground hover:text-foreground sm:block" to="/about">
-            About
-          </Link>
           <Link to="/login">Sign in</Link>
           <Button asChild variant="primary">
             <Link to="/register">Get started</Link>
