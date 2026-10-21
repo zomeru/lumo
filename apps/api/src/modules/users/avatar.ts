@@ -2,11 +2,13 @@ import { AVATAR_MAX_DIMENSION, AVATAR_MAX_PIXELS } from "@lumo/contracts/avatar"
 import sharp from "sharp";
 
 import { AppError } from "../../lib/errors";
+import { validateSignature } from "../drive/validation";
 /** Decode only raster formats, bound memory, orient, strip metadata and encode fresh pixels. */
 export async function processAvatar(data: Buffer, mimeType: string, maxBytes: number) {
   if (!data.length || data.length > maxBytes)
     throw new AppError(413, "AVATAR_TOO_LARGE", "The profile image exceeds the upload limit.");
   try {
+    validateSignature(mimeType, data);
     const image = sharp(data, { failOn: "warning", limitInputPixels: AVATAR_MAX_PIXELS });
     const metadata = await image.metadata();
     const expected = { "image/jpeg": "jpeg", "image/png": "png", "image/webp": "webp" }[mimeType];

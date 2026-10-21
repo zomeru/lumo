@@ -23,6 +23,13 @@ test("avatar validation rejects empty, oversized, mislabeled and invalid images"
   await expect(
     processAvatar(Buffer.from("not an image"), "image/png", 5242880),
   ).rejects.toMatchObject({ status: 400 });
+  await expect(
+    processAvatar(
+      Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'),
+      "image/png",
+      5242880,
+    ),
+  ).rejects.toMatchObject({ status: 400 });
   const large = await sharp({ create: { width: 8193, height: 1, channels: 3, background: "blue" } })
     .png()
     .toBuffer();

@@ -110,7 +110,7 @@ pnpm test:e2e
 
 `check:all` runs formatting, type-aware linting, package boundaries, dependency checks, type checking, and coverage. Use `pnpm check:all:build` to include production builds. Tests retain the 90% global coverage gate for lines, statements, functions, and branches. HTTP/bootstrap entry points are verified by migration/build/browser smoke tests instead of importing running servers into Vitest.
 
-API integration and browser tests require `TEST_DATABASE_URL` pointing to a dedicated database whose name ends in `_test`. Each run creates and removes its own random PostgreSQL schema, applying the committed migrations with only the schema namespace rewritten. Tests never truncate development data. Browser tests use ports **3010/3011** and a separate local outbox at `.local/e2e-mail`; no mock API is used in Playwright. Readiness probes use IPv6 loopback to avoid WSL's delay when probing an unused IPv4 forwarded port.
+API integration and browser tests require `TEST_DATABASE_URL` pointing to a dedicated database whose name ends in `_test`. Each run creates and removes its own random PostgreSQL schema, applying the committed migrations with only the schema namespace rewritten. Tests never truncate development data. Run browser projects separately (`pnpm test:e2e --project=chromium` and `pnpm test:e2e --project=mobile-chromium`) when the combined run reaches the real signup rate limit; each invocation receives a fresh test database. Browser tests use ports **3010/3011** and a separate local outbox at `.local/e2e-mail`; no mock API is used in Playwright. Readiness probes use IPv6 loopback to avoid WSL's delay when probing an unused IPv4 forwarded port.
 
 Useful scoped commands:
 
