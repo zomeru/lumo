@@ -9,7 +9,7 @@ import {
   hrPayrollRun,
   hrStatutoryConfiguration,
 } from "@lumo/database/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { expect, test } from "vitest";
 
 import { createTestDatabase } from "./test/database";
@@ -23,10 +23,13 @@ test("upgrading the existing schema preserves users, personal workspaces and mem
   };
   const database = await createTestDatabase(source.TEST_DATABASE_URL, 7);
   try {
-    const [before] = await database.db
-      .insert(user)
-      .values({ name: "Existing employee", email: "existing-hr-upgrade@example.com" })
-      .returning();
+    // Seed the historical shape, before the registration-consent columns exist.
+    const {
+      rows: [before],
+    } = await database.db.execute<{ id: string; name: string; email: string }>(sql`
+      INSERT INTO users (name, email) VALUES ('Existing employee', 'existing-hr-upgrade@example.com')
+      RETURNING id, name, email
+    `);
     const [personal] = await database.db
       .select()
       .from(workspace)
@@ -35,7 +38,14 @@ test("upgrading the existing schema preserves users, personal workspaces and mem
     await database.migrateRemaining();
     await database.migrateRemaining();
     const after = await database.db.select().from(user).where(eq(user.id, before!.id));
-    expect(after).toEqual([before]);
+    expect(after).toMatchObject([
+      {
+        ...before,
+        registrationTermsVersion: null,
+        registrationPrivacyVersion: null,
+        registrationAcceptedAt: null,
+      },
+    ]);
     const [member] = await database.db
       .select()
       .from(membership)
@@ -60,10 +70,12 @@ test("statutory migration preserves historical payroll without activating an uns
   };
   const database = await createTestDatabase(source.TEST_DATABASE_URL, 13);
   try {
-    const [actor] = await database.db
-      .insert(user)
-      .values({ name: "Accounting", email: "statutory-upgrade@example.com" })
-      .returning();
+    const {
+      rows: [actor],
+    } = await database.db.execute<{ id: string }>(sql`
+      INSERT INTO users (name, email) VALUES ('Accounting', 'statutory-upgrade@example.com')
+      RETURNING id
+    `);
     const [ws] = await database.db
       .select()
       .from(workspace)

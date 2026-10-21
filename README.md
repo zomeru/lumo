@@ -222,3 +222,44 @@ Docs, Sheets and Slides reuse Drive uploads, sharing, copy, trash and restore. A
 Apply additive migrations `0008`–`0014` with `pnpm db:migrate`. Configure employment and managers in People, effective schedules/holidays in Attendance, leave policies in Leave, and routing in People → HR administration. The owner grants specific capabilities; ordinary workspace admins and job titles do not grant salary access. Private attachments reuse the existing bucket with restricted `hr/*` permissions.
 
 Payroll views are My Pay, Pay Runs, Employees and Settings. Authorized payroll staff configure effective SSS/MPF/EC tables, Pag-IBIG thresholds/caps, PhilHealth premiums/shares and BIR brackets in Settings; new calculations require a reviewed saved version. See the [shared UI and statutory configuration guide](docs/architecture/ui-consistency-and-payroll-configuration.md). Published payslips are employee-scoped; runs retain effective inputs and immutable calculation history. Every run requires the [documented independent payroll verification](docs/architecture/payroll-verification.md) before finalization. Recording paid performs no transfer. See the [architecture, permissions, API, setup and migration guide](docs/architecture/people-hr.md) and [privacy operations](docs/architecture/people-hr-privacy.md).
+
+## Registration and public information
+
+Registration requires matching passwords (12–128 characters) and explicit acceptance of the current
+Terms of Use and Privacy Policy. Each document opens in a keyboard-accessible reader; users must reach
+its end and acknowledge it before the agreement checkbox becomes available. Reopening an acknowledged
+document preserves that state and the registration form for the current visit.
+
+The auth boundary validates the same shared contract for HTTP and direct Better Auth calls. Migration
+`0015_pink_sunfire.sql` adds the initially accepted terms/privacy versions and a server-generated
+acceptance timestamp to the user row, written during account creation. Apply it with `pnpm db:migrate`
+before deploying the updated API. Existing users retain null fields; no acceptance is inferred and
+sign-in remains unchanged. These audit fields are not accepted from clients or returned in auth
+responses. Repeated sign-in or duplicate registration does not rewrite them. Browser scrolling is a
+review aid; an API can enforce explicit acceptance of current versions, not prove human reading.
+
+The public routes `/about`, `/contact`, `/privacy`, `/terms`, `/cookies` and `/security` share the landing
+page’s compact footer. Legal content is a **draft requiring Philippine legal review**. Contact addresses
+use the reserved `.example` domain at the product owner’s request and are clearly marked as unmonitored;
+replace them with verified support, privacy and security contacts before launch. Finalize the operator’s
+identity, lawful bases, vendors/locations, retention schedule and rights/incident procedures as listed
+in the documents. The privacy draft references the Philippine National Privacy Commission’s
+[Data Privacy Act](https://privacy.gov.ph/data-privacy-act-/) and
+[data subject rights](https://privacy.gov.ph/data-subject-rights/).
+
+Published document text is versioned in `packages/app/src/features/public/legal-documents/` and the
+current identifiers live in `@lumo/contracts/legal`. For a revision, retain the prior file, add a new
+versioned file, update the active content and identifiers together, and deploy API and clients together.
+Stale registration payloads fail with a review message. Never relabel old user records as accepting a
+new version; a future renewed-consent workflow must preserve the initial registration acceptance.
+
+Unknown client routes render Lumo’s branded 404 without redirecting the unknown URL. Authenticated
+users receive a Dashboard recovery link; anonymous users receive Home. The root unexpected-error view
+uses the same presentation and retries route loading. Workspace permission-denied states already use
+the shared UI primitives, and session-expiry handling continues to hide protected content. This is a
+Vite client-rendered application: the static host controls document HTTP status, while API not-found
+responses retain HTTP 404. A static SPA fallback can return HTTP 200; configure route-aware hosting or
+SSR if document-level HTTP 404 is required. No wildcard redirect or catch-all success route was added.
+
+Focused browser verification: `pnpm exec playwright test tests/e2e/web/public-registration.spec.ts`
+(runs desktop and mobile Chromium against the isolated integration database).
