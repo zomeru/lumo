@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { legalVersions } from "./legal";
+
 export const idSchema = z.uuid();
 export const roleSchema = z.enum(["owner", "admin", "moderator", "member"]);
 export const assignableRoleSchema = z.enum(["admin", "moderator", "member"]);
@@ -15,7 +17,27 @@ export const credentialsSchema = z.object({
   email: z.email().max(254),
   password: z.string().min(12).max(128),
 });
-export const registrationSchema = credentialsSchema.extend({ name });
+export const registrationConsentSchema = z
+  .object({
+    accepted: z.literal(true, {
+      error: "Agree to the Terms of Use and Privacy Policy to continue.",
+    }),
+    termsVersion: z.literal(legalVersions.terms, { error: "Review the current Terms of Use." }),
+    privacyVersion: z.literal(legalVersions.privacy, {
+      error: "Review the current Privacy Policy.",
+    }),
+  })
+  .strict();
+export const registrationSchema = credentialsSchema
+  .extend({
+    name,
+    confirmPassword: z.string(),
+    consent: registrationConsentSchema,
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match. Enter the same password in both fields.",
+  });
 export const workspaceInputSchema = z
   .object({
     name,

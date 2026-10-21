@@ -17,6 +17,7 @@ import {
   auditSchema,
   invitationsSchema,
 } from "@lumo/contracts";
+import { legalVersions } from "@lumo/contracts/legal";
 import {
   invitation,
   membership,
@@ -84,7 +85,17 @@ async function signup(label: string): Promise<Actor> {
       "content-type": "application/json",
       "x-test-ip": `192.0.2.${signupIndex++}`,
     },
-    body: JSON.stringify({ name: label, email, password }),
+    body: JSON.stringify({
+      name: label,
+      email,
+      password,
+      confirmPassword: password,
+      consent: {
+        accepted: true,
+        termsVersion: legalVersions.terms,
+        privacyVersion: legalVersions.privacy,
+      },
+    }),
   });
   expect(res.status).toBe(200);
   const cookie = res.headers
@@ -759,5 +770,76 @@ describe("membership edge cases", () => {
       await (await request("/workspaces/discover?limit=1", carol)).json(),
     );
     expect(result.workspaces).toHaveLength(1);
+  });
+});
+
+describe("registration consent enforcement", () => {
+  const consent = {
+    accepted: true,
+    termsVersion: legalVersions.terms,
+    privacyVersion: legalVersions.privacy,
+  };
+  test("rejects direct HTTP and auth API calls with missing, false or stale consent before creating users", async () => {
+    for (const patch of [
+      { consent: undefined },
+      { consent: { ...consent, accepted: false } },
+      { consent: { ...consent, termsVersion: "old" } },
+      { consent: { ...consent, privacyVersion: "old" } },
+      { confirmPassword: "different" },
+      { registrationAcceptedAt: "2000-01-01" },
+    ]) {
+      const email = `${randomUUID()}@example.com`;
+      const body = {
+        name: "Consent test",
+        email,
+        password,
+        confirmPassword: password,
+        consent,
+        ...patch,
+      };
+      const response = await app.request("/api/auth/sign-up/email", {
+        method: "POST",
+        headers: {
+          origin: env.WEB_ORIGIN,
+          "content-type": "application/json",
+          "x-test-ip": `192.0.2.${signupIndex++}`,
+        },
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(400);
+      expect(await db.select().from(user).where(eq(user.email, email))).toHaveLength(0);
+    }
+    await expect(
+      auth.api.signUpEmail({ body: { name: "Bypass", email: "bypass@example.com", password } }),
+    ).rejects.toThrow(/Invalid input|expected string|Review|consent/);
+    expect(await db.select().from(user).where(eq(user.email, "bypass@example.com"))).toHaveLength(
+      0,
+    );
+  });
+  test("records one server-dated acceptance with the user and preserves it through sign-in and duplicate registration", async () => {
+    const before = Date.now();
+    const actor = await signup("LegalAudit");
+    const [record] = await db.select().from(user).where(eq(user.id, actor.id));
+    expect(record).toMatchObject({
+      registrationTermsVersion: legalVersions.terms,
+      registrationPrivacyVersion: legalVersions.privacy,
+    });
+    expect(record!.registrationAcceptedAt!.getTime()).toBeGreaterThanOrEqual(before);
+    expect(record!.registrationAcceptedAt!.getTime()).toBeLessThanOrEqual(Date.now());
+    const login = await request("/api/auth/sign-in/email", undefined, "POST", {
+      email: actor.email,
+      password,
+    });
+    expect(login.status).toBe(200);
+    expect(await login.text()).not.toContain("registrationAcceptedAt");
+    const duplicate = await request("/api/auth/sign-up/email", undefined, "POST", {
+      name: "Duplicate",
+      email: actor.email,
+      password,
+      confirmPassword: password,
+      consent,
+    });
+    expect(duplicate.status).toBe(422);
+    expect(await db.select().from(user).where(eq(user.id, actor.id))).toEqual([record]);
   });
 });

@@ -31,6 +31,46 @@ export function createAuth(db: Database, env: ServerEnv) {
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: [env.WEB_ORIGIN, env.API_ORIGIN],
     database: drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
+    user: {
+      additionalFields: {
+        registrationTermsVersion: {
+          type: "string",
+          required: false,
+          input: false,
+          returned: false,
+        },
+        registrationPrivacyVersion: {
+          type: "string",
+          required: false,
+          input: false,
+          returned: false,
+        },
+        registrationAcceptedAt: { type: "date", required: false, input: false, returned: false },
+      },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user, context) => {
+            const result = registrationSchema.strict().safeParse(context?.body);
+            if (context?.path !== "/sign-up/email" || !result.success)
+              throw new APIError("BAD_REQUEST", {
+                message:
+                  "Review and accept the current legal documents before creating an account.",
+              });
+            // Persist in the user INSERT, inside Better Auth's registration transaction.
+            return {
+              data: {
+                ...user,
+                registrationTermsVersion: result.data.consent.termsVersion,
+                registrationPrivacyVersion: result.data.consent.privacyVersion,
+                registrationAcceptedAt: new Date(),
+              },
+            };
+          },
+        },
+      },
+    },
     emailAndPassword: { enabled: true, minPasswordLength: 12, maxPasswordLength: 128 },
     emailVerification: {
       sendOnSignUp: true,
@@ -90,10 +130,13 @@ export function createAuth(db: Database, env: ServerEnv) {
             : context.path === "/sign-in/email"
               ? credentialsSchema.strict()
               : undefined;
-        if (input && !input.safeParse(context.body).success)
-          throw new APIError("BAD_REQUEST", {
-            message: "Enter a valid name, email and a password between 12 and 128 characters.",
-          });
+        if (input) {
+          const result = input.safeParse(context.body);
+          if (!result.success)
+            throw new APIError("BAD_REQUEST", {
+              message: result.error.issues[0]?.message ?? "Check your registration details.",
+            });
+        }
       }),
     },
   });

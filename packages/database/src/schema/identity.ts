@@ -19,6 +19,10 @@ export const user = pgTable("users", {
   email: text().notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text(),
+  // Initial registration acceptance is immutable; null means a legacy account, not consent.
+  registrationTermsVersion: text("registration_terms_version"),
+  registrationPrivacyVersion: text("registration_privacy_version"),
+  registrationAcceptedAt: timestamp("registration_accepted_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

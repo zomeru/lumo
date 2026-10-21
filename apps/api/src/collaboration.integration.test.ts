@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 
 import { createAuth } from "@lumo/auth";
+import { legalVersions } from "@lumo/contracts/legal";
 import { membership, meeting, requestLimit } from "@lumo/database/schema";
 import * as databaseSchema from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
@@ -65,6 +66,12 @@ async function signup(name: string) {
       name,
       email: `${name}-${randomUUID()}@example.com`,
       password: "Long-integration-password!2026",
+      confirmPassword: "Long-integration-password!2026",
+      consent: {
+        accepted: true,
+        termsVersion: legalVersions.terms,
+        privacyVersion: legalVersions.privacy,
+      },
     }),
   });
   expect(response.status).toBe(200);

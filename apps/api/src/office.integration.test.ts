@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import { parseEnv } from "node:util";
 
 import { createAuth } from "@lumo/auth";
+import { legalVersions } from "@lumo/contracts/legal";
 import {
   membership,
   driveItem,
@@ -64,6 +65,12 @@ async function signup(name: string): Promise<Actor> {
       name,
       email: `${name}-${randomUUID()}@example.com`,
       password: "Long-integration-password!2026",
+      confirmPassword: "Long-integration-password!2026",
+      consent: {
+        accepted: true,
+        termsVersion: legalVersions.terms,
+        privacyVersion: legalVersions.privacy,
+      },
     }),
   });
   expect(response.status).toBe(200);

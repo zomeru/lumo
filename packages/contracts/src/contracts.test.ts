@@ -94,3 +94,33 @@ test("existing fixed-offset meeting records remain readable while new schedules 
     }).timezone,
   ).toBe("+08:00");
 });
+
+describe("registration requirements", () => {
+  const password = "Strong-password-2026!";
+  const valid = {
+    name: "Alice",
+    email: "alice@example.com",
+    password,
+    confirmPassword: password,
+    consent: { accepted: true, termsVersion: "2026-10-21.1", privacyVersion: "2026-10-21.1" },
+  };
+  test("requires matching passwords and explicit acceptance of current versions", () => {
+    expect(registrationSchema.strict().parse(valid).name).toBe("Alice");
+    for (const patch of [
+      { confirmPassword: "different" },
+      { confirmPassword: undefined },
+      { consent: undefined },
+      { consent: { ...valid.consent, accepted: false } },
+      { consent: { ...valid.consent, accepted: "true" } },
+      { consent: { ...valid.consent, termsVersion: "old" } },
+      { consent: { ...valid.consent, privacyVersion: "old" } },
+      { consent: { ...valid.consent, acceptedAt: "2020-01-01" } },
+      { registrationAcceptedAt: "2020-01-01" },
+      { name: " " },
+      { email: "invalid" },
+      { password: "short", confirmPassword: "short" },
+      { password: "x".repeat(129), confirmPassword: "x".repeat(129) },
+    ])
+      expect(registrationSchema.strict().safeParse({ ...valid, ...patch }).success).toBe(false);
+  });
+});

@@ -4,6 +4,7 @@ import { parseEnv } from "node:util";
 
 import { createAuth } from "@lumo/auth";
 import { avatarIdentity } from "@lumo/contracts/avatar";
+import { legalVersions } from "@lumo/contracts/legal";
 import { membership } from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
 import { and, eq } from "drizzle-orm";
@@ -49,6 +50,12 @@ async function signup(name: string) {
       name,
       email: `${randomUUID()}@example.com`,
       password: "Long-avatar-password-2026!",
+      confirmPassword: "Long-avatar-password-2026!",
+      consent: {
+        accepted: true,
+        termsVersion: legalVersions.terms,
+        privacyVersion: legalVersions.privacy,
+      },
     }),
   });
   expect(response.status).toBe(200);
