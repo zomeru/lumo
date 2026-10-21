@@ -10,7 +10,8 @@
     "./drive": "./src/drive.ts",
     "./office": "./src/office.ts",
     "./files": "./src/files.ts",
-    "./hr": "./src/hr.ts"
+    "./hr": "./src/hr.ts",
+    "./payroll": "./src/payroll.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"

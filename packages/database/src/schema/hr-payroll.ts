@@ -54,6 +54,25 @@ export const hrPayrollSetting = pgTable(
   },
   (t) => [unique("hr_payroll_settings_effective").on(t.workspaceId, t.effectiveFrom)],
 );
+// Append-only effective versions. Closed payroll retains its own full rule snapshot.
+export const hrStatutoryConfiguration = pgTable(
+  "hr_payroll_statutory_configurations",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspace.id),
+    effectiveFrom: date("effective_from").notNull(),
+    validThrough: date("valid_through").notNull(),
+    data: jsonb().$type<Record<string, unknown>>().notNull(),
+    actorId: uuid("actor_id").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique("hr_statutory_configuration_effective").on(t.workspaceId, t.effectiveFrom),
+    check("hr_statutory_configuration_dates", sql`${t.validThrough} >= ${t.effectiveFrom}`),
+  ],
+);
 export const hrPayrollRun = pgTable(
   "hr_payroll_runs",
   {
