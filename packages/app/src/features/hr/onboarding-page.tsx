@@ -1,11 +1,9 @@
 import type { onboardingStepSchema } from "@lumo/contracts/hr";
 import {
   canHr,
-  hrUrlSchema,
   onboardingDetailSchema,
   onboardingInstancesSchema,
   onboardingInvitationsSchema,
-  onboardingTemplateInputSchema,
   onboardingTemplatesSchema,
 } from "@lumo/contracts/hr";
 import {
@@ -24,8 +22,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { z } from "zod";
 
-import { api } from "../../lib/api";
-import { hrAccessQuery, hrPath, hrQuery, peopleQuery, useHrAction } from "./hr-api";
+import { hrAccessQuery, downloadHrFile, hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
+import { useHrTab } from "./hr-search";
 import { HrDialog, HrForm, HrTabs, formString } from "./hr-ui";
 import { uploadHrFile } from "./request-dialog";
 
@@ -70,11 +68,11 @@ function TemplateEditor({
           {
             path: template.id ? `/onboarding/templates/${template.id}` : "/onboarding/templates",
             method: template.id ? "PUT" : "POST",
-            body: onboardingTemplateInputSchema.parse({
+            body: {
               name: formString(data, "name"),
               active: formString(data, "active") === "true",
               steps,
-            }),
+            },
           },
           { onSuccess: onClose },
         )
@@ -185,7 +183,7 @@ function TemplateEditor({
   );
 }
 export function OnboardingPage({ workspaceId }: { workspaceId: string }) {
-  const [tab, setTab] = useState("My onboarding"),
+  const [tab, setTab] = useHrTab("My onboarding", "/w/$workspaceId/hr-onboarding"),
     [status, setStatus] = useState("in_progress"),
     [assign, setAssign] = useState(false),
     [template, setTemplate] = useState<{
@@ -196,7 +194,7 @@ export function OnboardingPage({ workspaceId }: { workspaceId: string }) {
     } | null>(null),
     [instanceId, setInstanceId] = useState<string | null>(null);
   const access = useQuery(hrAccessQuery(workspaceId)),
-    people = useQuery(peopleQuery(workspaceId)),
+    people = useQuery(allPeopleQuery(workspaceId)),
     action = useHrAction(workspaceId),
     client = useQueryClient();
   const instances = useQuery(
@@ -223,15 +221,7 @@ export function OnboardingPage({ workspaceId }: { workspaceId: string }) {
       uploadHrFile(workspaceId, "task", taskId, file),
     onSuccess: () => client.invalidateQueries({ queryKey: ["workspace", workspaceId, "hr"] }),
   });
-  const download = useMutation({
-    mutationFn: async (id: string) => {
-      const result = await api(`${hrPath(workspaceId)}/files/${id}/download`, hrUrlSchema, {
-        method: "POST",
-        body: {},
-      });
-      window.open(result.url, "_blank", "noopener,noreferrer");
-    },
-  });
+  const download = useMutation({ mutationFn: (id: string) => downloadHrFile(workspaceId, id) });
   if (!access.data)
     return (
       <>

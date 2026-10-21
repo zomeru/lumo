@@ -26,11 +26,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { hrAccessQuery, hrQuery, peopleQuery, useHrAction } from "./hr-api";
+import { hrAccessQuery, hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
+import { useHrTab } from "./hr-search";
 import { HrDialog, HrForm, HrTabs, formString } from "./hr-ui";
 import { RequestDialog } from "./request-dialog";
 export function LeavePage({ workspaceId }: { workspaceId: string }) {
-  const [tab, setTab] = useState("My leave"),
+  const [tab, setTab] = useHrTab("My leave", "/w/$workspaceId/leave"),
     [open, setOpen] = useState(false),
     [policyOpen, setPolicyOpen] = useState(false),
     [ledger, setLedger] = useState<string | null>(null),
@@ -38,7 +39,7 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
     [year, setYear] = useState(() => new Date().getFullYear()),
     [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const access = useQuery(hrAccessQuery(workspaceId)),
-    people = useQuery(peopleQuery(workspaceId)),
+    people = useQuery(allPeopleQuery(workspaceId)),
     policies = useQuery(hrQuery(workspaceId, "/leave/policies", leavePoliciesSchema));
   const action = useHrAction(workspaceId);
   const balances = useQuery(
@@ -174,7 +175,9 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
             type="month"
             label="Month"
             value={month}
-            onChange={(e) => setMonth(e.target.value)}
+            onChange={(e) => {
+              if (e.target.value) setMonth(e.target.value);
+            }}
             className="mb-4 max-w-48"
           />
           <ErrorMessage error={out.error} />

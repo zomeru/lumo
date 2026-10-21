@@ -1,10 +1,4 @@
-import {
-  approvalHistorySchema,
-  approvalsSchema,
-  canHr,
-  hrUrlSchema,
-  type Approval,
-} from "@lumo/contracts/hr";
+import { approvalHistorySchema, approvalsSchema, canHr, type Approval } from "@lumo/contracts/hr";
 import {
   Badge,
   Button,
@@ -14,27 +8,31 @@ import {
   Field,
   Loading,
   PageHeading,
+  SelectField,
 } from "@lumo/ui";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { api } from "../../lib/api";
-import { hrAccessQuery, hrPath, hrQuery, useHrAction } from "./hr-api";
+import { hrAccessQuery, downloadHrFile, hrQuery, useHrAction } from "./hr-api";
+import { useHrTab, useHrFilter } from "./hr-search";
 import { HrDialog, HrForm, HrTabs, formString } from "./hr-ui";
 import { RequestDialog } from "./request-dialog";
 export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
-  const [tab, setTab] = useState("Waiting for me"),
-    [q, setQ] = useState(""),
-    [offset, setOffset] = useState(0),
+  const [tab, setTab] = useHrTab("Waiting for me", "/w/$workspaceId/approvals"),
     [open, setOpen] = useState(false),
-    [selected, setSelected] = useState<Approval | null>(null);
+    [selected, setSelected] = useState<Approval | null>(null),
+    [editing, setEditing] = useState<Approval | null>(null),
+    [status, setStatus] = useState("all"),
+    [requestType, setRequestType] = useState("all");
+  const { q, setQ, offset, setOffset } = useHrFilter("/w/$workspaceId/approvals");
   const access = useQuery(hrAccessQuery(workspaceId));
   const action = useHrAction(workspaceId);
+  const download = useMutation({ mutationFn: (id: string) => downloadHrFile(workspaceId, id) });
   const view = tab === "Waiting for me" ? "waiting" : tab === "My requests" ? "mine" : "all";
   const requests = useQuery(
     hrQuery(
       workspaceId,
-      `/requests?view=${view}&q=${encodeURIComponent(q)}&offset=${offset}`,
+      `/requests?view=${view}&q=${encodeURIComponent(q)}&offset=${offset}${status !== "all" ? `&status=${status}` : ""}${requestType !== "all" ? `&type=${requestType}` : ""}`,
       approvalsSchema,
     ),
   );
@@ -83,6 +81,37 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
           setOffset(0);
         }}
       />
+      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <SelectField
+          label="Request status"
+          value={status}
+          onValueChange={(v) => {
+            setStatus(v);
+            setOffset(0);
+          }}
+          options={["all", "draft", "pending", "approved", "rejected", "cancelled"].map(
+            (value) => ({ value, label: value }),
+          )}
+        />
+        <SelectField
+          label="Request type"
+          value={requestType}
+          onValueChange={(v) => {
+            setRequestType(v);
+            setOffset(0);
+          }}
+          options={[
+            "all",
+            "leave",
+            "expense",
+            "purchase",
+            "overtime",
+            "travel",
+            "advance",
+            "general",
+          ].map((value) => ({ value, label: value }))}
+        />
+      </div>
       <ErrorMessage error={requests.error ?? action.error} />
       {requests.isPending ? (
         <Loading />
@@ -114,6 +143,14 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
         )}
       </div>
       {open && <RequestDialog workspaceId={workspaceId} open onClose={() => setOpen(false)} />}
+      {editing && (
+        <RequestDialog
+          workspaceId={workspaceId}
+          open
+          initialApproval={editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
       <HrDialog
         title={selected?.subject ?? "Request"}
         open={!!selected}
@@ -148,6 +185,19 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
               <Field name="comment" label="Comment" required maxLength={2000} />
             </HrForm>
             <div className="flex flex-wrap gap-2">
+              {selected.status === "draft" &&
+                selected.requesterId === access.data.userId &&
+                selected.details.type !== "attendance_correction" && (
+                  <Button
+                    onClick={() => {
+                      setEditing(selected);
+                      setSelected(null);
+                    }}
+                  >
+                    Edit draft
+                  </Button>
+                )}
+
               {selected.requesterId === access.data.userId && selected.status === "draft" && (
                 <Button
                   disabled={action.isPending}
@@ -193,22 +243,14 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
                   </Button>
                 )}
             </div>
-            <ErrorMessage error={history.error} />
+            <ErrorMessage error={history.error ?? download.error} />
             {history.data?.events.map((event) => (
               <p key={event.id} className="border-t pt-2 text-xs">
                 {new Date(event.createdAt).toLocaleString()} · {event.action} {event.comment}
               </p>
             ))}
             {history.data?.files.map((file) => (
-              <Button
-                key={file.id}
-                onClick={() => {
-                  void api(`${hrPath(workspaceId)}/files/${file.id}/download`, hrUrlSchema, {
-                    method: "POST",
-                    body: {},
-                  }).then((result) => window.open(result.url, "_blank", "noopener,noreferrer"));
-                }}
-              >
+              <Button key={file.id} onClick={() => download.mutate(file.id)}>
                 Download {file.name}
               </Button>
             ))}

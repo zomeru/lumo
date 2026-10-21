@@ -37,3 +37,17 @@ test("desktop downloads only through an authenticated Drive endpoint and S3 HTTP
     "Unable to start the download",
   );
 });
+
+test("desktop HR downloads retain the authenticated path and storage-host checks", async () => {
+  const request = vi.fn<() => Promise<{ status: number; body: unknown }>>(async () => ({
+      status: 200,
+      body: { url: "https://bucket.s3.us-east-1.amazonaws.com/hr/signed" },
+    })),
+    save = vi.fn<(url: string) => void>();
+  const hrPath = path.replace("/drive/", "/hr/files/");
+  await driveDownload({ path: hrPath, body: {} }, request, save);
+  expect(save).toHaveBeenCalledWith("https://bucket.s3.us-east-1.amazonaws.com/hr/signed");
+  await expect(
+    driveDownload({ path: hrPath.replace("/download", "/complete"), body: {} }, request, save),
+  ).rejects.toThrow(/./);
+});

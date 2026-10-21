@@ -20,7 +20,7 @@ import { z } from "zod";
 import type { ApiContext } from "../../lib/context";
 import { AppError, denied, missing, parse } from "../../lib/errors";
 import { auditHr, canTeam, notifyHr, requireHrMember, type HrCore } from "./core";
-import { onboardingTaskAccess, taskFor } from "./onboarding";
+import { taskFor } from "./onboarding";
 export function onboardingRoutes(core: HrCore) {
   const app = new Hono<ApiContext>();
   app.get("/onboarding/templates", async (c) =>
@@ -353,7 +353,7 @@ export function onboardingRoutes(core: HrCore) {
         step = onboardingStepSchema.parse(task.step);
       let status = task.status;
       if (input.action === "complete") {
-        await onboardingTaskAccess(ctx, id, true);
+        if (task.assigneeId !== ctx.actorId) denied();
         if (["completed", "verified", "submitted"].includes(status)) return;
         if (step.requiresAttachment) {
           const files = await ctx.tx

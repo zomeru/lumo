@@ -8,6 +8,9 @@ import {
   conversationMember,
   officeDocument,
   membership,
+  hrDepartment,
+  hrEmployee,
+  hrAudit,
 } from "@lumo/database/schema";
 import type { ServerEnv } from "@lumo/env/server";
 import { chatIdentity } from "@lumo/shared";
@@ -103,8 +106,31 @@ export function createApp({
   }
   const workspaces = createWorkspaceService(
     db,
-    async (tx, workspaceId, userId) => {
+    async (tx, workspaceId, userId, actorId) => {
       await disconnectOffice(tx, workspaceId, userId, true);
+      const employment = await tx
+        .select()
+        .from(hrEmployee)
+        .where(and(eq(hrEmployee.workspaceId, workspaceId), eq(hrEmployee.userId, userId)));
+      await tx
+        .update(hrDepartment)
+        .set({ managerId: null })
+        .where(and(eq(hrDepartment.workspaceId, workspaceId), eq(hrDepartment.managerId, userId)));
+      await tx
+        .update(hrEmployee)
+        .set({ managerId: null })
+        .where(and(eq(hrEmployee.workspaceId, workspaceId), eq(hrEmployee.managerId, userId)));
+      await tx
+        .delete(hrEmployee)
+        .where(and(eq(hrEmployee.workspaceId, workspaceId), eq(hrEmployee.userId, userId)));
+      if (employment.length)
+        await tx.insert(hrAudit).values({
+          workspaceId,
+          actorId,
+          action: "employment.membership_removed",
+          targetId: userId,
+          data: { before: employment[0] },
+        });
       const groups = await tx
         .select({
           id: conversation.providerGroupId,

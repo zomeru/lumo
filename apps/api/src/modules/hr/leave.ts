@@ -126,7 +126,7 @@ export async function validateLeave(c: HrContext, details: RequestDetails, reque
       and(eq(hrLeaveType.workspaceId, c.workspaceId), eq(hrLeaveType.id, details.leaveTypeId)),
     );
   if (!type) missing();
-  const policy = leavePolicyInputSchema.parse(type.data);
+  const policy = leavePolicyInputSchema.parse(request?.details.policySnapshot ?? type.data);
   if (policy.archived || details.startDate < policy.effectiveFrom)
     throw new AppError(
       400,

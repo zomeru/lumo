@@ -9,6 +9,7 @@ import { Hono } from "hono";
 import type { ApiContext } from "../../lib/context";
 import { AppError, denied, missing, parse } from "../../lib/errors";
 import type { Storage } from "../../storage/storage";
+import { validateSignature } from "../drive/validation";
 import { readRequest } from "./approvals";
 import { auditHr, type HrCore, type HrContext } from "./core";
 
@@ -46,6 +47,10 @@ export function hrFilesRoutes(core: HrCore, storage: Storage, taskAccess: FileAc
         await ctx.tx
           .insert(storageCleanup)
           .values({ key, notBefore: new Date(Date.now() + 86400000) });
+        await ctx.tx.insert(storageCleanup).values({
+          key: `hr/${ctx.workspaceId}/${id}/content`,
+          notBefore: new Date(Date.now() + 86400000),
+        });
         return { id, url: await storage.putUrl(key, input.size, input.mimeType, input.checksum) };
       }),
       201,
@@ -75,12 +80,14 @@ export function hrFilesRoutes(core: HrCore, storage: Storage, taskAccess: FileAc
           "INVALID_UPLOAD",
           "Uploaded file does not match its declared metadata.",
         );
+      validateSignature(file.mimeType, await storage.sample(staging, 8192));
       // Copy to an immutable key: a still-live upload URL cannot mutate a submitted document.
       await storage.copy(staging, key, metadata.etag);
       await ctx.tx
         .update(hrFile)
         .set({ state: "ready" })
         .where(and(eq(hrFile.workspaceId, ctx.workspaceId), eq(hrFile.id, id)));
+      await ctx.tx.delete(storageCleanup).where(eq(storageCleanup.key, key));
       await auditHr(ctx, "file.attached", id, {
         targetType: file.targetType,
         targetId: file.targetId,

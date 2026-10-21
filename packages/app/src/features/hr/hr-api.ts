@@ -1,8 +1,9 @@
-import { hrAccessSchema, peopleSchema, departmentsSchema } from "@lumo/contracts/hr";
+import { hrAccessSchema, peopleSchema, departmentsSchema, hrUrlSchema } from "@lumo/contracts/hr";
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
 
 import { api, command } from "../../lib/api";
+import { getPlatform } from "../../platform";
 
 export const hrPath = (workspaceId: string) => `/workspaces/${workspaceId}/hr`;
 export const hrQuery = <S extends z.ZodType>(workspaceId: string, path: string, schema: S) =>
@@ -32,3 +33,42 @@ export function useHrAction(workspaceId: string) {
     onSuccess: () => client.invalidateQueries({ queryKey: ["workspace", workspaceId, "hr"] }),
   });
 }
+
+export async function downloadHrFile(workspaceId: string, id: string) {
+  const path = `${hrPath(workspaceId)}/files/${id}/download`;
+  const platform = getPlatform();
+  if (platform?.download) {
+    await platform.download(`/api/v1${path}`, {});
+    return;
+  }
+  const result = await api(path, hrUrlSchema, { method: "POST", body: {} });
+  const anchor = document.createElement("a");
+  anchor.href = result.url;
+  anchor.download = "";
+  anchor.rel = "noreferrer";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+export const allPeopleQuery = (workspaceId: string) =>
+  queryOptions({
+    queryKey: ["workspace", workspaceId, "hr", "people-options"],
+    retry: false,
+    staleTime: 0,
+    queryFn: async ({ signal }) => {
+      const people = [];
+      let offset = 0;
+      for (;;) {
+        const page = await api(
+          `${hrPath(workspaceId)}/people?limit=100&offset=${offset}`,
+          peopleSchema,
+          { signal },
+        );
+        people.push(...page.people);
+        if (page.nextOffset === null) return { people, nextOffset: null };
+        if (page.nextOffset <= offset) throw new Error("Invalid directory pagination");
+        offset = page.nextOffset;
+      }
+    },
+  });

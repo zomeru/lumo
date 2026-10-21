@@ -9,7 +9,7 @@ import { Badge, Button, Card, ErrorMessage, Field, SelectField } from "@lumo/ui"
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { hrQuery, peopleQuery, useHrAction } from "./hr-api";
+import { hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
 import { HrForm, formString } from "./hr-ui";
 export function PayrollSettingsPanel({
   workspaceId,
@@ -28,7 +28,7 @@ export function PayrollSettingsPanel({
       ...hrQuery(workspaceId, "/grants", z.object({ grants: z.array(hrGrantSchema) })),
       enabled: canGrants,
     }),
-    people = useQuery(peopleQuery(workspaceId));
+    people = useQuery(allPeopleQuery(workspaceId));
   const action = useHrAction(workspaceId);
   return (
     <div className="grid gap-5">

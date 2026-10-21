@@ -111,8 +111,9 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, 
     const { offset, limit } = parse(hrPageSchema, c.req.query());
     return c.json(
       await run(c, async (ctx) => {
-        // Includes salary change history; read_all alone must not expose confidential audit.
+        // Salary-bearing audit needs both access administration and payroll authorization.
         await ctx.require("hr.permissions.manage");
+        await ctx.require("hr.payroll.read_all");
         const events = await ctx.tx
           .select()
           .from(hrAudit)

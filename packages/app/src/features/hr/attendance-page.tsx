@@ -27,15 +27,16 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { api } from "../../lib/api";
-import { hrAccessQuery, hrPath, hrQuery, peopleQuery, useHrAction } from "./hr-api";
+import { hrAccessQuery, hrPath, hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
+import { useHrTab } from "./hr-search";
 import { HrDialog, HrForm, HrTabs, formString, saveCsv } from "./hr-ui";
 export function AttendancePage({ workspaceId }: { workspaceId: string }) {
-  const [tab, setTab] = useState("My attendance"),
+  const [tab, setTab] = useHrTab("My attendance", "/w/$workspaceId/attendance"),
     [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)),
     [correction, setCorrection] = useState<string | null>(null),
     [schedule, setSchedule] = useState(false);
   const access = useQuery(hrAccessQuery(workspaceId)),
-    people = useQuery(peopleQuery(workspaceId)),
+    people = useQuery(allPeopleQuery(workspaceId)),
     action = useHrAction(workspaceId);
   const path = `/attendance?month=${month}&team=${tab === "Team attendance"}`;
   const attendance = useQuery(hrQuery(workspaceId, path, attendanceSchema));

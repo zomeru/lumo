@@ -37,6 +37,7 @@ import { useState, type ReactNode } from "react";
 
 import { AppHeader } from "../../chrome";
 import { clearWorkspaceCache, sessionQuery, workspaceQuery, workspacesQuery } from "../../lib/api";
+import { HrInbox } from "../hr/hr-inbox";
 import { moduleRoutes, moduleIcons } from "../office/file-modules";
 
 const navigationLink =
@@ -359,6 +360,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             <Badge className="hidden capitalize sm:inline-flex">{workspace.role}</Badge>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+            <HrInbox workspaceId={workspaceId} />
             <ThemeMenu />
             <Button asChild size="sm">
               <Link to="/onboarding">

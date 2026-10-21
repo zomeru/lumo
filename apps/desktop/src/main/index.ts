@@ -127,7 +127,7 @@ void app.whenReady().then(async () => {
   const ses = session.defaultSession;
   ses.on("will-download", (_event, item) => {
     // Electron's native save dialog keeps file contents outside the renderer.
-    item.setSaveDialogOptions({ title: "Save Lumo Drive download" });
+    item.setSaveDialogOptions({ title: "Save Lumo download" });
   });
   if (devOrigin)
     ses.webRequest.onHeadersReceived({ urls: [`${devOrigin}/*`] }, (details, callback) => {

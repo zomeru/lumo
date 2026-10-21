@@ -56,7 +56,12 @@ async function audit(
 
 export function createWorkspaceService(
   db: Database,
-  revokeAccess?: (tx: Transaction, workspaceId: string, userId: string) => Promise<void>,
+  revokeAccess?: (
+    tx: Transaction,
+    workspaceId: string,
+    userId: string,
+    actorId: string,
+  ) => Promise<void>,
   roleChanged?: (tx: Transaction, workspaceId: string, userId: string) => Promise<void>,
   invitationAccepted?: (
     tx: Transaction,
@@ -241,7 +246,7 @@ export function createWorkspaceService(
         const target = await findMembership(tx, workspaceId, targetId);
         if (!target) missing();
         if (actorId === targetId || !canRemoveMember(actor.role, target.role)) denied();
-        await revokeAccess?.(tx, workspaceId, targetId);
+        await revokeAccess?.(tx, workspaceId, targetId, actorId);
         await tx
           .delete(membership)
           .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, targetId)));
@@ -260,7 +265,7 @@ export function createWorkspaceService(
             "OWNER_REQUIRED",
             "Transfer ownership before leaving this workspace.",
           );
-        await revokeAccess?.(tx, workspaceId, userId);
+        await revokeAccess?.(tx, workspaceId, userId, userId);
         await tx
           .delete(membership)
           .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, userId)));

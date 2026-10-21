@@ -68,12 +68,14 @@ export function HrForm({
   busy,
   error,
   label = "Save",
+  readOnly = false,
 }: {
   children: ReactNode;
   onSubmit: (data: FormData) => void;
   busy: boolean;
   error: unknown;
   label?: string;
+  readOnly?: boolean;
 }) {
   return (
     <form
@@ -85,9 +87,11 @@ export function HrForm({
     >
       {children}
       <ErrorMessage error={error} />
-      <Button type="submit" variant="primary" disabled={busy}>
-        {busy ? "Saving…" : label}
-      </Button>
+      {!readOnly && (
+        <Button type="submit" variant="primary" disabled={busy}>
+          {busy ? "Saving…" : label}
+        </Button>
+      )}
     </form>
   );
 }

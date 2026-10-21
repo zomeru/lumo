@@ -175,12 +175,15 @@ export async function attendanceMonth(
         breakMinutes = 0,
         lateMinutes = 0,
         late = false;
-      for (const shift of actual) {
+      actual.sort((a, b) => a.clockIn.getTime() - b.clockIn.getTime());
+      for (const [index, shift] of actual.entries()) {
         const totals = shiftMinutes(shift, schedule, date, now);
         workedMinutes += totals.workedMinutes;
         breakMinutes += totals.breakMinutes;
-        lateMinutes = Math.max(lateMinutes, totals.lateMinutes);
-        late ||= totals.late;
+        if (index === 0 && scheduled) {
+          lateMinutes = totals.lateMinutes;
+          late = totals.late;
+        }
       }
       let clockIn = actual[0]?.clockIn.toISOString() ?? null,
         clockOut = actual.at(-1)?.clockOut?.toISOString() ?? null;

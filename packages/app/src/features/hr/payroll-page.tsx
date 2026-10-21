@@ -29,7 +29,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { api } from "../../lib/api";
-import { hrAccessQuery, hrPath, hrQuery, peopleQuery, useHrAction } from "./hr-api";
+import { hrAccessQuery, hrPath, hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
+import { useHrTab } from "./hr-search";
 import { HrDialog, HrForm, HrTabs, formString, saveCsv } from "./hr-ui";
 import { PayrollSettingsPanel } from "./payroll-settings";
 const money = (amount: number) =>
@@ -63,14 +64,14 @@ function PayBreakdown({ result }: { result: PayrollResult }) {
   );
 }
 export function PayrollPage({ workspaceId }: { workspaceId: string }) {
-  const [tab, setTab] = useState("My Pay"),
+  const [tab, setTab] = useHrTab("My Pay", "/w/$workspaceId/payroll"),
     [newRun, setNewRun] = useState(false),
     [salary, setSalary] = useState(false),
     [runId, setRunId] = useState<string | null>(null),
     [adjust, setAdjust] = useState(false),
     [voidOpen, setVoidOpen] = useState(false);
   const access = useQuery(hrAccessQuery(workspaceId)),
-    people = useQuery(peopleQuery(workspaceId)),
+    people = useQuery(allPeopleQuery(workspaceId)),
     action = useHrAction(workspaceId);
   const own = useQuery({
       ...hrQuery(workspaceId, "/payroll/me", ownPaySchema),

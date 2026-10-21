@@ -17,12 +17,18 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { workspaceQuery } from "../../lib/api";
-import { departmentsQuery, hrAccessQuery, peopleQuery, useHrAction } from "./hr-api";
+import { HrAdmin } from "./hr-admin";
+import {
+  departmentsQuery,
+  hrAccessQuery,
+  allPeopleQuery,
+  peopleQuery,
+  useHrAction,
+} from "./hr-api";
+import { useHrTab, useHrFilter } from "./hr-search";
 import { HrDialog, HrForm, HrTabs, formString } from "./hr-ui";
 export function PeoplePage({ workspaceId }: { workspaceId: string }) {
-  const [tab, setTab] = useState("Directory"),
-    [q, setQ] = useState(""),
-    [offset, setOffset] = useState(0),
+  const [tab, setTab] = useHrTab("Directory", "/w/$workspaceId/people"),
     [selected, setSelected] = useState<Person | null>(null),
     [department, setDepartment] = useState<{
       id?: string;
@@ -30,8 +36,9 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
       managerId: string | null;
       archived: boolean;
     } | null>(null);
+  const { q, setQ, offset, setOffset } = useHrFilter("/w/$workspaceId/people");
   const people = useQuery(peopleQuery(workspaceId, q, offset)),
-    all = useQuery(peopleQuery(workspaceId, "", 0)),
+    all = useQuery(allPeopleQuery(workspaceId)),
     departments = useQuery(departmentsQuery(workspaceId)),
     access = useQuery(hrAccessQuery(workspaceId)),
     ws = useQuery(workspaceQuery(workspaceId));
@@ -68,7 +75,19 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
       >
         Your workspace directory and reporting relationships.
       </PageHeading>
-      <HrTabs tabs={["Directory", "Org chart", "Departments"]} value={tab} onChange={setTab} />
+      <HrTabs
+        tabs={[
+          "Directory",
+          "Org chart",
+          "Departments",
+          ...(canHr(access.data, "hr.approvals.manage") ||
+          canHr(access.data, "hr.permissions.manage")
+            ? ["HR administration"]
+            : []),
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
       <ErrorMessage error={people.error ?? departments.error ?? action.error} />
       {tab === "Directory" && (
         <>
@@ -176,6 +195,7 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
           )}
         </>
       )}
+      {tab === "HR administration" && <HrAdmin workspaceId={workspaceId} access={access.data} />}
       <HrDialog
         title={selected?.name ?? "Employee profile"}
         open={!!selected}
@@ -183,6 +203,7 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
       >
         {selected && (
           <HrForm
+            readOnly={!manage}
             busy={action.isPending}
             error={action.error}
             onSubmit={(data) =>

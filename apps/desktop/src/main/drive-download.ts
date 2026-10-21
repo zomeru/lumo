@@ -7,7 +7,7 @@ const downloadRequest = z
       .string()
       .regex(
         new RegExp(
-          `^/api/v1/workspaces/${id}/(?:drive/(?:${id}/download|archive)|documents/${id}/versions/${id}/download)$`,
+          `^/api/v1/workspaces/${id}/(?:drive/(?:${id}/download|archive)|documents/${id}/versions/${id}/download|hr/files/${id}/download)$`,
         ),
       ),
     body: z.object({ ids: z.array(z.uuid()).min(1).max(100).optional() }).strict(),

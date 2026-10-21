@@ -8,7 +8,7 @@ import {
 } from "@lumo/database/schema";
 import { and, eq, sql } from "drizzle-orm";
 
-import { denied, missing } from "../../lib/errors";
+import { AppError, denied, missing } from "../../lib/errors";
 import type { HrContext } from "./core";
 export async function taskFor(c: HrContext, id: string) {
   const [task] = await c.tx
@@ -20,7 +20,15 @@ export async function taskFor(c: HrContext, id: string) {
 }
 export async function onboardingTaskAccess(c: HrContext, id: string, write = false) {
   const task = await taskFor(c, id);
-  if (task.assigneeId === c.actorId) return;
+  if (task.assigneeId === c.actorId) {
+    if (write && task.status !== "todo")
+      throw new AppError(
+        409,
+        "TASK_CLOSED",
+        "Reopen the task before changing verified submissions.",
+      );
+    return;
+  }
   if (write) denied();
   if (!(await c.can("hr.onboarding.manage")) && !(await c.can("hr.onboarding.verify"))) missing();
 }

@@ -1,11 +1,17 @@
-import { approvalInputSchema, hrUploadSchema, type RequestDetails } from "@lumo/contracts/hr";
+import {
+  approvalInputSchema,
+  hrUploadSchema,
+  leavePoliciesSchema,
+  type Approval,
+  type RequestDetails,
+} from "@lumo/contracts/hr";
 import { Button, ErrorMessage, Field, SelectField, Textarea } from "@lumo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { z } from "zod";
 
 import { api, command } from "../../lib/api";
-import { hrPath, peopleQuery } from "./hr-api";
+import { hrPath, hrQuery, allPeopleQuery } from "./hr-api";
 import { HrDialog, HrForm, formString } from "./hr-ui";
 const labels = {
   leave: "Leave",
@@ -22,18 +28,34 @@ export function RequestDialog({
   onClose,
   initialType = "general",
   leaveTypes = [],
+  initialApproval,
 }: {
   workspaceId: string;
   open: boolean;
   onClose: () => void;
   initialType?: keyof typeof labels;
   leaveTypes?: { id: string; name: string }[];
+  initialApproval?: Approval;
 }) {
-  const [type, setType] = useState<keyof typeof labels>(initialType),
-    [draft, setDraft] = useState(false),
+  const [type, setType] = useState<keyof typeof labels>(
+      initialApproval && initialApproval.details.type !== "attendance_correction"
+        ? initialApproval.details.type
+        : initialType,
+    ),
+    [draft, setDraft] = useState(Boolean(initialApproval)),
     [file, setFile] = useState<File | null>(null);
-  const people = useQuery(peopleQuery(workspaceId));
+  const people = useQuery(allPeopleQuery(workspaceId));
   const client = useQueryClient();
+  const createdId = useRef<string | null>(initialApproval?.id ?? null),
+    uploadedFile = useRef<File | null>(null);
+  const policies = useQuery(hrQuery(workspaceId, "/leave/policies", leavePoliciesSchema));
+  const categories = leaveTypes.length
+    ? leaveTypes
+    : (policies.data?.policies.filter((p) => !p.archived) ?? []);
+  const initialField = (name: string) => {
+    const value = Object.entries(initialApproval?.details ?? {}).find(([key]) => key === name)?.[1];
+    return typeof value === "string" || typeof value === "number" ? value : "";
+  };
   const save = useMutation({
     mutationFn: async (data: FormData) => {
       const str = (name: string) => formString(data, name),
@@ -100,11 +122,20 @@ export function RequestDialog({
         approverIds: approverId && approverId !== "default" ? [approverId] : [],
         draft: true,
       });
-      const result = await api(`${hrPath(workspaceId)}/requests`, z.object({ id: z.uuid() }), {
-        method: "POST",
-        body: input,
-      });
-      if (file) await uploadHrFile(workspaceId, "request", result.id, file);
+      if (createdId.current)
+        await command(`${hrPath(workspaceId)}/requests/${createdId.current}`, "PUT", input);
+      else {
+        const result = await api(`${hrPath(workspaceId)}/requests`, z.object({ id: z.uuid() }), {
+          method: "POST",
+          body: input,
+        });
+        createdId.current = result.id;
+      }
+      const result = { id: createdId.current };
+      if (file && uploadedFile.current !== file) {
+        await uploadHrFile(workspaceId, "request", result.id, file);
+        uploadedFile.current = file;
+      }
       if (!draft)
         await command(`${hrPath(workspaceId)}/requests/${result.id}/action`, "POST", {
           action: "submit",
@@ -135,14 +166,26 @@ export function RequestDialog({
             </Button>
           ))}
         </div>
-        <Field name="subject" label="Subject" required maxLength={160} />
+        <Field
+          name="subject"
+          defaultValue={initialApproval?.subject}
+          label="Subject"
+          required
+          maxLength={160}
+        />
         <label htmlFor="hr-request-description" className="grid gap-2 text-sm">
           Reason / description
-          <Textarea id="hr-request-description" name="description" maxLength={5000} />
+          <Textarea
+            defaultValue={initialApproval?.description}
+            id="hr-request-description"
+            name="description"
+            maxLength={5000}
+          />
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
           <SelectField
             name="priority"
+            defaultValue={initialApproval?.priority ?? "normal"}
             label="Priority"
             options={[
               { value: "normal", label: "Normal" },
@@ -161,8 +204,9 @@ export function RequestDialog({
             <>
               <SelectField
                 name="leaveTypeId"
+                defaultValue={String(initialField("leaveTypeId")) || undefined}
                 label="Leave category"
-                options={leaveTypes.map((t) => ({ value: t.id, label: t.name }))}
+                options={categories.map((t) => ({ value: t.id, label: t.name }))}
               />
               <SelectField
                 name="halfDay"
@@ -176,14 +220,27 @@ export function RequestDialog({
           )}
           {(type === "leave" || type === "travel") && (
             <>
-              <Field name="startDate" label="Start date" type="date" required />
-              <Field name="endDate" label="End date" type="date" required />
+              <Field
+                name="startDate"
+                defaultValue={initialField("startDate")}
+                label="Start date"
+                type="date"
+                required
+              />
+              <Field
+                name="endDate"
+                defaultValue={initialField("endDate")}
+                label="End date"
+                type="date"
+                required
+              />
             </>
           )}
           {["expense", "purchase", "travel", "advance"].includes(type) && (
             <>
               <Field
                 name="amountMinor"
+                defaultValue={initialField("amountMinor")}
                 label="Amount in centavos / minor units"
                 type="number"
                 min={type === "travel" ? 0 : 1}
@@ -200,9 +257,22 @@ export function RequestDialog({
             </>
           )}
           {(type === "expense" || type === "overtime") && (
-            <Field name="date" label="Date" type="date" required />
+            <Field
+              name="date"
+              defaultValue={initialField("date")}
+              label="Date"
+              type="date"
+              required
+            />
           )}
-          {type === "expense" && <Field name="category" label="Expense category" required />}
+          {type === "expense" && (
+            <Field
+              name="category"
+              defaultValue={initialField("category")}
+              label="Expense category"
+              required
+            />
+          )}
           {type === "purchase" && (
             <>
               <Field
@@ -214,16 +284,29 @@ export function RequestDialog({
                 defaultValue="1"
                 required
               />
-              <Field name="vendor" label="Vendor" />
+              <Field name="vendor" defaultValue={initialField("vendor")} label="Vendor" />
             </>
           )}
-          {type === "travel" && <Field name="destination" label="Destination" required />}
+          {type === "travel" && (
+            <Field
+              name="destination"
+              defaultValue={initialField("destination")}
+              label="Destination"
+              required
+            />
+          )}
           {type === "advance" && (
-            <Field name="repaymentDate" label="Planned repayment date" type="date" />
+            <Field
+              name="repaymentDate"
+              defaultValue={initialField("repaymentDate")}
+              label="Planned repayment date"
+              type="date"
+            />
           )}
           {type === "overtime" && (
             <Field
               name="durationMinutes"
+              defaultValue={initialField("durationMinutes")}
               label="Overtime minutes"
               type="number"
               min="1"

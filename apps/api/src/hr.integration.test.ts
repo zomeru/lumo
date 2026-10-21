@@ -676,3 +676,80 @@ test("Onboarding snapshots templates, protects submissions and activates pending
   expect(joined.tasks[0].assigneeId).toBe(outsider.id);
   expect(joined.tasks[0].step.title).toBe("Updated policy");
 });
+
+test("Sensitive access remains explicit after grants, review history is protected, and removal preserves payroll", async () => {
+  await grant(manager.id, "hr.permissions.manage");
+  expect((await req("/audit", manager)).status).toBe(403);
+  expect(
+    (
+      await req("/grants", manager, "POST", {
+        userId: manager.id,
+        capability: "hr.payroll.read_all",
+        scope: "workspace",
+      })
+    ).status,
+  ).toBe(403);
+  await grant(admin.id, "hr.attendance.read_team", "direct_reports");
+  expect((await req(`/attendance?month=2026-10&userId=${employee.id}`, admin)).status).toBe(403);
+  await grant(admin.id, "hr.payroll.compensation.manage");
+  expect(
+    (
+      await req(`/people/${owner.id}`, owner, "PUT", {
+        jobTitle: "Founder",
+        hireDate: "2026-10-01",
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await req("/schedules", owner, "POST", {
+        userId: owner.id,
+        effectiveFrom: "2026-10-01",
+        weekdays: [1, 2, 3, 4, 5],
+        startMinute: 480,
+        endMinute: 1020,
+        breakMinutes: 60,
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await req("/payroll/compensation", admin, "POST", {
+        userId: owner.id,
+        effectiveFrom: "2026-10-01",
+        salaryMinor: 4000000,
+        reason: "Independently assigned owner compensation",
+      })
+    ).status,
+  ).toBe(200);
+  const created = await req("/payroll/runs", owner, "POST", {
+    startDate: "2026-10-01",
+    endDate: "2026-10-31",
+    cutoffDate: "2026-10-31",
+    payoutDate: "2026-10-31",
+  });
+  expect(created.status).toBe(201);
+  const id = (await created.json()).id as string;
+  expect((await req(`/payroll/runs/${id}/calculate`, owner, "POST", {})).status).toBe(200);
+  const detail = await (await req(`/payroll/runs/${id}`)).json();
+  expect(detail.employees.some((e: { userId: string }) => e.userId === owner.id)).toBe(false);
+  expect((await (await req("/payroll/me")).json()).payslips).toHaveLength(0);
+  expect(
+    (await req(`/payroll/runs/${id}`, outsider, "GET", undefined, outsider.workspaceId)).status,
+  ).toBe(404);
+  const remove = await app.request(
+    `/api/v1/workspaces/${owner.workspaceId}/members/${employee.id}`,
+    {
+      method: "DELETE",
+      headers: { origin: env.WEB_ORIGIN, "content-type": "application/json", cookie: owner.cookie },
+      body: "{}",
+    },
+  );
+  expect(remove.status).toBe(200);
+  expect((await req("/payroll/me", employee)).status).toBe(404);
+  const runs = await (await req("/payroll/runs")).json();
+  const paid = runs.runs.find((r: { status: string }) => r.status === "paid");
+  expect(paid).toBeTruthy();
+  const historical = await (await req(`/payroll/runs/${paid.id}`)).json();
+  expect(historical.employees.some((e: { userId: string }) => e.userId === employee.id)).toBe(true);
+});

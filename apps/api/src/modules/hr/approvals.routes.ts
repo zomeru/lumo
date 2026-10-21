@@ -1,5 +1,6 @@
 import { idSchema } from "@lumo/contracts";
 import {
+  calendarDateSchema,
   approvalActionSchema,
   approvalInputSchema,
   approvalPolicyInputSchema,
@@ -27,15 +28,19 @@ export type RequestHooks = {
 export function approvalsRoutes(core: HrCore, hooks: RequestHooks) {
   const app = new Hono<ApiContext>();
   app.get("/requests", async (c) => {
-    const { q, offset, limit, view, status, type, employeeId } = parse(
-      hrPageSchema.extend({
-        view: z.enum(["waiting", "mine", "all"]).default("mine"),
-        status: z.string().max(30).optional(),
-        type: z.string().max(30).optional(),
-        employeeId: z.uuid().optional(),
-      }),
-      c.req.query(),
-    );
+    const { q, offset, limit, view, status, type, employeeId, approverId, fromDate, toDate } =
+      parse(
+        hrPageSchema.extend({
+          view: z.enum(["waiting", "mine", "all"]).default("mine"),
+          status: z.string().max(30).optional(),
+          type: z.string().max(30).optional(),
+          employeeId: z.uuid().optional(),
+          approverId: z.uuid().optional(),
+          fromDate: calendarDateSchema.optional(),
+          toDate: calendarDateSchema.optional(),
+        }),
+        c.req.query(),
+      );
     return c.json(
       await core.run(c.get("workspaceId"), c.get("user").id, async (ctx) => {
         if (view === "all") await ctx.require("hr.approvals.read_all");
@@ -54,6 +59,9 @@ export function approvalsRoutes(core: HrCore, hooks: RequestHooks) {
               status ? eq(hrRequest.status, status) : undefined,
               type ? sql`${hrRequest.details}->>'type' = ${type}` : undefined,
               employeeId ? eq(hrRequest.requesterId, employeeId) : undefined,
+              approverId ? sql`${approverId} = any(${hrRequest.approverIds})` : undefined,
+              fromDate ? sql`${hrRequest.createdAt} >= ${fromDate}::date` : undefined,
+              toDate ? sql`${hrRequest.createdAt} < ${toDate}::date + interval '1 day'` : undefined,
             ),
           )
           .orderBy(desc(hrRequest.createdAt), desc(hrRequest.id))
