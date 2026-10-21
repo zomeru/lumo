@@ -260,3 +260,91 @@ test("Approvals enforce assigned sequential decisions, safe retries, drafts, com
     (await req(`/requests/${blockedId}/action`, owner, "POST", { action: "submit" })).status,
   ).toBe(409);
 });
+
+test("Leave shares approval state, charges schedules and holidays, and reverses ledger once", async () => {
+  expect(
+    (
+      await req("/schedules", owner, "POST", {
+        userId: employee.id,
+        effectiveFrom: "2026-01-01",
+        weekdays: [1, 2, 3, 4, 5],
+        startMinute: 480,
+        endMinute: 1020,
+        breakMinutes: 60,
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (await req("/holidays", owner, "POST", { date: "2026-10-23", name: "Workspace holiday" }))
+      .status,
+  ).toBe(200);
+  const policy = await req("/leave/policies", owner, "POST", {
+    name: "Vacation",
+    paid: true,
+    allocationHalfDays: 30,
+    effectiveFrom: "2026-01-01",
+  });
+  expect(policy.status).toBe(201);
+  const leaveTypeId = (await policy.json()).id as string;
+  const response = await req("/requests", employee, "POST", {
+    subject: "Vacation",
+    description: "Private reason",
+    details: { type: "leave", leaveTypeId, startDate: "2026-10-22", endDate: "2026-10-26" },
+  });
+  expect(response.status).toBe(201);
+  const id = (await response.json()).id as string;
+  expect(
+    (
+      await req("/requests", employee, "POST", {
+        subject: "Overlap",
+        details: { type: "leave", leaveTypeId, startDate: "2026-10-22", endDate: "2026-10-22" },
+      })
+    ).status,
+  ).toBe(409);
+  const pending = await (await req("/leave/balances?year=2026", employee)).json();
+  expect(pending.balances[0].balanceHalfDays).toBe(30);
+  expect(pending.balances[0].pendingHalfDays).toBe(4);
+  const results = await Promise.all([
+    req(`/requests/${id}/action`, manager, "POST", { action: "approve" }),
+    req(`/requests/${id}/action`, manager, "POST", { action: "approve" }),
+  ]);
+  expect(results.map((r) => r.status)).toEqual([200, 200]);
+  const approved = await (await req("/leave/balances?year=2026", employee)).json();
+  expect(approved.balances[0].balanceHalfDays).toBe(26);
+  expect(
+    approved.balances[0].ledger.filter((l: { source: string }) => l.source.startsWith("approved:")),
+  ).toHaveLength(1);
+  const out = await (await req("/leave/out?startDate=2026-10-01&endDate=2026-10-31", admin)).json();
+  expect(out.absences).toHaveLength(1);
+  expect(JSON.stringify(out)).not.toContain("Private reason");
+  expect(JSON.stringify(out)).not.toContain("Vacation");
+  expect((await req(`/leave/balances?year=2026&userId=${employee.id}`, manager)).status).toBe(200);
+  expect((await req(`/leave/balances?year=2026&userId=${employee.id}`, admin)).status).toBe(403);
+  expect((await req(`/requests/${id}/action`, employee, "POST", { action: "cancel" })).status).toBe(
+    200,
+  );
+  expect((await req(`/requests/${id}/action`, employee, "POST", { action: "cancel" })).status).toBe(
+    200,
+  );
+  const cancelled = await (await req("/leave/balances?year=2026", employee)).json();
+  expect(cancelled.balances[0].balanceHalfDays).toBe(30);
+  expect(cancelled.balances[0].usedHalfDays).toBe(0);
+  const rest = await req("/requests", employee, "POST", {
+    subject: "Rest day",
+    details: { type: "leave", leaveTypeId, startDate: "2026-10-24", endDate: "2026-10-24" },
+  });
+  expect(rest.status).toBe(400);
+  const adjustment = {
+    userId: employee.id,
+    leaveTypeId,
+    year: 2026,
+    amountHalfDays: 2,
+    reason: "Opening correction",
+    idempotencyKey: randomUUID(),
+  };
+  expect((await req("/leave/adjustments", admin, "POST", adjustment)).status).toBe(403);
+  for (let i = 0; i < 2; i++)
+    expect((await req("/leave/adjustments", owner, "POST", adjustment)).status).toBe(200);
+  const balance = await (await req("/leave/balances?year=2026", employee)).json();
+  expect(balance.balances[0].balanceHalfDays).toBe(32);
+});

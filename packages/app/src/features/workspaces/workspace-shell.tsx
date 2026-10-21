@@ -205,6 +205,15 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           </Link>
           <Link
             className={navigationLink}
+            to="/w/$workspaceId/leave"
+            params={{ workspaceId }}
+            onClick={() => setMenuOpen(false)}
+          >
+            <CalendarDays aria-hidden="true" />
+            Leave
+          </Link>
+          <Link
+            className={navigationLink}
             to="/w/$workspaceId/people"
             params={{ workspaceId }}
             onClick={() => setMenuOpen(false)}

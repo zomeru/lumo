@@ -256,3 +256,81 @@ export const hrFileInputSchema = z.strictObject({
 });
 export const hrUploadSchema = z.object({ id: z.uuid(), url: z.url() });
 export const hrUrlSchema = z.object({ url: z.url() });
+
+export const scheduleInputSchema = z
+  .strictObject({
+    userId: z.uuid(),
+    effectiveFrom: calendarDateSchema,
+    weekdays: z
+      .array(z.number().int().min(0).max(6))
+      .max(7)
+      .refine((v) => new Set(v).size === v.length),
+    startMinute: z.number().int().min(0).max(1439),
+    endMinute: z.number().int().min(0).max(1439),
+    breakMinutes: z.number().int().min(0).max(480).default(60),
+    graceMinutes: z.number().int().min(0).max(120).default(15),
+    paidBreaks: z.boolean().default(false),
+  })
+  .refine(
+    (v) =>
+      v.startMinute !== v.endMinute && v.breakMinutes < (v.endMinute - v.startMinute + 1440) % 1440,
+    "Invalid shift duration",
+  );
+export type WorkSchedule = z.infer<typeof scheduleInputSchema> & { timezone: string };
+export const schedulesSchema = z.object({
+  schedules: z.array(scheduleInputSchema.safeExtend({ id: z.uuid(), timezone: z.string() })),
+});
+export const holidayInputSchema = z.strictObject({
+  date: calendarDateSchema,
+  name: z.string().trim().min(1).max(120),
+});
+export const holidaysSchema = z.object({ holidays: z.array(holidayInputSchema) });
+export const leavePolicyInputSchema = z.strictObject({
+  name: z.string().trim().min(1).max(100),
+  paid: z.boolean(),
+  allocationHalfDays: z.number().int().min(0).max(732),
+  accrualHalfDaysMonthly: z.number().int().min(0).max(62).default(0),
+  carryoverHalfDays: z.number().int().min(0).max(732).default(0),
+  carryoverExpiryMonth: z.number().int().min(1).max(12).nullable().default(null),
+  eligibleAfterDays: z.number().int().min(0).max(3650).default(0),
+  allowHalfDay: z.boolean().default(true),
+  requireDocumentation: z.boolean().default(false),
+  enforceBalance: z.boolean().default(true),
+  effectiveFrom: calendarDateSchema,
+  archived: z.boolean().default(false),
+});
+export const leavePolicySchema = leavePolicyInputSchema.extend({
+  id: z.uuid(),
+  version: z.number(),
+});
+export const leavePoliciesSchema = z.object({ policies: z.array(leavePolicySchema) });
+export const leaveBalanceSchema = z.object({
+  userId: z.uuid(),
+  leaveTypeId: z.uuid(),
+  name: z.string(),
+  paid: z.boolean(),
+  balanceHalfDays: z.number(),
+  pendingHalfDays: z.number(),
+  usedHalfDays: z.number(),
+  ledger: z.array(
+    z.object({
+      id: z.uuid(),
+      amountHalfDays: z.number(),
+      source: z.string(),
+      reason: z.string(),
+      createdAt: z.string(),
+    }),
+  ),
+});
+export const leaveBalancesSchema = z.object({ balances: z.array(leaveBalanceSchema) });
+export const whoOutSchema = z.object({
+  absences: z.array(
+    z.object({
+      id: z.uuid(),
+      userId: z.uuid(),
+      startDate: z.string(),
+      endDate: z.string(),
+      status: z.literal("away"),
+    }),
+  ),
+});

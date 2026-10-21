@@ -6,12 +6,14 @@ import { Hono, type Context } from "hono";
 import { z } from "zod";
 
 import type { ApiContext } from "../../lib/context";
-import { denied, parse, missing, AppError } from "../../lib/errors";
+import { denied, parse, missing } from "../../lib/errors";
 import type { Storage } from "../../storage/storage";
 import type { createWorkspaceService } from "../workspaces/workspace.service";
 import { approvalsRoutes } from "./approvals.routes";
 import { auditHr, createHrCore, requireHrMember } from "./core";
 import { hrFilesRoutes } from "./files.routes";
+import { validateLeave, transitionLeave } from "./leave";
+import { leaveRoutes } from "./leave.routes";
 import { peopleRoutes } from "./people.routes";
 
 export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, storage: Storage) {
@@ -163,15 +165,10 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, 
   app.route(
     "/workspaces/:workspaceId/hr",
     approvalsRoutes(core, {
-      validate: async (_ctx, details) => {
-        if (["leave", "attendance_correction"].includes(details.type))
-          throw new AppError(
-            409,
-            "POLICY_REQUIRED",
-            "Configure this domain policy before creating requests.",
-          );
+      validate: async (ctx, details, requestId) => {
+        await validateLeave(ctx, details, requestId);
       },
-      transition: async () => {},
+      transition: transitionLeave,
     }),
   );
   app.route(
@@ -180,5 +177,6 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, 
       missing();
     }),
   );
+  app.route("/workspaces/:workspaceId/hr", leaveRoutes(core));
   return app;
 }
