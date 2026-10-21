@@ -119,6 +119,11 @@ export function OrgChart({
           ? `${matches.length} matching people. Use Locate to reveal the first match.`
           : "Drag the background or scroll to explore. Use Tab to reach profiles and reporting controls."}
       </p>
+      {tree.children.size === 0 && (
+        <p className="text-sm text-muted-foreground">
+          No reporting relationships are defined yet. Workspace members appear as top-level nodes.
+        </p>
+      )}
       {tree.invalid.size > 0 && (
         <p role="alert" className="text-sm text-warning">
           Reporting cycle detected. Invalid links are omitted; ask HR to correct the manager

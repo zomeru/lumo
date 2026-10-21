@@ -1,4 +1,5 @@
 import { canInvite } from "@lumo/contracts/permissions";
+import { formatDate } from "@lumo/shared/date-time";
 import { Badge, Button, Card, ErrorMessage, Loading, PageHeading, Skeleton } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -26,10 +27,7 @@ export function HomePage({ workspaceId }: { workspaceId: string }) {
   return (
     <>
       <PageHeading
-        eyebrow={new Intl.DateTimeFormat(undefined, {
-          dateStyle: "full",
-          timeZone: ws.data.timezone,
-        }).format(today)}
+        eyebrow={formatDate(today, ws.data.timezone)}
         title={`Make yourself at home, ${session.data.user.name.split(" ")[0]}`}
         actions={
           canInvite(ws.data.role) && (
@@ -104,7 +102,7 @@ export function HomePage({ workspaceId }: { workspaceId: string }) {
             )}
             <Link
               className="inline-flex items-center gap-2 text-xs font-medium text-primary"
-              to="/w/$workspaceId/members"
+              to="/w/$workspaceId/people"
               params={{ workspaceId }}
             >
               Meet your team
@@ -158,7 +156,7 @@ export function HomePage({ workspaceId }: { workspaceId: string }) {
             </span>
             <span>
               <strong className="text-sm">Make time to connect</strong>
-              <small className="mt-1">Meet now or plan a catch-up.</small>
+              <small className="mt-1">View meetings or plan a catch-up.</small>
             </span>
             <ArrowUpRight
               className="ml-auto size-4 shrink-0 text-muted-foreground group-hover:text-primary"
@@ -185,9 +183,7 @@ export function HomePage({ workspaceId }: { workspaceId: string }) {
       </section>
       <div className="mt-8 flex flex-wrap items-center gap-3 rounded-lg border border-dashed px-5 py-4">
         <Badge>Coming soon</Badge>
-        <p className="flex-1 text-xs">
-          More ways to work together: Drive, office editing, work management and HR.
-        </p>
+        <p className="flex-1 text-xs">More ways to work together: tasks, projects and hiring.</p>
       </div>
     </>
   );
