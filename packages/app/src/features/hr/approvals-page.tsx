@@ -1,4 +1,5 @@
 import { approvalHistorySchema, approvalsSchema, canHr, type Approval } from "@lumo/contracts/hr";
+import { formatDate, formatDateTime } from "@lumo/shared/date-time";
 import {
   Badge,
   Button,
@@ -175,7 +176,7 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
                   · {requestSummary(r)}
                 </p>
                 <p>
-                  {r.details.type} · {new Date(r.createdAt).toLocaleDateString()} · {r.priority}
+                  {r.details.type} · {formatDate(r.createdAt)} · {r.priority}
                 </p>
                 <Badge>{r.status}</Badge>
                 {r.blockedReason && <p>{r.blockedReason}</p>}
@@ -299,7 +300,7 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
             <ErrorMessage error={history.error ?? download.error} />
             {history.data?.events.map((event) => (
               <p key={event.id} className="border-t pt-2 text-xs">
-                {new Date(event.createdAt).toLocaleString()} · {event.action} {event.comment}
+                {formatDateTime(event.createdAt)} · {event.action} {event.comment}
               </p>
             ))}
             {history.data?.files.map((file) => (
@@ -317,8 +318,9 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
 function requestSummary(request: Approval) {
   const details = request.details;
   if (details.type === "leave" || details.type === "travel")
-    return `${details.startDate} – ${details.endDate}`;
-  if (details.type === "overtime") return `${details.date} · ${details.durationMinutes} minutes`;
+    return `${formatDate(details.startDate)} – ${formatDate(details.endDate)}`;
+  if (details.type === "overtime")
+    return `${formatDate(details.date)} · ${details.durationMinutes} minutes`;
   if (details.type === "attendance_correction") return details.date;
   if (details.type === "general") return "General request";
   return new Intl.NumberFormat(undefined, { style: "currency", currency: details.currency }).format(

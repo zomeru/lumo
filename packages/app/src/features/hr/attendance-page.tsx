@@ -6,6 +6,7 @@ import {
   holidaysSchema,
   schedulesSchema,
 } from "@lumo/contracts/hr";
+import { formatDate, formatTime } from "@lumo/shared/date-time";
 import {
   Badge,
   Button,
@@ -91,14 +92,7 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
       </>
     );
   const timezone = access.data.timezone,
-    format = (instant: string | null) =>
-      instant
-        ? new Date(instant).toLocaleTimeString(undefined, {
-            timeZone: timezone,
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "—";
+    format = (instant: string | null) => formatTime(instant, timezone);
   const data = attendance.data;
   return (
     <>
@@ -128,13 +122,7 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
           <div className="mb-5 grid gap-4 lg:grid-cols-3">
             {tab === "My attendance" && (
               <Card className="text-center">
-                <p>
-                  {data?.serverTime
-                    ? new Date(data.serverTime).toLocaleDateString(undefined, {
-                        timeZone: timezone,
-                      })
-                    : "Server clock"}
-                </p>
+                <p>{data?.serverTime ? formatDate(data.serverTime, timezone) : "Server clock"}</p>
                 <time className="my-3 block text-3xl font-semibold">
                   {format(data?.serverTime ?? null)}
                 </time>
@@ -276,13 +264,13 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
               </TableHeader>
               <TableBody>
                 {data?.days.map((d) => (
-                  <TableRow key={`${d.userId}:${d.date}`}>
+                  <TableRow key={`${d.userId}:${formatDate(d.date)}`}>
                     {tab === "Team attendance" && (
                       <TableCell>
                         {people.data?.people.find((p) => p.userId === d.userId)?.name ?? "Member"}
                       </TableCell>
                     )}
-                    <TableCell>{d.date}</TableCell>
+                    <TableCell>{formatDate(d.date)}</TableCell>
                     <TableCell>{d.scheduled}</TableCell>
                     <TableCell>{format(d.clockIn)}</TableCell>
                     <TableCell>{format(d.clockOut)}</TableCell>
@@ -382,8 +370,8 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
             <Field label="Holiday name" name="name" required />
           </HrForm>
           {holidays.data?.holidays.map((h) => (
-            <p key={h.date} className="mt-3">
-              {h.date} · {h.name}
+            <p key={formatDate(h.date)} className="mt-3">
+              {formatDate(h.date)} · {h.name}
             </p>
           ))}
         </>

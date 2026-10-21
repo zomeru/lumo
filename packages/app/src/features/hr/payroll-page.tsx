@@ -8,6 +8,7 @@ import {
   payrollScheduleSchema,
   type PayrollResult,
 } from "@lumo/contracts/hr";
+import { formatDate } from "@lumo/shared/date-time";
 import {
   Badge,
   Button,
@@ -163,7 +164,7 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
                 own.data.payslips.map((slip) => (
                   <article key={slip.runId} className="mb-4 border-t py-4">
                     <h3>
-                      {slip.startDate} – {slip.endDate}
+                      {formatDate(slip.startDate)} – {formatDate(slip.endDate)}
                     </h3>
                     <Badge>{slip.status}</Badge>
                     <p>
@@ -228,10 +229,10 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
                 <Card key={r.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                   <div>
                     <h2>
-                      {r.startDate} – {r.endDate}
+                      {formatDate(r.startDate)} – {formatDate(r.endDate)}
                     </h2>
                     <p>
-                      Payout {r.payoutDate} · revision {r.revision}
+                      Payout {formatDate(r.payoutDate)} · revision {r.revision}
                     </p>
                     <Badge>{r.status}</Badge>
                   </div>
@@ -414,7 +415,7 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
         {run && (
           <>
             <p>
-              {run.startDate} – {run.endDate} · revision {run.revision}
+              {formatDate(run.startDate)} – {formatDate(run.endDate)} · revision {run.revision}
             </p>
             <Badge>{run.status}</Badge>
             {run.warnings.map((w) => (

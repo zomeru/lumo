@@ -3,6 +3,7 @@ import {
   statutoryConfigurationsSchema,
   type StatutoryConfigurationInput,
 } from "@lumo/contracts/payroll";
+import { formatDateTime } from "@lumo/shared/date-time";
 import {
   Badge,
   Button,
@@ -581,8 +582,7 @@ export function StatutorySettingsPanel({ workspaceId }: { workspaceId: string })
                 Reviewed through {configuration.validThrough} · {configuration.reason}
               </p>
               <p className="text-xs">
-                Saved {new Date(configuration.createdAt).toLocaleString()} · Reference{" "}
-                {configuration.id}
+                Saved {formatDateTime(configuration.createdAt)} · Reference {configuration.id}
               </p>
               <dl className="my-3 grid gap-1 text-xs">
                 <div>

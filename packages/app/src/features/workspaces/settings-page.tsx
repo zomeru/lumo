@@ -1,5 +1,6 @@
 import { workspaceUpdateSchema, workspaceSchema } from "@lumo/contracts";
 import { canManageSettings } from "@lumo/contracts/permissions";
+import { formatDateTime } from "@lumo/shared/date-time";
 import { Button, Card, ErrorMessage, Loading, PageHeading } from "@lumo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -84,7 +85,7 @@ export function SettingsPage({ workspaceId }: { workspaceId: string }) {
                   {item.action.replaceAll(".", " ")}
                   <small>{item.actorName ?? "Former member"}</small>
                 </span>
-                <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time>
+                <time dateTime={item.createdAt}>{formatDateTime(item.createdAt)}</time>
               </div>
             ))
           )}

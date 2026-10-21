@@ -1,5 +1,6 @@
 import { conversationSchema, conversationsSchema } from "@lumo/contracts/collaboration";
 import { chatIdentity, type ChatMessage } from "@lumo/shared";
+import { formatDateTime } from "@lumo/shared/date-time";
 import {
   Avatar,
   Badge,
@@ -307,7 +308,7 @@ function ConversationView({
               <div className="min-w-0 flex-1">
                 <strong>{names.get(message.sender) ?? "Workspace member"}</strong>{" "}
                 <time dateTime={new Date(message.time).toISOString()}>
-                  {new Date(message.time).toLocaleTimeString()}
+                  {formatDateTime(message.time)}
                 </time>
                 <p>{message.text}</p>
                 {message.pending && <small>Sending…</small>}

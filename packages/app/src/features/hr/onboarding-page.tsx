@@ -6,6 +6,7 @@ import {
   onboardingInvitationsSchema,
   onboardingTemplatesSchema,
 } from "@lumo/contracts/hr";
+import { formatDate, formatDateTime } from "@lumo/shared/date-time";
 import {
   Badge,
   Button,
@@ -274,7 +275,7 @@ export function OnboardingPage({ workspaceId }: { workspaceId: string }) {
                     <h2>{task.step.title}</h2>
                     <p>{task.step.instructions}</p>
                     <small>
-                      {task.step.group} · due {task.dueDate} ·{" "}
+                      {task.step.group} · due {formatDate(task.dueDate)} ·{" "}
                       {task.step.required ? "Required" : "Optional"}
                     </small>
                     <Badge>{task.status}</Badge>
@@ -311,7 +312,7 @@ export function OnboardingPage({ workspaceId }: { workspaceId: string }) {
                 <p>
                   {people.data?.people.find((p) => p.userId === i.userId)?.name ??
                     "Pending invitation"}{" "}
-                  · starts {i.startDate} · template version {i.version}
+                  · starts {formatDate(i.startDate)} · template version {i.version}
                 </p>
                 <Progress
                   aria-label={`${i.name} progress`}
@@ -433,7 +434,7 @@ export function OnboardingPage({ workspaceId }: { workspaceId: string }) {
             <h3>{task.step.title}</h3>
             <p>{task.step.instructions}</p>
             <small>
-              Due {task.dueDate} ·{" "}
+              Due {formatDate(task.dueDate)} ·{" "}
               {task.assigneeId
                 ? (people.data?.people.find((p) => p.userId === task.assigneeId)?.name ??
                   "Assigned colleague")
@@ -542,7 +543,7 @@ export function OnboardingPage({ workspaceId }: { workspaceId: string }) {
         ))}
         {detail.data?.events.map((event) => (
           <p key={event.id} className="border-t pt-2 text-xs">
-            {new Date(event.createdAt).toLocaleString()} · {event.action} · {event.comment}
+            {formatDateTime(event.createdAt)} · {event.action} · {event.comment}
           </p>
         ))}
       </HrDialog>

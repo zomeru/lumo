@@ -1,4 +1,5 @@
 import { approvalPoliciesSchema, canHr, hrAuditSchema, type HrAccess } from "@lumo/contracts/hr";
+import { formatDateTime } from "@lumo/shared/date-time";
 import { Button, Card, ErrorMessage, MultiSelectField, SelectField } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -127,7 +128,7 @@ export function HrAdmin({ workspaceId, access }: { workspaceId: string; access: 
           {events.data?.events.map((e) => (
             <details className="border-t py-3 text-sm" key={e.id}>
               <summary>
-                {new Date(e.createdAt).toLocaleString()} · {e.action} ·{" "}
+                {formatDateTime(e.createdAt)} · {e.action} ·{" "}
                 {people.data?.people.find((p) => p.userId === e.actorId)?.name ?? e.actorId}
               </summary>
               <p>Target: {e.targetId}</p>

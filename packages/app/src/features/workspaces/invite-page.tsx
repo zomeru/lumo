@@ -1,4 +1,5 @@
 import { okSchema, workspaceSchema } from "@lumo/contracts";
+import { formatDate } from "@lumo/shared/date-time";
 import { Brand, Button, Card, ErrorMessage, Loading } from "@lumo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -49,9 +50,7 @@ export function InvitePage({ token }: { token: string }) {
               <p>
                 Join <strong>{preview.data.workspaceName}</strong> as a {preview.data.role}.
               </p>
-              <p>
-                This invitation expires {new Date(preview.data.expiresAt).toLocaleDateString()}.
-              </p>
+              <p>This invitation expires {formatDate(preview.data.expiresAt)}.</p>
               {session.data?.user.emailVerified ? (
                 <Button
                   variant="primary"

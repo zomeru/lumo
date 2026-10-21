@@ -6,6 +6,7 @@ import {
   whoOutSchema,
   type LeavePolicy,
 } from "@lumo/contracts/hr";
+import { formatDate, formatDateTime } from "@lumo/shared/date-time";
 import {
   Badge,
   Button,
@@ -148,7 +149,7 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
                   <strong>{r.subject}</strong>
                   <p>
                     {r.details.type === "leave"
-                      ? `${r.details.startDate} – ${r.details.endDate}`
+                      ? `${formatDate(r.details.startDate)} – ${formatDate(r.details.endDate)}`
                       : ""}
                   </p>
                   <Badge>{r.status}</Badge>
@@ -199,7 +200,7 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
                       "Workspace member"}
                   </strong>
                   <p>
-                    Away · {a.startDate} – {a.endDate}
+                    Away · {formatDate(a.startDate)} – {formatDate(a.endDate)}
                   </p>
                 </Card>
               ))}
@@ -306,7 +307,7 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
           ?.ledger.map((l) => (
             <p key={l.id} className="border-b py-2">
               {l.amountHalfDays / 2} days · {l.reason}
-              <small>{new Date(l.createdAt).toLocaleString()}</small>
+              <small>{formatDateTime(l.createdAt)}</small>
             </p>
           ))}
       </HrDialog>

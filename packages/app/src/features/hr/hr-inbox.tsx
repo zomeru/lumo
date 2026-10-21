@@ -1,4 +1,5 @@
 import { hrNotificationsSchema } from "@lumo/contracts/hr";
+import { formatDateTime } from "@lumo/shared/date-time";
 import { Badge, Button, EmptyState, ErrorMessage } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -30,7 +31,7 @@ export function HrInbox({ workspaceId }: { workspaceId: string }) {
           inbox.data.notifications.map((n) => (
             <article key={n.id} className="grid gap-2 border-b pb-3">
               <strong className="text-sm">{n.title}</strong>
-              <small>{new Date(n.createdAt).toLocaleString()}</small>
+              <small>{formatDateTime(n.createdAt)}</small>
               <div className="flex gap-2">
                 <Button asChild size="sm">
                   <Link

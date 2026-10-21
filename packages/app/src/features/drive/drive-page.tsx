@@ -7,6 +7,7 @@ import {
   type FileModule,
 } from "@lumo/contracts/files";
 import { officeFileKind } from "@lumo/contracts/office";
+import { formatDateTime } from "@lumo/shared/date-time";
 import {
   Badge,
   Button,
@@ -696,8 +697,12 @@ export function DrivePage({
                       <span className="text-xs text-muted-foreground">{item.ownerName}</span>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      <time className="text-xs text-muted-foreground" dateTime={item.updatedAt}>
-                        {new Date(item.updatedAt).toLocaleDateString()}
+                      <time
+                        className="text-xs text-muted-foreground"
+                        dateTime={item.updatedAt}
+                        title={formatDateTime(item.updatedAt)}
+                      >
+                        {formatDateTime(item.updatedAt)}
                       </time>
                     </TableCell>
                     <TableCell className="text-xs whitespace-nowrap text-muted-foreground">

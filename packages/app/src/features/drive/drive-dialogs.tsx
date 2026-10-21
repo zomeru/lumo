@@ -4,6 +4,7 @@ import {
   driveUrlSchema,
   type DriveItem,
 } from "@lumo/contracts/drive";
+import { formatDateTime } from "@lumo/shared/date-time";
 import {
   Badge,
   Button,
@@ -135,8 +136,8 @@ export function DriveDialog({
               Access: item.permission,
               Status: item.status,
               Original: item.originalName,
-              Created: new Date(item.createdAt).toLocaleString(),
-              Modified: new Date(item.updatedAt).toLocaleString(),
+              Created: formatDateTime(item.createdAt),
+              Modified: formatDateTime(item.updatedAt),
               "File reference": item.id,
               Checksum: item.checksum ?? "—",
             }).map(([label, value]) => (

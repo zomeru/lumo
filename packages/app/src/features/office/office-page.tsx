@@ -1,6 +1,7 @@
 import { driveItemSchema } from "@lumo/contracts/drive";
 import { fileOwnership } from "@lumo/contracts/files";
 import { officeDetailSchema } from "@lumo/contracts/office";
+import { formatDateTime } from "@lumo/shared/date-time";
 import {
   Badge,
   Button,
@@ -95,7 +96,7 @@ export function OfficePage({
               ? "Save failed · last saved version retained"
               : dirty
                 ? "Editing · waiting for a saved version"
-                : `Version ${doc.version} · saved ${new Date(doc.savedAt).toLocaleTimeString()}`}
+                : `Version ${doc.version} · saved ${formatDateTime(doc.savedAt)}`}
           </output>
         </div>
         {actor.data && <Badge>{fileOwnership(item.ownerId, actor.data.user.id)}</Badge>}
@@ -263,8 +264,8 @@ function VersionHistory({
               <div className="flex-1 text-sm">
                 <strong>Version {v.number}</strong>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(v.createdAt).toLocaleString()} ·{" "}
-                  {v.actorName ?? "Collaboration service"} · {v.source}
+                  {formatDateTime(v.createdAt)} · {v.actorName ?? "Collaboration service"} ·{" "}
+                  {v.source}
                 </p>
               </div>
               <Button size="sm" onClick={() => download.mutate(v.id)} disabled={download.isPending}>

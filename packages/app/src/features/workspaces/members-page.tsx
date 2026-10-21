@@ -5,6 +5,7 @@ import {
   canInviteRole,
   canRemoveMember,
 } from "@lumo/contracts/permissions";
+import { formatDate } from "@lumo/shared/date-time";
 import {
   Avatar,
   Badge,
@@ -328,7 +329,7 @@ export function MembersPage({ workspaceId }: { workspaceId: string }) {
                   <div>
                     <strong>{item.email}</strong>
                     <small>
-                      {item.role} · expires {new Date(item.expiresAt).toLocaleDateString()}
+                      {item.role} · expires {formatDate(item.expiresAt)}
                     </small>
                   </div>
                   <Button
