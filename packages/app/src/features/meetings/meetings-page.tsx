@@ -1,4 +1,6 @@
 import { meetingSchema, meetingsSchema, meetingDetailSchema } from "@lumo/contracts/collaboration";
+import { parseLumoLink } from "@lumo/shared";
+import { meetingState } from "@lumo/shared/meeting-time";
 import {
   Badge,
   Button,
@@ -11,8 +13,8 @@ import {
   PageHeading,
   SelectField,
 } from "@lumo/ui";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   CalendarDays,
@@ -28,9 +30,15 @@ import { useState, useRef, useEffect } from "react";
 
 import { api, command, sessionQuery, membersQuery } from "../../lib/api";
 import { getPlatform } from "../../platform";
+import { useMeetingClock } from "./meeting-clock";
+import { refreshMeetings } from "./meeting-queries";
 import { createMeetingConnection } from "./rtc";
 export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
+  const navigate = useNavigate();
+  const now = useMeetingClock();
+  const [joinError, setJoinError] = useState<unknown>(null);
   const [offset, setOffset] = useState(0);
+  const client = useQueryClient();
   const members = useQuery(membersQuery(workspaceId));
   const meetings = useQuery({
     queryKey: ["workspace", workspaceId, "meetings", offset],
@@ -41,7 +49,7 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
   const create = useMutation({
     mutationFn: (body: unknown) =>
       api(`/workspaces/${workspaceId}/meetings`, meetingSchema, { method: "POST", body }),
-    onSuccess: () => meetings.refetch(),
+    onSuccess: () => refreshMeetings(client, workspaceId),
   });
   return (
     <>
@@ -50,23 +58,33 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
       </PageHeading>
       <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
         <section>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Button asChild>
+              <Link
+                to="/w/$workspaceId/calendar"
+                params={{ workspaceId }}
+                search={{ compose: true }}
+              >
+                <CalendarDays aria-hidden="true" />
+                Schedule meeting
+              </Link>
+            </Button>
+          </div>
           <h2 className="flex items-center gap-2">
             <CalendarDays className="size-4 text-primary" aria-hidden="true" />
-            Create a meeting
+            Start a meeting now
           </h2>
           <form
             className="grid gap-4"
             onSubmit={(event) => {
               event.preventDefault();
               const values = new FormData(event.currentTarget);
-              const local = values.get("startsAt") as string;
               create.mutate({
                 title: values.get("title"),
                 access: values.get("access"),
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 durationMinutes: Number(values.get("durationMinutes")),
                 participantIds: values.getAll("participantIds") as string[],
-                ...(local ? { startsAt: new Date(local).toISOString() } : {}),
               });
             }}
           >
@@ -79,11 +97,6 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
                   { value: "workspace", label: "Workspace members" },
                   { value: "open", label: "Anyone with a Lumo account and link" },
                 ]}
-              />
-              <Field
-                label="Start time (leave empty to meet now)"
-                name="startsAt"
-                type="datetime-local"
               />
               <Field
                 label="Duration in minutes"
@@ -111,7 +124,7 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
               Create meeting
             </Button>
           </form>
-          {create.data && (
+          {create.data && !meetings.isError && (
             <p className="my-3 block rounded-md border border-primary/15 bg-accent px-3 py-2.5 text-sm text-accent-foreground">
               Meeting created.{" "}
               <Link to="/meetings/$meetingId" params={{ meetingId: create.data.id }}>
@@ -121,8 +134,33 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
           )}
         </section>
       </Card>
+      <Card asChild>
+        <form
+          className="grid gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setJoinError(null);
+            try {
+              const link = parseLumoLink(
+                new FormData(event.currentTarget).get("link") as string,
+                getPlatform()?.webOrigin ?? window.location.origin,
+              );
+              if (link.kind !== "meeting") throw new Error("Paste a meeting link.");
+              void navigate({ to: "/meetings/$meetingId", params: { meetingId: link.id } });
+            } catch (cause) {
+              setJoinError(cause);
+            }
+          }}
+        >
+          <Field label="Meeting link" name="link" type="url" required />
+          <ErrorMessage error={joinError} />
+          <Button type="submit">Join meeting</Button>
+        </form>
+      </Card>
       <ErrorMessage error={meetings.error} />
-      {meetings.isPending ? (
+      {meetings.isError ? (
+        <Button onClick={() => void meetings.refetch()}>Retry meetings</Button>
+      ) : meetings.isPending ? (
         <Loading />
       ) : meetings.data?.meetings.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -130,7 +168,7 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
             <Card asChild key={item.id} className="[&>p]:my-3 [&>form]:mt-4">
               <article key={item.id}>
                 <Badge>
-                  {item.status} · {item.access}
+                  {meetingState(item, now)} · {item.access}
                 </Badge>
                 <h2>{item.title}</h2>
                 <p>
@@ -164,12 +202,14 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
   );
 }
 export function MeetingPage({ meetingId }: { meetingId: string }) {
+  const now = useMeetingClock();
   const detail = useQuery({
     queryKey: ["meeting", meetingId],
     queryFn: ({ signal }) => api(`/meetings/${meetingId}`, meetingDetailSchema, { signal }),
     refetchInterval: 5000,
     retry: false,
   });
+  const client = useQueryClient();
   const session = useQuery(sessionQuery());
   const local = useRef<HTMLDivElement>(null),
     remote = useRef<HTMLDivElement>(null),
@@ -185,7 +225,9 @@ export function MeetingPage({ meetingId }: { meetingId: string }) {
       cameras: MediaDeviceInfo[];
       microphones: MediaDeviceInfo[];
     }>({ cameras: [], microphones: [] });
-  const ended = detail.data?.meeting.status === "ended";
+  const ended = detail.data
+    ? ["Completed", "Canceled"].includes(meetingState(detail.data.meeting, now))
+    : false;
   useEffect(
     () => () => {
       void connection.current?.close();
@@ -215,6 +257,7 @@ export function MeetingPage({ meetingId }: { meetingId: string }) {
       await connection.current?.close();
       setJoined(false);
       await detail.refetch();
+      await client.invalidateQueries({ queryKey: ["workspace"] });
     },
   });
   if (detail.isError)
@@ -243,13 +286,14 @@ export function MeetingPage({ meetingId }: { meetingId: string }) {
         Your workspaces
       </Link>
       <PageHeading
-        eyebrow={`${item.access === "open" ? "Open to signed-in guests" : "Workspace members only"} · ${item.status}`}
+        eyebrow={`${item.access === "open" ? "Open to signed-in guests" : "Workspace members only"} · ${meetingState(item, now)}`}
         title={item.title}
       >
         {item.startsAt
-          ? `Starts ${new Date(item.startsAt).toLocaleString()} (${item.timezone})`
+          ? `Starts ${new Date(item.startsAt).toLocaleString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone}); scheduled in ${item.timezone}`
           : "Connect with your team."}
       </PageHeading>
+      {item.description && <p className="whitespace-pre-wrap text-sm">{item.description}</p>}
       <Field
         label="Share meeting link"
         value={link}

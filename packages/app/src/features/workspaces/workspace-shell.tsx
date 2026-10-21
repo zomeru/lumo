@@ -21,6 +21,7 @@ import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-route
 import {
   ArrowUpRight,
   ChevronRight,
+  CalendarDays,
   CircleHelp,
   FileText,
   House,
@@ -152,6 +153,16 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           >
             <Video aria-hidden="true" />
             Meetings
+          </Link>
+          <Link
+            className={navigationLink}
+            to="/w/$workspaceId/calendar"
+            params={{ workspaceId }}
+            activeOptions={{ includeSearch: false }}
+            onClick={() => setMenuOpen(false)}
+          >
+            <CalendarDays aria-hidden="true" />
+            Calendar
           </Link>
         </NavigationGroup>
         <NavigationGroup label="Create">

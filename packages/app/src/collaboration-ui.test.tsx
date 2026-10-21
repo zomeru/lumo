@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi, test, expect, beforeEach, afterEach } from "vitest";
 
@@ -157,22 +157,19 @@ test("meeting creation, pagination and media controls run through the shared scr
     expect(screen.queryByRole("button", { name: "Join meeting" })).not.toBeInTheDocument(),
   );
   expect(screen.getByRole("heading", { name: "Design review" })).toBeVisible();
-  expect(screen.getByText("Workspace members only · ended")).toBeVisible();
+  expect(screen.getByText("Workspace members only · Completed")).toBeVisible();
   expect(
     screen.queryByRole("heading", { name: "Unable to load this page" }),
   ).not.toBeInTheDocument();
 });
-test("scheduled creation and copyable links preserve timezone", async () => {
+test("Meetings hands scheduling to Calendar and preserves immediate meeting pagination", async () => {
   const user = await show(`/w/${teamId}/meetings`);
-  await user.type(await screen.findByLabelText("Meeting title"), "Later");
-  fireEvent.change(screen.getByLabelText("Start time (leave empty to meet now)"), {
-    target: { value: "2030-01-01T12:00" },
-  });
-  await selectOption(user, "Who can join", "Anyone with a Lumo account and link");
-  await user.click(screen.getByRole("button", { name: "Create meeting" }));
-  expect(await screen.findByRole("link", { name: "Open Design review" })).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "Next" }));
+  expect(screen.queryByLabelText("Start time (leave empty to meet now)")).not.toBeInTheDocument();
+  await user.click(await screen.findByRole("button", { name: "Next" }));
   await user.click(screen.getByRole("button", { name: "Previous" }));
+  await user.click(screen.getByRole("link", { name: "Schedule meeting" }));
+  expect(await screen.findByRole("heading", { name: "Calendar", hidden: true })).toBeVisible();
+  expect(await screen.findByRole("dialog", { name: "Schedule meeting" })).toBeVisible();
 });
 test("desktop has login first, restores sessions and uses configured invitation origin", async () => {
   const fetch = globalThis.fetch;
