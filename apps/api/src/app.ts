@@ -245,7 +245,7 @@ export function createApp({
   });
   app.route("/api/v1", userRoutes(db, workspaces));
   app.route("/api/v1", workspaceRoutes(workspaces));
-  app.route("/api/v1", hrRoutes(workspaces));
+  app.route("/api/v1", hrRoutes(workspaces, storage));
   app.route("/api/v1", collaborationRoutes(db, workspaces, provider));
   app.route("/api/v1", driveRoutes(db, workspaces, storage, env, drive));
   app.route(

@@ -171,3 +171,92 @@ test("People profiles remain workspace scoped, reject reporting cycles and omit 
   expect(deps.departments[0].employeeCount).toBe(1);
   expect((await req(`/people/${employee.id}`, outsider, "PUT", profile)).status).toBe(404);
 });
+
+test("Approvals enforce assigned sequential decisions, safe retries, drafts, comments and private attachments", async () => {
+  const created = await req("/requests", employee, "POST", {
+    subject: "Equipment request",
+    details: {
+      type: "purchase",
+      amountMinor: 150000,
+      currency: "PHP",
+      quantity: 1,
+      vendor: "Vendor",
+    },
+    approverIds: [manager.id],
+    draft: true,
+  });
+  expect(created.status).toBe(201);
+  const { id } = (await created.json()) as { id: string };
+  expect((await req(`/requests/${id}/history`, admin)).status).toBe(404);
+  expect((await req("/requests?view=all", employee)).status).toBe(403);
+  expect(
+    (await req(`/requests/${id}/action`, employee, "POST", { action: "approve" })).status,
+  ).toBe(403);
+  expect(
+    (
+      await req(`/requests/${id}/action`, owner, "POST", {
+        action: "reassign",
+        approverIds: [manager.id, admin.id],
+      })
+    ).status,
+  ).toBe(200);
+  const data = Buffer.from("Confidential receipt");
+  const upload = await req(`/files/request/${id}/uploads`, employee, "POST", {
+    name: "receipt.txt",
+    mimeType: "text/plain",
+    size: data.length,
+    checksum: memory.sha(data),
+  });
+  expect(upload.status).toBe(201);
+  const attachment = (await upload.json()) as { id: string };
+  memory.put(`hr/${owner.workspaceId}/${attachment.id}/staging`, data, "text/plain");
+  expect((await req(`/files/${attachment.id}/complete`, employee, "POST", {})).status).toBe(200);
+  expect((await req(`/files/${attachment.id}/download`, outsider, "POST", {})).status).toBe(404);
+  expect(
+    (await req(`/requests/${id}/comments`, employee, "POST", { comment: "Please review" })).status,
+  ).toBe(200);
+  expect((await req(`/requests/${id}/action`, employee, "POST", { action: "submit" })).status).toBe(
+    200,
+  );
+  expect((await req(`/requests/${id}/action`, admin, "POST", { action: "approve" })).status).toBe(
+    403,
+  );
+  expect((await req(`/requests/${id}/action`, manager, "POST", { action: "approve" })).status).toBe(
+    200,
+  );
+  let mine = await (await req("/requests?view=mine", employee)).json();
+  expect(mine.requests[0].status).toBe("pending");
+  expect(mine.requests[0].currentStep).toBe(1);
+  const approvals = await Promise.all([
+    req(`/requests/${id}/action`, admin, "POST", { action: "approve" }),
+    req(`/requests/${id}/action`, admin, "POST", { action: "approve" }),
+  ]);
+  expect(approvals.map((r) => r.status)).toEqual([200, 200]);
+  mine = await (await req("/requests?view=mine", employee)).json();
+  expect(mine.requests[0].status).toBe("approved");
+  const history = await (await req(`/requests/${id}/history`, employee)).json();
+  expect(history.events.filter((e: { action: string }) => e.action === "approve")).toHaveLength(2);
+  expect(history.files).toHaveLength(1);
+  const inbox = await (await req("/notifications", employee)).json();
+  expect(inbox.notifications.some((n: { targetId: string }) => n.targetId === id)).toBe(true);
+  expect((await req(`/files/${attachment.id}/download`, employee, "POST", {})).status).toBe(200);
+  expect(
+    (
+      await req("/requests", owner, "POST", {
+        subject: "Self approve",
+        details: { type: "general" },
+        approverIds: [owner.id],
+      })
+    ).status,
+  ).toBe(400);
+  const blocked = await req("/requests", owner, "POST", {
+    subject: "Missing routing",
+    details: { type: "general" },
+    draft: true,
+  });
+  expect(blocked.status).toBe(201);
+  const blockedId = (await blocked.json()).id as string;
+  expect(
+    (await req(`/requests/${blockedId}/action`, owner, "POST", { action: "submit" })).status,
+  ).toBe(409);
+});

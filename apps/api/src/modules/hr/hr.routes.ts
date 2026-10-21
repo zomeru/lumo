@@ -6,12 +6,15 @@ import { Hono, type Context } from "hono";
 import { z } from "zod";
 
 import type { ApiContext } from "../../lib/context";
-import { denied, parse } from "../../lib/errors";
+import { denied, parse, missing, AppError } from "../../lib/errors";
+import type { Storage } from "../../storage/storage";
 import type { createWorkspaceService } from "../workspaces/workspace.service";
+import { approvalsRoutes } from "./approvals.routes";
 import { auditHr, createHrCore, requireHrMember } from "./core";
+import { hrFilesRoutes } from "./files.routes";
 import { peopleRoutes } from "./people.routes";
 
-export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>) {
+export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, storage: Storage) {
   const app = new Hono<ApiContext>();
   const core = createHrCore(workspaces);
   app.use("/workspaces/:workspaceId/hr/*", async (c, next) => {
@@ -157,5 +160,25 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>) 
     return c.json({ ok: true });
   });
   app.route("/workspaces/:workspaceId/hr", peopleRoutes(core));
+  app.route(
+    "/workspaces/:workspaceId/hr",
+    approvalsRoutes(core, {
+      validate: async (_ctx, details) => {
+        if (["leave", "attendance_correction"].includes(details.type))
+          throw new AppError(
+            409,
+            "POLICY_REQUIRED",
+            "Configure this domain policy before creating requests.",
+          );
+      },
+      transition: async () => {},
+    }),
+  );
+  app.route(
+    "/workspaces/:workspaceId/hr",
+    hrFilesRoutes(core, storage, async () => {
+      missing();
+    }),
+  );
   return app;
 }

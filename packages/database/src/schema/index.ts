@@ -4,3 +4,4 @@ export * from "./collaboration.ts";
 export * from "./drive.ts";
 export * from "./office.ts";
 export * from "./hr-foundation.ts";
+export * from "./hr-approvals.ts";

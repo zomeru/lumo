@@ -64,6 +64,13 @@
       "when": 1792546454459,
       "tag": "0008_slim_mathemanic",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792546790264,
+      "tag": "0009_solid_captain_marvel",
+      "breakpoints": true
     }
   ]
 }

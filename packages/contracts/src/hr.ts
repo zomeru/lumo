@@ -115,3 +115,144 @@ export const hrNotificationsSchema = z.object({
     }),
   ),
 });
+
+const requestDateRange = z
+  .object({ startDate: calendarDateSchema, endDate: calendarDateSchema })
+  .refine((v) => v.endDate >= v.startDate, "End date must follow start date");
+export const requestDetailsSchema = z
+  .discriminatedUnion("type", [
+    z.object({
+      type: z.literal("leave"),
+      leaveTypeId: z.uuid(),
+      startDate: calendarDateSchema,
+      endDate: calendarDateSchema,
+      halfDay: z.boolean().default(false),
+    }),
+    z.object({
+      type: z.literal("expense"),
+      amountMinor: z.number().int().positive().max(1000000000),
+      currency: z.string().regex(/^[A-Z]{3}$/),
+      date: calendarDateSchema,
+      category: z.string().min(1).max(100),
+    }),
+    z.object({
+      type: z.literal("purchase"),
+      amountMinor: z.number().int().positive().max(1000000000),
+      currency: z.string().regex(/^[A-Z]{3}$/),
+      quantity: z.number().int().positive().max(100000),
+      vendor: z.string().max(150),
+    }),
+    z.object({
+      type: z.literal("overtime"),
+      date: calendarDateSchema,
+      durationMinutes: z.number().int().min(1).max(1440),
+    }),
+    z.object({
+      type: z.literal("travel"),
+      destination: z.string().min(1).max(200),
+      startDate: calendarDateSchema,
+      endDate: calendarDateSchema,
+      amountMinor: z.number().int().min(0).max(1000000000),
+      currency: z.string().regex(/^[A-Z]{3}$/),
+    }),
+    z.object({
+      type: z.literal("advance"),
+      amountMinor: z.number().int().positive().max(1000000000),
+      currency: z.string().regex(/^[A-Z]{3}$/),
+      repaymentDate: calendarDateSchema.nullable().default(null),
+    }),
+    z.object({ type: z.literal("general") }),
+    z.object({
+      type: z.literal("attendance_correction"),
+      date: calendarDateSchema,
+      clockIn: z.iso.datetime(),
+      clockOut: z.iso.datetime(),
+      breakMinutes: z.number().int().min(0).max(1440),
+    }),
+  ])
+  .superRefine((v, ctx) => {
+    if ((v.type === "leave" || v.type === "travel") && !requestDateRange.safeParse(v).success)
+      ctx.addIssue({ code: "custom", message: "Invalid date range" });
+    if (v.type === "attendance_correction" && v.clockOut <= v.clockIn)
+      ctx.addIssue({ code: "custom", message: "Clock out must follow clock in" });
+  });
+export type RequestDetails = z.infer<typeof requestDetailsSchema>;
+export const approvalInputSchema = z.strictObject({
+  subject: z.string().trim().min(1).max(160),
+  description: z.string().trim().max(5000).default(""),
+  priority: z.enum(["normal", "high"]).default("normal"),
+  details: requestDetailsSchema,
+  approverIds: z.array(z.uuid()).max(10).default([]),
+  draft: z.boolean().default(false),
+});
+export const approvalActionSchema = z.strictObject({
+  action: z.enum(["submit", "approve", "reject", "cancel", "reassign"]),
+  comment: z.string().trim().max(2000).default(""),
+  approverIds: z.array(z.uuid()).max(10).optional(),
+});
+export const approvalSchema = z.object({
+  id: z.uuid(),
+  requesterId: z.uuid(),
+  subject: z.string(),
+  description: z.string(),
+  priority: z.string(),
+  details: requestDetailsSchema,
+  status: z.string(),
+  approverIds: z.array(z.uuid()),
+  currentStep: z.number(),
+  blockedReason: z.string().nullable(),
+  createdAt: z.string(),
+  submittedAt: z.string().nullable(),
+});
+export type Approval = z.infer<typeof approvalSchema>;
+export const approvalsSchema = z.object({
+  requests: z.array(approvalSchema),
+  nextOffset: z.number().nullable(),
+});
+export const approvalHistorySchema = z.object({
+  events: z.array(
+    z.object({
+      id: z.uuid(),
+      actorId: z.uuid(),
+      action: z.string(),
+      comment: z.string(),
+      createdAt: z.string(),
+    }),
+  ),
+  files: z.array(
+    z.object({ id: z.uuid(), name: z.string(), size: z.number(), mimeType: z.string() }),
+  ),
+});
+export const approvalPolicyInputSchema = z.strictObject({
+  type: z.enum([
+    "leave",
+    "expense",
+    "purchase",
+    "overtime",
+    "travel",
+    "advance",
+    "general",
+    "attendance_correction",
+  ]),
+  approverIds: z.array(z.uuid()).min(1).max(10),
+  requireAttachment: z.boolean().default(false),
+});
+export const approvalPoliciesSchema = z.object({ policies: z.array(approvalPolicyInputSchema) });
+export const hrFileInputSchema = z.strictObject({
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(180)
+    .regex(/^[^/\\]+$/)
+    .refine((value) => value.split("").every((char) => char.charCodeAt(0) >= 32)),
+  mimeType: z.enum(["application/pdf", "image/png", "image/jpeg", "text/plain"]),
+  size: z
+    .number()
+    .int()
+    .min(1)
+    .max(10 * 1024 * 1024),
+  checksum: z.string().regex(/^[A-Za-z0-9+/]{43}=$/),
+});
+export const hrUploadSchema = z.object({ id: z.uuid(), url: z.url() });
+export const hrUrlSchema = z.object({ url: z.url() });

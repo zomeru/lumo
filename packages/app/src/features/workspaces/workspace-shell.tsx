@@ -196,6 +196,15 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
         <NavigationGroup label="People & HR">
           <Link
             className={navigationLink}
+            to="/w/$workspaceId/approvals"
+            params={{ workspaceId }}
+            onClick={() => setMenuOpen(false)}
+          >
+            <FileText aria-hidden="true" />
+            Approvals
+          </Link>
+          <Link
+            className={navigationLink}
             to="/w/$workspaceId/people"
             params={{ workspaceId }}
             onClick={() => setMenuOpen(false)}
@@ -232,7 +241,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             More tools<Badge className="ml-auto text-[10px]">Soon</Badge>
           </summary>
           <div className="mt-1 grid gap-0.5">
-            {["Tasks", "Projects", "Approvals", "Leave", "Attendance", "Hiring"].map((item) => (
+            {["Tasks", "Projects", "Hiring"].map((item) => (
               <button
                 type="button"
                 disabled

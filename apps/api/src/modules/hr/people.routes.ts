@@ -168,7 +168,7 @@ export function peopleRoutes(core: HrCore) {
           .values({ workspaceId: ctx.workspaceId, ...input })
           .returning();
         await auditHr(ctx, "department.created", row!.id, { after: input });
-        return { id: row!.id };
+        return { ok: true, id: row!.id };
       }),
       201,
     );
