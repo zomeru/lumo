@@ -30,6 +30,7 @@ export async function verifyCalendar(page: Page, screenshot: string) {
     page.getByText("Meeting saved: Calendar integration review", { exact: true }),
   ).toBeVisible();
   await expect(composer).not.toBeVisible();
+  await page.screenshot({ path: screenshot.replace(/\.png$/, "-week.png"), fullPage: true });
   await openNav(page);
   await expect(page.getByRole("link", { name: "Calendar", exact: true })).toHaveAttribute(
     "aria-current",

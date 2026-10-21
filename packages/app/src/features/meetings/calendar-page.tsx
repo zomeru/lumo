@@ -19,7 +19,7 @@ import { ConfirmAction } from "@lumo/ui/confirm-action";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { command, sessionQuery } from "../../lib/api";
 import { getPlatform } from "../../platform";
@@ -171,6 +171,47 @@ function CalendarDetails({
   );
 }
 
+function CalendarHour({
+  hour,
+  columns,
+  openSlot,
+  eventButton,
+}: {
+  hour: number;
+  columns: { day: Date; meetings: (Meeting & { hostName: string })[] }[];
+  openSlot: (day: Date, hour: number) => void;
+  eventButton: (meeting: Meeting & { hostName: string }) => ReactNode;
+}) {
+  return (
+    <>
+      <div className="h-28 border-r border-b bg-muted/10 px-2 pt-2 text-right text-[10px] tabular-nums text-muted-foreground">
+        {String(hour).padStart(2, "0")}:00
+      </div>
+      {columns.map(({ day, meetings }) => (
+        <div
+          key={day.toISOString()}
+          className="relative h-28 min-w-0 overflow-y-auto border-r border-b last:border-r-0"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 size-full transition-colors hover:bg-accent/40 focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+            aria-label={`Schedule ${dateLabel(day)} ${String(hour).padStart(2, "0")}:00`}
+            onClick={() => openSlot(day, hour)}
+          />
+          <div className="pointer-events-none relative z-10 px-1 [&_button]:pointer-events-auto">
+            {meetings
+              .filter((item) => {
+                const start = new Date(item.startsAt!);
+                return start < day ? hour === 0 : start.getHours() === hour;
+              })
+              .map(eventButton)}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function CalendarPage({
   workspaceId,
   compose,
@@ -191,11 +232,15 @@ export function CalendarPage({
   const from = days[0]!.toISOString();
   const to = addDays(days.at(-1)!, 1).toISOString();
   const events = useQuery(calendarQuery(workspaceId, from, to));
+  const timeColumns = (view === "month" ? [] : days).map((day) => ({
+    day,
+    meetings: events.data?.filter((item) => overlapsDay(item, day)) ?? [],
+  }));
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const grid = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // Start time grids at the working day; users can scroll to any of the 24 hours.
-    if (grid.current && view !== "month") grid.current.scrollTop = 8 * 144;
+    if (grid.current && view !== "month") grid.current.scrollTop = 8 * 112;
   }, [view, from, events.isPending]);
   const openSlot = (day: Date, hour = 9) => {
     const initial = new Date(day);
@@ -206,20 +251,24 @@ export function CalendarPage({
     setComposer(null);
     onComposeClosed();
   };
-  const eventButton = (item: NonNullable<typeof events.data>[number]) => (
+  const eventButton = (item: NonNullable<typeof events.data>[number], compact: boolean) => (
     <button
       type="button"
       key={item.id}
       className={cn(
-        "my-1 block w-full rounded-md border border-primary/20 bg-accent p-2 text-left text-xs text-accent-foreground hover:border-primary focus-visible:outline-2 focus-visible:outline-ring",
+        "my-1 block w-full rounded-md border border-primary/20 bg-accent text-left text-xs text-accent-foreground hover:border-primary focus-visible:outline-2 focus-visible:outline-ring",
+        compact ? "p-1.5" : "p-2",
         item.status === "canceled" && "bg-muted text-muted-foreground line-through",
         meetingState(item, now) === "Completed" && "opacity-65",
       )}
+      title={`${item.title} · ${timeRange(item)} · ${item.hostName} · ${meetingState(item, now)}`}
       onClick={() => setComposer({ kind: "detail", id: item.id })}
     >
-      <span className="block font-medium">{item.title}</span>
-      <span className="block">{eventTimeRange(item)}</span>
-      <span className="block">
+      <span className={cn("block font-medium", compact && "line-clamp-2")}>{item.title}</span>
+      <span className={cn("block", compact && "line-clamp-2 text-[10px] leading-4")}>
+        {eventTimeRange(item)}
+      </span>
+      <span className={compact ? "sr-only" : "block"}>
         {item.hostName} · {meetingState(item, now)}
       </span>
     </button>
@@ -307,65 +356,123 @@ export function CalendarPage({
             aria-label={`${view} calendar`}
             ref={grid}
           >
-            <div className={cn("grid", view === "day" ? "grid-cols-1" : "grid-cols-7")}>
-              {days.map((day) => {
-                const items = events.data.filter((item) => overlapsDay(item, day));
-                const today = day.toDateString() === new Date(now).toDateString();
-                return (
-                  <section
-                    key={day.toISOString()}
-                    className={cn(
-                      "min-w-0 border-r border-b",
-                      view === "month" && "min-h-36",
-                      view === "month" && day.getMonth() !== date.getMonth() && "bg-muted/30",
-                    )}
-                  >
+            {view === "month" ? (
+              <>
+                <div className="grid grid-cols-7 border-b bg-muted/30">
+                  {days.slice(0, 7).map((day) => (
                     <div
-                      className={cn(
-                        "sticky top-0 z-10 flex min-h-14 items-center justify-between gap-1 border-b bg-surface p-2",
-                        today && "bg-accent text-accent-foreground",
-                      )}
+                      key={day.toISOString()}
+                      className="py-3 text-center text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
                     >
-                      <h3 className="text-xs font-semibold">
-                        {dateLabel(day)}
-                        {today ? " · Today" : ""}
-                      </h3>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="size-7"
-                        aria-label={`Schedule on ${dateLabel(day)}`}
-                        onClick={() => openSlot(day)}
-                      >
-                        <Plus aria-hidden="true" />
-                      </Button>
+                      {day.toLocaleDateString(undefined, { weekday: "short" })}
                     </div>
-                    {view === "month" ? (
-                      <div className="p-1">{items.map(eventButton)}</div>
-                    ) : (
-                      Array.from({ length: 24 }, (_, hour) => (
-                        <div key={hour} className="h-36 overflow-y-auto border-b p-1">
-                          <button
-                            type="button"
-                            className="w-full rounded px-1 py-2 text-left text-xs text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
-                            aria-label={`Schedule ${dateLabel(day)} ${String(hour).padStart(2, "0")}:00`}
-                            onClick={() => openSlot(day, hour)}
+                  ))}
+                </div>
+                <div className="grid grid-cols-7">
+                  {days.map((day) => {
+                    const today = day.toDateString() === new Date(now).toDateString();
+                    return (
+                      <section
+                        key={day.toISOString()}
+                        aria-label={dateLabel(day)}
+                        className={cn(
+                          "min-h-36 min-w-0 border-r border-b p-1 last:border-r-0",
+                          day.getMonth() !== date.getMonth() && "bg-muted/20 text-muted-foreground",
+                        )}
+                      >
+                        <div className="flex justify-center py-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              "min-w-8 rounded-full px-2 text-xs",
+                              today &&
+                                "bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-foreground",
+                            )}
+                            aria-label={`Schedule on ${dateLabel(day)}`}
+                            onClick={() => openSlot(day)}
                           >
-                            {String(hour).padStart(2, "0")}:00
-                          </button>
-                          {items
-                            .filter((item) => {
-                              const start = new Date(item.startsAt!);
-                              return start < day ? hour === 0 : start.getHours() === hour;
-                            })
-                            .map(eventButton)}
+                            {day.getDate() === 1
+                              ? day.toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                })
+                              : day.getDate()}
+                          </Button>
                         </div>
-                      ))
-                    )}
-                  </section>
-                );
-              })}
-            </div>
+                        {events.data
+                          .filter((item) => overlapsDay(item, day))
+                          .map((item) => eventButton(item, false))}
+                      </section>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <>
+                <div
+                  className={cn(
+                    "sticky top-0 z-20 grid border-b bg-surface",
+                    view === "day"
+                      ? "grid-cols-[4rem_minmax(0,1fr)]"
+                      : "grid-cols-[4rem_repeat(7,minmax(0,1fr))]",
+                  )}
+                >
+                  <div className="flex items-end justify-center border-r bg-muted/20 pb-3 text-[10px] text-muted-foreground">
+                    Local time
+                  </div>
+                  {days.map((day) => {
+                    const today = day.toDateString() === new Date(now).toDateString();
+                    return (
+                      <div
+                        key={day.toISOString()}
+                        className="grid justify-items-center gap-1 border-r bg-muted/20 py-3 last:border-r-0"
+                      >
+                        <span
+                          className={cn(
+                            "text-[10px] font-semibold tracking-wide text-muted-foreground uppercase",
+                            today && "text-primary",
+                          )}
+                        >
+                          {day.toLocaleDateString(undefined, { weekday: "short" })}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "size-9 rounded-full text-lg font-semibold",
+                            today &&
+                              "bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-foreground",
+                          )}
+                          aria-label={`Schedule on ${dateLabel(day)}`}
+                          onClick={() => openSlot(day)}
+                        >
+                          {day.getDate()}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div
+                  className={cn(
+                    "grid",
+                    view === "day"
+                      ? "grid-cols-[4rem_minmax(0,1fr)]"
+                      : "grid-cols-[4rem_repeat(7,minmax(0,1fr))]",
+                  )}
+                >
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <CalendarHour
+                      key={hour}
+                      hour={hour}
+                      columns={timeColumns}
+                      openSlot={openSlot}
+                      eventButton={(item) => eventButton(item, true)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           <div className="grid gap-4 md:hidden" aria-label="Calendar agenda">
             <p className="text-sm text-muted-foreground">
@@ -389,7 +496,9 @@ export function CalendarPage({
                       Schedule
                     </Button>
                   </div>
-                  {events.data.filter((item) => overlapsDay(item, day)).map(eventButton)}
+                  {events.data
+                    .filter((item) => overlapsDay(item, day))
+                    .map((item) => eventButton(item, false))}
                 </Card>
               ))}
           </div>

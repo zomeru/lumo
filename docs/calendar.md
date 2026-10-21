@@ -10,7 +10,7 @@ The established authorization policy allows all current members to create meetin
 
 ## User flow
 
-- Open **Connect → Calendar** (`/w/:workspaceId/calendar`). Week is the default; month/day, Today and previous/next controls change the range. Narrow windows show an agenda for that range; month agendas list days with meetings to avoid long runs of empty cards. Schedule meeting still allows choosing any date.
+- Open **Connect → Calendar** (`/w/:workspaceId/calendar`). Week is the default; month/day, Today and previous/next controls change the range. Week/day views use a shared left-hand time column and sticky day/date headers; month view shows weekday names once above date-number cells. Narrow windows show an agenda for that range; month agendas list days with meetings to avoid long runs of empty cards. Schedule meeting still allows choosing any date.
 - **Meetings → Schedule meeting** opens `/w/:workspaceId/calendar?compose=true` with the same composer used by calendar dates/hour slots. Meetings retains immediate creation, joining by link, pagination and Agora media controls.
 - Title, description, future start, duration (5–1440 minutes), scheduling timezone, access policy and existing workspace invitees are supported. Ownership always comes from the session. End is derived as start plus elapsed duration; a separate end column is unnecessary.
 - Calendar displays local dates/times, including events that overlap midnight or the range boundary. Details show the original scheduling timezone. Editing interprets the entered wall time in that timezone. DST gaps and repeated wall times produce correction messages; for an ambiguous time choose UTC to select the intended instant explicitly.
