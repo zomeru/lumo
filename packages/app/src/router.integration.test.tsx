@@ -24,7 +24,7 @@ test("navigates between file-based routes", async () => {
   await user.click(screen.getByRole("link", { name: "About" }));
   expect(await screen.findByRole("heading", { name: "About Lumo" })).toBeInTheDocument();
   expect(router.state.location.pathname).toBe("/about");
-  await user.click(screen.getByRole("link", { name: "Home" }));
+  await user.click(screen.getAllByRole("link", { name: "Home" })[0]!);
   expect(await screen.findByRole("heading", { name: "Welcome to Lumo" })).toBeInTheDocument();
   expect(router.state.location.pathname).toBe("/");
 });
@@ -37,7 +37,7 @@ test("renders a directly opened route", async () => {
 test("provides a way home from an unknown route", async () => {
   const user = userEvent.setup();
   await renderRoute("/missing");
-  expect(screen.getByRole("heading", { name: "Page not found" })).toBeInTheDocument();
-  await user.click(screen.getByRole("link", { name: "Return home" }));
+  expect(screen.getByRole("heading", { name: "404 | Page Not Found" })).toBeInTheDocument();
+  await user.click(screen.getAllByRole("link", { name: "Home" })[0]!);
   expect(await screen.findByRole("heading", { name: "Welcome to Lumo" })).toBeInTheDocument();
 });

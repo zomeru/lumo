@@ -1,7 +1,9 @@
-import { Brand, Button, Card, ThemeMenu } from "@lumo/ui";
+import { Button, Card, ThemeMenu } from "@lumo/ui";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ArrowRight, Building2, Users, ShieldCheck } from "lucide-react";
 
+import { BrandLink } from "../components/brand-link";
+import { PublicFooter } from "../features/public/public-layout";
 import { getPlatform } from "../platform";
 export const Route = createFileRoute("/")({
   beforeLoad: () => {
@@ -14,7 +16,7 @@ function HomePage() {
   return (
     <div className="min-h-dvh bg-background">
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-5 py-6 sm:px-8 [&_nav]:flex [&_nav]:items-center [&_nav]:gap-4 [&_nav]:text-sm">
-        <Brand compact />
+        <BrandLink to="/" compact />
         <nav aria-label="Main navigation">
           <ThemeMenu />
           <Link className="hidden text-muted-foreground hover:text-foreground sm:block" to="/about">
@@ -80,9 +82,7 @@ function HomePage() {
           </Card>
         </div>
       </main>
-      <footer className="mx-auto max-w-6xl border-t px-5 py-6 text-xs text-muted-foreground sm:px-8">
-        One Workspace. Everything Connected.
-      </footer>
+      <PublicFooter />
     </div>
   );
 }
