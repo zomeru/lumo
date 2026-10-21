@@ -136,3 +136,38 @@ test("HR access is isolated by workspace and generic admin cannot administer gra
     ).status,
   ).toBe(403);
 });
+
+test("People profiles remain workspace scoped, reject reporting cycles and omit confidential data", async () => {
+  const response = await req("/departments", owner, "POST", {
+    name: "Engineering",
+    managerId: manager.id,
+  });
+  expect(response.status).toBe(201);
+  const department = (await response.json()) as { id: string };
+  expect((await req("/departments", admin, "POST", { name: "Finance" })).status).toBe(403);
+  const profile = {
+    employeeCode: "EMP001",
+    jobTitle: "Engineer",
+    departmentId: department.id,
+    managerId: manager.id,
+    hireDate: "2026-01-01",
+  };
+  expect((await req(`/people/${employee.id}`, employee, "PUT", profile)).status).toBe(403);
+  expect((await req(`/people/${employee.id}`, admin, "PUT", profile)).status).toBe(200);
+  expect(
+    (await req(`/people/${manager.id}`, owner, "PUT", { managerId: employee.id })).status,
+  ).toBe(409);
+  expect(
+    (await req(`/people/${manager.id}`, owner, "PUT", { employeeCode: "EMP001" })).status,
+  ).toBe(409);
+  expect((await req(`/people/${outsider.id}`, owner, "PUT", {})).status).toBe(404);
+  const directory = await (await req("/people?q=Engineer", employee)).json();
+  expect(directory.people).toHaveLength(1);
+  expect(directory.people[0].role).toBe("member");
+  expect(directory.people[0].managerId).toBe(manager.id);
+  for (const field of ["salary", "compensation", "email", "taxId", "password"])
+    expect(JSON.stringify(directory)).not.toContain(`"${field}"`);
+  const deps = await (await req("/departments")).json();
+  expect(deps.departments[0].employeeCount).toBe(1);
+  expect((await req(`/people/${employee.id}`, outsider, "PUT", profile)).status).toBe(404);
+});

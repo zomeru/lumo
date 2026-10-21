@@ -9,6 +9,7 @@ import type { ApiContext } from "../../lib/context";
 import { denied, parse } from "../../lib/errors";
 import type { createWorkspaceService } from "../workspaces/workspace.service";
 import { auditHr, createHrCore, requireHrMember } from "./core";
+import { peopleRoutes } from "./people.routes";
 
 export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>) {
   const app = new Hono<ApiContext>();
@@ -155,5 +156,6 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>) 
     });
     return c.json({ ok: true });
   });
+  app.route("/workspaces/:workspaceId/hr", peopleRoutes(core));
   return app;
 }

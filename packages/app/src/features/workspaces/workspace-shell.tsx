@@ -193,6 +193,17 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             {fileModules.all.title}
           </Link>
         </NavigationGroup>
+        <NavigationGroup label="People & HR">
+          <Link
+            className={navigationLink}
+            to="/w/$workspaceId/people"
+            params={{ workspaceId }}
+            onClick={() => setMenuOpen(false)}
+          >
+            <Users aria-hidden="true" />
+            People
+          </Link>
+        </NavigationGroup>
         <NavigationGroup label="Workspace">
           <Link
             className={navigationLink}
