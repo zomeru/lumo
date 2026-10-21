@@ -11,13 +11,22 @@ async function openNav(page: Page) {
 }
 async function select(page: Page, name: string, value: string) {
   await page.getByRole("combobox", { name, exact: true }).click();
-  await page.getByRole("option", { name: value, exact: true }).click();
+  if (name === "Scheduling timezone (IANA)" && value === "UTC") {
+    // UTC is the last sorted timezone. Exercise keyboard selection without scrolling hundreds of options.
+    const listbox = page.getByRole("listbox");
+    await expect(listbox).toBeVisible();
+    await listbox.press("End");
+    await expect(page.getByRole("option", { name: "UTC", exact: true })).toBeFocused();
+    await page.keyboard.press("Enter");
+  } else await page.getByRole("option", { name: value, exact: true }).click();
+  await expect(page.getByRole("combobox", { name, exact: true })).toHaveText(value);
 }
 /** The same flow runs against real API records in browser, mobile and packaged Electron. */
 export async function verifyCalendar(page: Page, screenshot: string) {
   await openNav(page);
   await page.getByRole("link", { name: "Meetings", exact: true }).click();
   await page.getByRole("link", { name: "Schedule meeting", exact: true }).click();
+  await expect(page).toHaveURL(/\/calendar\?compose=true/);
   const composer = page.getByRole("dialog", { name: "Schedule meeting", exact: true });
   await expect(composer).toBeVisible();
   await composer.getByLabel("Meeting title").fill("Calendar integration review");

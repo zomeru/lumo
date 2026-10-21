@@ -1,6 +1,6 @@
 # Lumo
 
-A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. Web and Electron share the account/workspace UI, contacts, invitations, Messenger, meetings, Drive, Office and Wiki.
+A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. Web and Electron share the account/workspace UI, contacts, invitations, Messenger, meetings, Drive, Office, Wiki and People & HR.
 
 ## What works
 
@@ -12,9 +12,10 @@ A workspace collaboration platform built with React, Vite, TanStack Router and Q
 - Workspace settings, profile editing, a searchable member directory, and administrative audit events.
 - Collaborative Docs, Sheets and Slides through ONLYOFFICE Docs Cloud, with server-signed sessions, private Drive files and immutable version history.
 - Collaborative Markdown Wiki with CodeMirror 6 + Yjs, inherited Drive access, hierarchical pages and durable Markdown snapshots.
+- Integrated Approvals, Leave, Attendance, Payroll, Onboarding and People with explicit HR capabilities, private documents, auditable workflows and shared web/Electron screens.
 - Responsive dark UI based on the reference screenshots, with loading, error, empty, and access-denied states.
 
-Presence, application notifications, work management, HR, SSO, Expo, workspace deletion/retention, join requests, and guest roles are pending. Their navigation is disabled where shown. Private workspaces currently use authorized invitations; they do not accept self-joins or join requests. Personal workspaces remain private and cannot transfer ownership. Workspace language and currency are saved preferences; UI translation and financial features are not implemented.
+Presence, general application notifications, work management, SSO, Expo, workspace deletion/retention, join requests, and guest roles are pending. Their navigation is disabled where shown. Private workspaces currently use authorized invitations; they do not accept self-joins or join requests. Personal workspaces remain private and cannot transfer ownership. Workspace language and currency are saved preferences; UI translation is not implemented. Payroll currently supports PHP monthly salaries and requires independent verification for every run.
 
 ## Packages
 
@@ -206,3 +207,9 @@ Office editor appearance follows Lumo's Light/Dark/System mode without reopening
 Configure the server-only ONLYOFFICE settings in `apps/api/.env.example`, apply `pnpm db:migrate`, and include `office/*` in the existing bucket role's object permissions. No second bucket or storage credentials are used. Hosted Docs Cloud requires publicly reachable HTTPS callbacks and source URLs; keep development tunnel addresses out of commits. Run `pnpm --filter @lumo/api onlyoffice:check` for a safe reachability diagnostic.
 
 Docs, Sheets and Slides reuse Drive uploads, sharing, copy, trash and restore. All Files unifies the authorized inventory; My Files includes owned and shared items with ownership filters. Dedicated modules constrain creation and uploads to their own formats. Wiki provides Edit, Preview and Split modes with a formatting toolbar. See [file management and Markdown editor results](docs/file-management-improvements.md). Wiki shares parent-page access through its Drive container. Close all editors before moving, deleting or restoring active content; history restoration creates a new revision. See [implementation, verification and operations](docs/onlyoffice-implementation-notes.md) for the tested Cloud version, trial limits, Wiki fallback evidence, migration/recovery procedures and self-hosted cutover.
+
+## People & HR
+
+Apply additive migrations `0008`–`0013` with `pnpm db:migrate`. Configure employment and managers in People, effective schedules/holidays in Attendance, leave policies in Leave, and routing in People → HR administration. The owner grants specific capabilities; ordinary workspace admins and job titles do not grant salary access. Private attachments reuse the existing bucket with restricted `hr/*` permissions.
+
+Payroll tabs are My Pay, Pay Runs, Employees and Settings. Published payslips are employee-scoped; runs retain effective inputs and immutable calculation history. Every run requires the [documented independent payroll verification](docs/architecture/payroll-verification.md) before finalization. Recording paid performs no transfer. See the [architecture, permissions, API, setup and migration guide](docs/architecture/people-hr.md) and [privacy operations](docs/architecture/people-hr-privacy.md).

@@ -15,6 +15,7 @@ import {
 import { verifyCalendar } from "../calendar-flow";
 import { verifyDrive } from "../drive-flow";
 import { verifyFileModules } from "../file-modules-flow";
+import { verifyHr } from "../hr-flow";
 import { verifyDesktopScrolling } from "./scrollbars";
 
 const require = createRequire(import.meta.url);
@@ -568,6 +569,26 @@ test("packaged-protocol Drive shares real folder workflows with web", async ({
     await verifyDrive(page, info.outputPath("desktop-drive.png"));
     expect(errors).toEqual([]);
   } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("People and HR share real workflows through the sandboxed Electron transport", async ({
+  browser,
+}, info) => {
+  test.setTimeout(180000);
+  const dir = await mkdtemp(join(tmpdir(), "lumo-hr-desktop-")),
+    app = await launch(dir),
+    context = await browser.newContext();
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+    await register(page, "Desktop HR Owner", `desktop-hr-${Date.now()}@example.com`);
+    const colleague = await context.newPage();
+    await verifyHr(page, colleague, (name) => info.outputPath(`desktop-hr-${name}.png`));
+  } finally {
+    await context.close();
     await app.close();
     await rm(dir, { recursive: true, force: true });
   }
