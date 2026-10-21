@@ -402,3 +402,163 @@ test("Attendance clocks are authoritative, idempotent and scoped; reviewed corre
     409,
   );
 });
+
+test("Payroll runs require explicit grants, independent statutory review, immutable snapshots and own published payslips", async () => {
+  for (const path of ["/payroll/compensation", "/payroll/runs", "/payroll/settings"]) {
+    expect((await req(path, admin)).status).toBe(403);
+    expect((await req(path, manager)).status).toBe(403);
+    expect((await req(path, employee)).status).toBe(403);
+  }
+  const settings = {
+    effectiveFrom: "2026-01-01",
+    frequency: "monthly",
+    currency: "PHP",
+    workingDaysPerYear: 261,
+    minutesPerDay: 480,
+    overtimeBps: 12500,
+    holidayBps: 20000,
+    restDayBps: 13000,
+    nightDifferentialBps: 0,
+    deductUndertime: false,
+    publishOnFinalize: false,
+    payoutDay: 30,
+    reason: "Reviewed monthly schedule",
+  };
+  expect((await req("/payroll/settings", owner, "POST", settings)).status).toBe(200);
+  expect(
+    (
+      await req("/payroll/compensation", owner, "POST", {
+        userId: owner.id,
+        effectiveFrom: "2026-01-01",
+        salaryMinor: 2500000,
+        reason: "Own salary",
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (
+      await req("/payroll/compensation", owner, "POST", {
+        userId: employee.id,
+        effectiveFrom: "2026-01-01",
+        salaryMinor: 2500000,
+        reason: "Initial monthly salary",
+      })
+    ).status,
+  ).toBe(200);
+  const created = await req("/payroll/runs", owner, "POST", {
+    startDate: "2026-09-01",
+    endDate: "2026-09-30",
+    cutoffDate: "2026-09-30",
+    payoutDate: "2026-09-30",
+  });
+  expect(created.status).toBe(201);
+  const id = (await created.json()).id as string;
+  expect((await req(`/payroll/runs/${id}`, outsider)).status).toBe(404);
+  expect((await req(`/payroll/runs/${id}/calculate`, owner, "POST", {})).status).toBe(200);
+  const calculated = await (await req(`/payroll/runs/${id}`)).json();
+  expect(calculated.run.warnings).toEqual([]);
+  expect(calculated.employees).toHaveLength(1);
+  expect(calculated.employees[0].result.netMinor).toBe(2261120);
+  expect(calculated.employees[0].snapshot.compensationSources).toHaveLength(1);
+  const revision = calculated.run.revision as number;
+  expect(
+    (await req(`/payroll/runs/${id}/action`, owner, "POST", { action: "finalize", revision }))
+      .status,
+  ).toBe(409);
+  expect(
+    (await req(`/payroll/runs/${id}/action`, owner, "POST", { action: "approve", revision }))
+      .status,
+  ).toBe(409);
+  expect((await (await req("/payroll/me", employee)).json()).payslips).toHaveLength(0);
+  expect((await req(`/payroll/me/${id}/export`, employee)).status).toBe(404);
+  await grant(admin.id, "hr.payroll.read_all");
+  await grant(admin.id, "hr.payroll.runs.approve");
+  expect(
+    (await req(`/payroll/runs/${id}/action`, admin, "POST", { action: "approve", revision }))
+      .status,
+  ).toBe(409);
+  const verification = {
+    revision,
+    expectedNetMinor: 2261120,
+    reference:
+      "Independently checked official SSS/PhilHealth/Pag-IBIG/BIR sources and every payroll line (test fixture).",
+    confirmed: true,
+  };
+  expect(
+    (await req(`/payroll/runs/${id}/employees/${employee.id}/verify`, owner, "POST", verification))
+      .status,
+  ).toBe(409);
+  expect(
+    (
+      await req(`/payroll/runs/${id}/employees/${employee.id}/verify`, admin, "POST", {
+        ...verification,
+        expectedNetMinor: 1,
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (await req(`/payroll/runs/${id}/employees/${employee.id}/verify`, admin, "POST", verification))
+      .status,
+  ).toBe(200);
+  expect(
+    (await req(`/payroll/runs/${id}/action`, admin, "POST", { action: "approve", revision }))
+      .status,
+  ).toBe(200);
+  expect(
+    (await req(`/payroll/runs/${id}/action`, owner, "POST", { action: "finalize", revision }))
+      .status,
+  ).toBe(200);
+  expect(
+    (await req(`/payroll/runs/${id}/action`, owner, "POST", { action: "finalize", revision }))
+      .status,
+  ).toBe(409);
+  expect((await req(`/payroll/runs/${id}/calculate`, owner, "POST", {})).status).toBe(409);
+  expect((await (await req("/payroll/me", employee)).json()).payslips).toHaveLength(0);
+  expect(
+    (await req(`/payroll/runs/${id}/action`, owner, "POST", { action: "publish", revision }))
+      .status,
+  ).toBe(200);
+  const own = await (await req("/payroll/me", employee)).json();
+  expect(own.payslips).toHaveLength(1);
+  expect(own.payslips[0].result.netMinor).toBe(2261120);
+  expect(
+    (await (await req(`/payroll/me?userId=${employee.id}`, manager)).json()).payslips,
+  ).toHaveLength(0);
+  expect((await req(`/payroll/me/${id}/export`, employee)).status).toBe(200);
+  expect((await req(`/payroll/me/${id}/export`, manager)).status).toBe(404);
+  expect(
+    (await req(`/payroll/runs/${id}/action`, owner, "POST", { action: "mark_paid", revision }))
+      .status,
+  ).toBe(409);
+  expect(
+    (
+      await req(`/payroll/runs/${id}/action`, owner, "POST", {
+        action: "mark_paid",
+        revision,
+        confirmation: "record_payment",
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await req("/payroll/compensation", owner, "POST", {
+        userId: employee.id,
+        effectiveFrom: "2026-09-01",
+        salaryMinor: 3000000,
+        reason: "Backdated change",
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await req("/payroll/settings", owner, "POST", {
+        ...settings,
+        effectiveFrom: "2026-10-01",
+        overtimeBps: 15000,
+      })
+    ).status,
+  ).toBe(200);
+  expect((await (await req(`/payroll/runs/${id}`)).json()).employees[0].result.netMinor).toBe(
+    2261120,
+  );
+});

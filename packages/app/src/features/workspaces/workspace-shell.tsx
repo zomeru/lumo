@@ -223,6 +223,15 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           </Link>
           <Link
             className={navigationLink}
+            to="/w/$workspaceId/payroll"
+            params={{ workspaceId }}
+            onClick={() => setMenuOpen(false)}
+          >
+            <FileText aria-hidden="true" />
+            Payroll
+          </Link>
+          <Link
+            className={navigationLink}
             to="/w/$workspaceId/people"
             params={{ workspaceId }}
             onClick={() => setMenuOpen(false)}

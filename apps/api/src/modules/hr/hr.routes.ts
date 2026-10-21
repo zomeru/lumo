@@ -16,6 +16,8 @@ import { auditHr, createHrCore, requireHrMember } from "./core";
 import { hrFilesRoutes } from "./files.routes";
 import { validateLeave, transitionLeave } from "./leave";
 import { leaveRoutes } from "./leave.routes";
+import { guardPayrollRequestChange } from "./payroll";
+import { payrollRoutes } from "./payroll.routes";
 import { peopleRoutes } from "./people.routes";
 
 export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, storage: Storage) {
@@ -172,6 +174,7 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, 
         await validateCorrection(ctx, details);
       },
       transition: async (ctx, row, status) => {
+        await guardPayrollRequestChange(ctx, row, status);
         await transitionLeave(ctx, row, status);
         await transitionCorrection(ctx, row, status);
       },
@@ -185,5 +188,6 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, 
   );
   app.route("/workspaces/:workspaceId/hr", leaveRoutes(core));
   app.route("/workspaces/:workspaceId/hr", attendanceRoutes(core));
+  app.route("/workspaces/:workspaceId/hr", payrollRoutes(core));
   return app;
 }

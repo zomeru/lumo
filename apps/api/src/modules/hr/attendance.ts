@@ -72,9 +72,11 @@ export async function attendanceMonth(
   c: HrContext,
   input: { month: string; userId?: string; team?: string; departmentId?: string; status?: string },
   now = new Date(),
+  payroll = false,
 ) {
   const target = input.userId ?? c.actorId;
-  if (!(await canTeam(c, "hr.attendance.read_team", target))) denied();
+  if (payroll) await c.require("hr.payroll.runs.manage");
+  else if (!(await canTeam(c, "hr.attendance.read_team", target))) denied();
   let userIds = [target];
   const employees = await c.tx
     .select()

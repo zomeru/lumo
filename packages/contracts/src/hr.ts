@@ -375,3 +375,151 @@ export const attendanceSchema = z.object({
   }),
 });
 export const csvResultSchema = z.object({ filename: z.string(), content: z.string() });
+
+export const compensationInputSchema = z.strictObject({
+  userId: z.uuid(),
+  effectiveFrom: calendarDateSchema,
+  salaryMinor: z.number().int().min(1).max(1000000000),
+  reason: z.string().trim().min(3).max(500),
+  allowances: z
+    .array(
+      z.strictObject({
+        label: z.string().min(1).max(100),
+        amountMinor: z.number().int().min(0).max(100000000),
+        taxable: z.boolean(),
+      }),
+    )
+    .max(20)
+    .default([]),
+});
+export const compensationSchema = compensationInputSchema.extend({
+  id: z.uuid(),
+  actorId: z.uuid(),
+  createdAt: z.string(),
+});
+export const compensationsSchema = z.object({ compensations: z.array(compensationSchema) });
+export const payrollSettingsInputSchema = z.strictObject({
+  effectiveFrom: calendarDateSchema,
+  frequency: z.enum(["monthly", "semimonthly"]),
+  currency: z.literal("PHP"),
+  workingDaysPerYear: z.number().int().min(200).max(366),
+  minutesPerDay: z.number().int().min(60).max(1440),
+  overtimeBps: z.number().int().min(10000).max(50000),
+  holidayBps: z.number().int().min(10000).max(50000),
+  restDayBps: z.number().int().min(10000).max(50000),
+  nightDifferentialBps: z.number().int().min(0).max(10000).default(0),
+  deductUndertime: z.boolean(),
+  publishOnFinalize: z.boolean().default(false),
+  payoutDay: z.number().int().min(1).max(31),
+  firstPayoutDay: z.number().int().min(1).max(15).default(15),
+  reason: z.string().trim().min(3).max(500),
+});
+export type PayrollSettings = z.infer<typeof payrollSettingsInputSchema>;
+export const payrollSettingsSchema = z.object({
+  settings: z.array(
+    payrollSettingsInputSchema.extend({ id: z.uuid(), actorId: z.uuid(), createdAt: z.string() }),
+  ),
+  rules: z.object({
+    version: z.string(),
+    effectiveFrom: z.string(),
+    effectiveTo: z.string(),
+    reviewStatus: z.literal("requires_independent_review"),
+    sources: z.array(z.object({ title: z.string(), url: z.url() })),
+  }),
+});
+export const payrollRunInputSchema = z
+  .strictObject({
+    startDate: calendarDateSchema,
+    endDate: calendarDateSchema,
+    payoutDate: calendarDateSchema,
+    cutoffDate: calendarDateSchema,
+    replacesRunId: z.uuid().nullable().default(null),
+    reason: z.string().trim().max(500).default(""),
+  })
+  .refine(
+    (v) => v.endDate >= v.startDate && v.payoutDate >= v.endDate && v.cutoffDate <= v.endDate,
+  );
+export const payrollLineSchema = z.object({
+  label: z.string(),
+  kind: z.enum(["earning", "deduction", "employer"]),
+  amountMinor: z.number().int(),
+  source: z.string(),
+});
+export const payrollResultSchema = z.object({
+  grossMinor: z.number().int(),
+  deductionsMinor: z.number().int(),
+  netMinor: z.number().int(),
+  employerMinor: z.number().int(),
+  lines: z.array(payrollLineSchema),
+  warnings: z.array(z.string()),
+});
+export type PayrollResult = z.infer<typeof payrollResultSchema>;
+export const payRunSchema = z.object({
+  id: z.uuid(),
+  startDate: z.string(),
+  endDate: z.string(),
+  payoutDate: z.string(),
+  cutoffDate: z.string(),
+  status: z.string(),
+  revision: z.number(),
+  createdBy: z.uuid(),
+  publishedAt: z.string().nullable(),
+  ruleVersion: z.string().nullable(),
+  warnings: z.array(z.string()),
+  replacesRunId: z.uuid().nullable(),
+});
+export const payRunsSchema = z.object({ runs: z.array(payRunSchema) });
+export const payrollDetailSchema = z.object({
+  run: payRunSchema,
+  employees: z.array(
+    z.object({
+      userId: z.uuid(),
+      result: payrollResultSchema,
+      verifiedBy: z.uuid().nullable(),
+      verificationReference: z.string().nullable(),
+      snapshot: z.record(z.string(), z.unknown()),
+    }),
+  ),
+});
+export const ownPaySchema = z.object({
+  payslips: z.array(
+    z.object({
+      runId: z.uuid(),
+      startDate: z.string(),
+      endDate: z.string(),
+      payoutDate: z.string(),
+      status: z.string(),
+      result: payrollResultSchema,
+    }),
+  ),
+  estimate: payrollResultSchema.nullable(),
+  estimatePeriod: z.string().nullable(),
+});
+export const payrollAdjustmentInputSchema = z.strictObject({
+  userId: z.uuid(),
+  label: z.string().trim().min(1).max(100),
+  amountMinor: z
+    .number()
+    .int()
+    .min(-100000000)
+    .max(100000000)
+    .refine((v) => v !== 0),
+  classification: z.enum([
+    "earning_taxable",
+    "earning_nontaxable",
+    "deduction",
+    "sss",
+    "philhealth",
+    "pagibig",
+    "withholding",
+    "employer",
+  ]),
+  reason: z.string().trim().min(10).max(1000),
+  sourceRequestId: z.uuid().nullable().default(null),
+  idempotencyKey: z.uuid(),
+});
+export const payrollVerifySchema = z.strictObject({
+  expectedNetMinor: z.number().int().min(0),
+  reference: z.string().trim().min(20).max(2000),
+  confirmed: z.literal(true),
+});
