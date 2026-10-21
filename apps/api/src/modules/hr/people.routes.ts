@@ -79,8 +79,8 @@ export function peopleRoutes(core: HrCore) {
             (order === "desc" ? desc : asc)(
               {
                 name: user.name,
-                jobTitle: hrEmployee.jobTitle,
-                department: hrDepartment.name,
+                jobTitle: sql`coalesce(nullif(${hrEmployee.jobTitle}, ''), ${profile.jobTitle}, '')`,
+                department: sql`coalesce(${hrDepartment.name}, ${profile.department}, '')`,
                 role: membership.role,
               }[sort],
             ),

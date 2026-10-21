@@ -4,6 +4,7 @@ import { expect, type Page } from "@playwright/test";
 
 /** Dialog and crop interaction run on both browser sizes and the Electron renderer. */
 export async function verifyProfile(page: Page, screenshot: string) {
+  await expect(page.locator("[data-app-sidebar]")).toBeAttached();
   const location = page.url();
   const menu = page.getByRole("button", { name: "Open navigation", exact: true });
   if (await menu.isVisible()) await menu.click();

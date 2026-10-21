@@ -6,6 +6,7 @@ import { createAuth } from "@lumo/auth";
 import { statutoryConfigurationsSchema } from "@lumo/contracts/payroll";
 import {
   membership,
+  profile as userProfile,
   requestLimit,
   user,
   workspace,
@@ -192,6 +193,14 @@ test("People profiles remain workspace scoped, reject reporting cycles and omit 
   expect(directory.people).toHaveLength(1);
   expect(directory.people[0].role).toBe("member");
   expect(directory.people[0].managerId).toBe(manager.id);
+  await database.db
+    .update(userProfile)
+    .set({ jobTitle: "Architect" })
+    .where(eq(userProfile.userId, manager.id));
+  const sorted = await (await req("/people?sort=jobTitle", employee)).json();
+  const titles = sorted.people.map((person: { jobTitle: string }) => person.jobTitle);
+  expect(titles.indexOf("Architect")).toBeGreaterThanOrEqual(0);
+  expect(titles.indexOf("Architect")).toBeLessThan(titles.indexOf("Engineer"));
   expect(directory.people[0]).toMatchObject({
     employeeCode: "",
     hireDate: null,
