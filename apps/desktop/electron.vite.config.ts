@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { fileURLToPath, URL } from "node:url";
 
-import { appRoutes } from "@lumo/app/vite";
+import { appDependencies, appRoutes } from "@lumo/app/vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
@@ -23,7 +23,7 @@ export default defineConfig({
     html: { cspNonce: nonce },
     root: fromRoot("./src/renderer"),
     server: { host: "127.0.0.1", port: 5174, strictPort: true },
-    plugins: [appRoutes(), react(), tailwindcss()],
+    plugins: [appRoutes(), appDependencies(), react(), tailwindcss()],
     build: { rollupOptions: { input: fromRoot("./src/renderer/index.html") } },
   },
 });

@@ -60,7 +60,7 @@ const fakes = vi.hoisted(() => {
     },
   };
 });
-vi.mock("agora-rtc-sdk-ng", () => ({ default: fakes.sdk }));
+vi.mock("agora-rtc-sdk-ng/esm", () => fakes.sdk);
 vi.mock("../../lib/api", () => ({ api: fakes.token, command: fakes.command }));
 import { createMeetingConnection } from "./rtc";
 afterEach(() => {
@@ -172,15 +172,15 @@ test("a closed preview never enables devices and failed screen publishing releas
   await connection.close();
   await connection.join(false, false);
   expect(fakes.clients[0]!.join).not.toHaveBeenCalled();
-  const second = await createMeetingConnection("meeting", renderers());
-  await second.join(false, false);
   const original = fakes.sdk.createClient;
   fakes.sdk.createClient = () => {
     const client = original();
     client.publish.mockRejectedValueOnce(new Error("screen publish failed"));
     return client;
   };
+  const second = await createMeetingConnection("meeting", renderers());
   try {
+    await second.join(false, false);
     await expect(second.share()).rejects.toThrow("screen publish failed");
     expect(fakes.screen.close).toHaveBeenCalled();
   } finally {

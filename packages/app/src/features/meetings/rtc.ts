@@ -4,7 +4,7 @@ import type {
   ICameraVideoTrack,
   IMicrophoneAudioTrack,
   ILocalVideoTrack,
-} from "agora-rtc-sdk-ng";
+} from "agora-rtc-sdk-ng/esm";
 
 import { api, command } from "../../lib/api";
 export async function createMeetingConnection(
@@ -16,10 +16,19 @@ export async function createMeetingConnection(
     onError: (error: unknown) => void;
   },
 ) {
-  const { default: AgoraRTC } = await import("agora-rtc-sdk-ng");
-  AgoraRTC.setLogLevel(4);
-  AgoraRTC.disableLogUpload();
-  const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+  const {
+    setLogLevel,
+    disableLogUpload,
+    createClient,
+    createMicrophoneAudioTrack,
+    createCameraVideoTrack,
+    createScreenVideoTrack,
+    getCameras,
+    getMicrophones,
+  } = await import("agora-rtc-sdk-ng/esm");
+  setLogLevel(4);
+  disableLogUpload();
+  const client = createClient({ mode: "rtc", codec: "vp8" });
   const token = (screen = false) =>
     api(`/meetings/${meetingId}/token`, rtcCredentialsSchema, { method: "POST", body: { screen } });
   let audio: IMicrophoneAudioTrack | undefined,
@@ -116,9 +125,7 @@ export async function createMeetingConnection(
   async function mic(enabled: boolean, device?: string) {
     if (closed) return;
     if (enabled && !audio) {
-      const track = await AgoraRTC.createMicrophoneAudioTrack(
-        device ? { microphoneId: device } : {},
-      );
+      const track = await createMicrophoneAudioTrack(device ? { microphoneId: device } : {});
       if (closed) {
         track.stop();
         track.close();
@@ -137,7 +144,7 @@ export async function createMeetingConnection(
   async function camera(enabled: boolean, device?: string) {
     if (closed) return;
     if (enabled && !video) {
-      const track = await AgoraRTC.createCameraVideoTrack({
+      const track = await createCameraVideoTrack({
         encoderConfig: "480p_1",
         ...(device ? { cameraId: device } : {}),
       });
@@ -191,8 +198,8 @@ export async function createMeetingConnection(
     camera,
     close,
     devices: async () => ({
-      cameras: await AgoraRTC.getCameras(),
-      microphones: await AgoraRTC.getMicrophones(),
+      cameras: await getCameras(),
+      microphones: await getMicrophones(),
     }),
     async share() {
       if (screenClient) {
@@ -201,7 +208,7 @@ export async function createMeetingConnection(
       }
       // Start the native picker within the user's action; network authorization
       // happens before publication, without consuming the capture gesture.
-      const track = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "720p_2" }, "disable");
+      const track = await createScreenVideoTrack({ encoderConfig: "720p_2" }, "disable");
       if (closed) {
         track.stop();
         track.close();
@@ -220,7 +227,7 @@ export async function createMeetingConnection(
           await stopScreen();
           return false;
         }
-        const current = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        const current = createClient({ mode: "rtc", codec: "vp8" });
         screenClient = current;
         current.on("token-privilege-will-expire", () => {
           void refresh();

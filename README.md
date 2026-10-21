@@ -123,6 +123,8 @@ pnpm --filter @lumo/web preview
 
 Root Vitest discovers package projects. React tests use Testing Library and jsdom; API tests exercise real PostgreSQL. Playwright runs desktop and mobile Chromium flows. CI provides PostgreSQL and runs the complete gate and browser tests on Linux, with tooling, types, unit/UI tests, and builds on Windows.
 
+The web and desktop renderers share dependency handling in `packages/app/vite.config.ts`. RTC uses Agora's modular `/esm` entry and separate dependency chunks; Wiki syntax highlighting also has its own chunks. Agora Chat 1.4.0 and the RTC core still each exceed Vite's default 500 kB warning threshold as individual vendor modules. They load on demand; the warning remains enabled because chunk settings cannot split an individual module.
+
 ## Production configuration
 
 Set a strong `BETTER_AUTH_SECRET`, PostgreSQL `DATABASE_URL`, exact HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `SMTP_URL`, a deliverable `MAIL_FROM`, and `HOST` as appropriate for the runtime. SMTP transport requires TLS in production. Development mail spooling is disabled in production. The server validates its environment before listening and closes HTTP and PostgreSQL connections during shutdown.
