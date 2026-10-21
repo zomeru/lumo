@@ -2,58 +2,8 @@ import type { PayrollResult, PayrollSettings } from "@lumo/contracts/hr";
 import type { StatutoryConfigurationInput } from "@lumo/contracts/payroll";
 
 import { financialRatio } from "./payroll-money";
-import { philippineRules } from "./payroll-rules";
 import { configuredContributions, configuredWithholding } from "./statutory-engine";
 export const roundedRatio = financialRatio;
-export function statutoryAmounts(
-  monthlySalaryMinor: number,
-  settings: PayrollSettings,
-  secondCutoff = false,
-) {
-  const rules = philippineRules;
-  const salaryCredit = Math.min(
-    rules.sss.ceilingMinor,
-    Math.max(
-      rules.sss.floorMinor,
-      Math.floor((monthlySalaryMinor + rules.sss.midpointMinor) / rules.sss.stepMinor) *
-        rules.sss.stepMinor,
-    ),
-  );
-  const regularCredit = Math.min(salaryCredit, rules.sss.regularCapMinor),
-    mpfCredit = salaryCredit - regularCredit;
-  const split = (value: number) =>
-    settings.frequency === "monthly"
-      ? value
-      : secondCutoff
-        ? value - Math.floor(value / 2)
-        : Math.floor(value / 2);
-  const philhealthBase = Math.min(
-    rules.philhealth.ceilingMinor,
-    Math.max(rules.philhealth.floorMinor, monthlySalaryMinor),
-  );
-  const pagibigBase = Math.min(rules.pagibig.ceilingMinor, monthlySalaryMinor);
-  return {
-    sss: split(roundedRatio(regularCredit, rules.sss.employeeBps, 10000)),
-    sssMpf: split(roundedRatio(mpfCredit, rules.sss.employeeBps, 10000)),
-    sssEmployer: split(roundedRatio(regularCredit, rules.sss.employerBps, 10000)),
-    sssMpfEmployer: split(roundedRatio(mpfCredit, rules.sss.employerBps, 10000)),
-    sssEc: split(
-      salaryCredit >= rules.sss.ecThresholdMinor ? rules.sss.ecHighMinor : rules.sss.ecLowMinor,
-    ),
-    philhealth: split(roundedRatio(philhealthBase, rules.philhealth.employeeBps, 10000)),
-    philhealthEmployer: split(roundedRatio(philhealthBase, rules.philhealth.employerBps, 10000)),
-    pagibig: split(
-      roundedRatio(
-        pagibigBase,
-        monthlySalaryMinor <= rules.pagibig.lowThresholdMinor
-          ? rules.pagibig.lowEmployeeBps
-          : rules.pagibig.employeeBps,
-        10000,
-      ),
-    ),
-    pagibigEmployer: split(roundedRatio(pagibigBase, rules.pagibig.employerBps, 10000)),
-  };
-}
 export type PayrollEngineInput = {
   basicMinor: number;
   monthlySalaryMinor: number;
@@ -81,7 +31,7 @@ export type PayrollEngineInput = {
 export function calculatePay(
   input: PayrollEngineInput,
   settings: PayrollSettings,
-  configuration?: { rules: StatutoryConfigurationInput; version: string },
+  configuration: { rules: StatutoryConfigurationInput; version: string },
 ): PayrollResult {
   const lines: PayrollResult["lines"] = [];
   const warnings: string[] = [];
@@ -152,20 +102,18 @@ export function calculatePay(
       unpaid -
       undertime,
   );
-  const statutory = configuration
-    ? configuredContributions(
-        {
-          basicMinor: input.monthlySalaryMinor,
-          compensationMinor:
-            input.monthlySalaryMinor + input.allowances.reduce((n, a) => n + a.amountMinor, 0),
-          remunerationMinor: remunerationMinor + (input.priorRemunerationMinor ?? 0),
-        },
-        settings,
-        configuration.rules,
-        input.secondCutoff,
-        input.finalCollection,
-      )
-    : statutoryAmounts(input.monthlySalaryMinor, settings, input.secondCutoff);
+  const statutory = configuredContributions(
+    {
+      basicMinor: input.monthlySalaryMinor,
+      compensationMinor:
+        input.monthlySalaryMinor + input.allowances.reduce((n, a) => n + a.amountMinor, 0),
+      remunerationMinor: remunerationMinor + (input.priorRemunerationMinor ?? 0),
+    },
+    settings,
+    configuration.rules,
+    input.secondCutoff,
+    input.finalCollection,
+  );
   for (const [label, kind, amount] of [
     ["SSS", "deduction", statutory.sss],
     ["SSS MPF", "deduction", statutory.sssMpf],
@@ -177,21 +125,10 @@ export function calculatePay(
     ["Employer PhilHealth", "employer", statutory.philhealthEmployer],
     ["Employer Pag-IBIG", "employer", statutory.pagibigEmployer],
   ] as const)
-    line(label, kind, amount, configuration?.version ?? philippineRules.version);
+    line(label, kind, amount, configuration.version);
   taxable -= statutory.sss + statutory.sssMpf + statutory.philhealth + statutory.pagibig;
-  const brackets =
-    settings.frequency === "monthly" ? philippineRules.monthlyTax : philippineRules.semimonthlyTax;
-  const bracket = brackets.filter((b) => taxable > b.thresholdMinor).at(-1) ?? brackets[0]!;
-  const withholding = configuration
-    ? configuredWithholding(taxable, settings.frequency, configuration.rules)
-    : bracket.fixedMinor +
-      roundedRatio(Math.max(0, taxable - bracket.thresholdMinor), bracket.bps, 10000);
-  line(
-    "BIR withholding",
-    "deduction",
-    withholding,
-    configuration?.version ?? philippineRules.version,
-  );
+  const withholding = configuredWithholding(taxable, settings.frequency, configuration.rules);
+  line("BIR withholding", "deduction", withholding, configuration.version);
   const grossMinor = lines
       .filter((l) => l.kind === "earning")
       .reduce((n, l) => n + l.amountMinor, 0),

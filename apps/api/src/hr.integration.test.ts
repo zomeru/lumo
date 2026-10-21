@@ -6,6 +6,7 @@ import { createAuth } from "@lumo/auth";
 import { statutoryConfigurationsSchema } from "@lumo/contracts/payroll";
 import {
   membership,
+  requestLimit,
   user,
   workspace,
   hrShift,
@@ -14,7 +15,7 @@ import {
 } from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
 import { eq } from "drizzle-orm";
-import { beforeAll, afterAll, expect, test } from "vitest";
+import { beforeAll, beforeEach, afterAll, expect, test } from "vitest";
 
 import { createApp } from "./app";
 import { createTestDatabase } from "./test/database";
@@ -105,6 +106,10 @@ beforeAll(async () => {
     { workspaceId: owner.workspaceId, userId: employee.id },
     { workspaceId: owner.workspaceId, userId: manager.id },
   ]);
+});
+// Each case owns its request window; production rate-limit behavior remains enabled.
+beforeEach(async () => {
+  await database.db.delete(requestLimit);
 });
 afterAll(() => database.cleanup());
 test("HR access is isolated by workspace and generic admin cannot administer grants", async () => {
@@ -2353,4 +2358,88 @@ test("actual remuneration reconciles finalized first-cutoff earnings exactly onc
       })
     ).status,
   ).toBe(409);
+});
+
+test("voiding a source cutoff prevents finalizing an already approved month-end calculation", async () => {
+  const { request } = await statutoryPayrollLab("semimonthly");
+  const { template } = statutoryConfigurationsSchema.parse(
+    await (await request("/payroll/statutory-configurations")).json(),
+  );
+  await request("/payroll/statutory-configurations", owner, "POST", template);
+  const create = async (start: string, end: string) =>
+    (
+      await (
+        await request("/payroll/runs", owner, "POST", {
+          startDate: start,
+          endDate: end,
+          cutoffDate: end,
+          payoutDate: end,
+        })
+      ).json()
+    ).id as string;
+  const first = await create("2026-09-01", "2026-09-15");
+  await request(`/payroll/runs/${first}/calculate`, owner, "POST", {});
+  const source = await releaseStatutoryRun(request, first);
+  const second = await create("2026-09-16", "2026-09-30");
+  await request(`/payroll/runs/${second}/calculate`, owner, "POST", {});
+  const detail = await (await request(`/payroll/runs/${second}`)).json();
+  await request(`/payroll/runs/${second}/employees/${employee.id}/verify`, admin, "POST", {
+    revision: detail.run.revision,
+    expectedNetMinor: detail.employees[0].result.netMinor,
+    confirmed: true,
+    reference: "Independently reconciled with the currently finalized first cutoff",
+  });
+  expect(
+    (
+      await request(`/payroll/runs/${second}/action`, admin, "POST", {
+        action: "approve",
+        revision: detail.run.revision,
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await request(`/payroll/runs/${first}/action`, owner, "POST", {
+        action: "void",
+        revision: source.run.revision,
+        reason: "Source payroll requires controlled reissue",
+      })
+    ).status,
+  ).toBe(200);
+  const blocked = await request(`/payroll/runs/${second}/action`, owner, "POST", {
+    action: "finalize",
+    revision: detail.run.revision,
+  });
+  expect(blocked.status).toBe(409);
+  expect((await blocked.json()).error.code).toBe("PAYROLL_RECONCILIATION_CHANGED");
+});
+test("actual-remuneration collection handles second-cutoff hires and first-cutoff departures", async () => {
+  for (const hire of [true, false]) {
+    const { request } = await statutoryPayrollLab("semimonthly");
+    const { template } = statutoryConfigurationsSchema.parse(
+      await (await request("/payroll/statutory-configurations")).json(),
+    );
+    await request("/payroll/statutory-configurations", owner, "POST", template);
+    await request(`/people/${employee.id}`, owner, "PUT", {
+      hireDate: hire ? "2026-09-16" : "2026-01-01",
+      endDate: hire ? null : "2026-09-10",
+      managerId: manager.id,
+    });
+    const end = hire ? "2026-09-30" : "2026-09-15";
+    const created = await request("/payroll/runs", owner, "POST", {
+      startDate: hire ? "2026-09-16" : "2026-09-01",
+      endDate: end,
+      cutoffDate: end,
+      payoutDate: end,
+    });
+    const id = (await created.json()).id as string;
+    expect((await request(`/payroll/runs/${id}/calculate`, owner, "POST", {})).status).toBe(200);
+    const detail = await (await request(`/payroll/runs/${id}`)).json();
+    expect(detail.run.warnings).toEqual([]);
+    expect(detail.employees[0].snapshot.input.finalCollection).toBe(!hire);
+    expect(
+      detail.employees[0].result.lines.find((l: { label: string }) => l.label === "SSS")
+        .amountMinor,
+    ).toBeGreaterThan(0);
+  }
 });

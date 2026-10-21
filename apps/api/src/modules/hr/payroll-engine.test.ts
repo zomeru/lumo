@@ -2,11 +2,25 @@ import type { PayrollSettings } from "@lumo/contracts/hr";
 import { expect, test } from "vitest";
 
 import {
-  calculatePay,
+  calculatePay as calculateConfiguredPay,
   roundedRatio,
-  statutoryAmounts,
   type PayrollEngineInput,
 } from "./payroll-engine";
+import { configuredContributions, statutoryTemplate } from "./statutory-engine";
+// Explicit fixture configuration. Production callers must supply a saved version.
+const rules = statutoryTemplate();
+rules.sss.salaryBasis = "monthly_basic";
+rules.sss.collection = "split";
+rules.pagibig.salaryBasis = "monthly_basic";
+const calculatePay = (input: PayrollEngineInput, settings: PayrollSettings) =>
+  calculateConfiguredPay(input, settings, { rules, version: "reviewed-fixture" });
+const statutoryAmounts = (salary: number, settings: PayrollSettings, secondCutoff = false) =>
+  configuredContributions(
+    { basicMinor: salary, compensationMinor: salary, remunerationMinor: salary },
+    settings,
+    rules,
+    secondCutoff,
+  );
 const settings: PayrollSettings = {
   effectiveFrom: "2025-01-01",
   frequency: "monthly",

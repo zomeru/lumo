@@ -2,7 +2,7 @@ import type { PayrollSettings } from "@lumo/contracts/hr";
 import { statutoryConfigurationInputSchema } from "@lumo/contracts/payroll";
 import { expect, test } from "vitest";
 
-import { calculatePay, statutoryAmounts } from "./payroll-engine";
+import { calculatePay } from "./payroll-engine";
 import { financialRatio } from "./payroll-money";
 import {
   configuredContributions,
@@ -31,17 +31,9 @@ const bases = (salary: number) => ({
   compensationMinor: salary,
   remunerationMinor: salary,
 });
-test("the source template is valid, explicitly reviewed, and reproduces legacy monthly fixtures", () => {
+test("the source template is valid and covers every salary credit boundary", () => {
   const rules = statutoryTemplate();
   expect(statutoryConfigurationInputSchema.parse(rules)).toEqual(rules);
-  for (const salary of [
-    100000, 150000, 150001, 524999, 525000, 1450000, 1500000, 2000000, 2500000, 3474999, 3475000,
-    100000000,
-  ]) {
-    expect(configuredContributions(bases(salary), settings, rules)).toEqual(
-      statutoryAmounts(salary, settings),
-    );
-  }
   for (const row of rules.sss.brackets.slice(1)) {
     const below = configuredContributions(bases(row.fromMinor - 1), settings, rules);
     const at = configuredContributions(bases(row.fromMinor), settings, rules);
