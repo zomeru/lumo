@@ -32,7 +32,7 @@ async function fill(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Confirm Password"), "Strong-password-2026!");
 }
 async function review(user: ReturnType<typeof userEvent.setup>, title: string) {
-  await user.click(screen.getByRole("link", { name: title }));
+  await user.click(within(screen.getByRole("main")).getByRole("link", { name: title }));
   const dialog = screen.getByRole("dialog", { name: title });
   const region = within(dialog).getByRole("region");
   expect(within(dialog).getByRole("button", { name: "Acknowledge document" })).toBeDisabled();
@@ -66,7 +66,7 @@ test("requires matching passwords, separate document acknowledgements and explic
   expect(button).toBeDisabled();
   await user.click(screen.getByRole("checkbox"));
   expect(button).toBeEnabled();
-  await user.click(screen.getByRole("link", { name: "Terms of Use" }));
+  await user.click(within(screen.getByRole("main")).getByRole("link", { name: "Terms of Use" }));
   expect(screen.getByText("You have already acknowledged this version.")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Done" }));
   expect(screen.getByLabelText("Full name")).toHaveValue("Alice Chen");
@@ -91,7 +91,7 @@ test("requires matching passwords, separate document acknowledgements and explic
 test("closing an unread document preserves form data, returns focus and does not acknowledge", async () => {
   const { user } = await setup();
   await fill(user);
-  const trigger = screen.getByRole("link", { name: "Terms of Use" });
+  const trigger = within(screen.getByRole("main")).getByRole("link", { name: "Terms of Use" });
   await user.click(trigger);
   const region = screen.getByRole("region");
   Object.defineProperties(region, {
@@ -132,7 +132,7 @@ test("acknowledgement also works when the whole document fits without scrolling"
       disconnect() {}
     },
   );
-  await user.click(screen.getByRole("link", { name: "Privacy Policy" }));
+  await user.click(within(screen.getByRole("main")).getByRole("link", { name: "Privacy Policy" }));
   const region = screen.getByRole("region");
   Object.defineProperties(region, {
     clientHeight: { value: 500 },

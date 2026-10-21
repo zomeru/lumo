@@ -31,7 +31,13 @@ test("public pages, legal review and registration work at desktop and mobile siz
   await expect(page.getByRole("heading", { name: "404 | Page Not Found" })).toBeVisible();
   await page.getByRole("main").getByRole("link", { name: "Home", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Welcome to Lumo" })).toBeVisible();
-  await page.goto("/register");
+  await page.goto("/login");
+  const footer = page.getByRole("navigation", { name: "Footer navigation" });
+  await expect(footer.getByRole("link", { name: "Privacy Policy", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await footer.getByRole("link", { name: "Create account", exact: true }).click();
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(footer.getByRole("link", { name: "Contact Us", exact: true })).toBeVisible();
   const submit = page.getByRole("button", { name: "Create account", exact: true });
   await expect(submit).toBeDisabled();
   await page.getByLabel("Full name").fill("Public Flow");
@@ -43,7 +49,7 @@ test("public pages, legal review and registration work at desktop and mobile siz
   await page.getByLabel("Confirm Password", { exact: true }).blur();
   await expect(page.getByRole("alert")).toContainText("Passwords do not match");
   await expect(submit).toBeDisabled();
-  await page.getByRole("link", { name: "Terms of Use", exact: true }).click();
+  await page.getByRole("main").getByRole("link", { name: "Terms of Use", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("button", { name: "Acknowledge document" })).toBeDisabled();
   const bounds = await dialog.boundingBox();
@@ -52,11 +58,13 @@ test("public pages, legal review and registration work at desktop and mobile siz
   expect(bounds!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   await page.screenshot({ path: info.outputPath("legal-review.png") });
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("link", { name: "Terms of Use", exact: true })).toBeFocused();
+  await expect(
+    page.getByRole("main").getByRole("link", { name: "Terms of Use", exact: true }),
+  ).toBeFocused();
   await expect(page.getByRole("checkbox")).toBeDisabled();
   await acknowledgeRegistration(page, password);
   await expect(submit).toBeEnabled();
-  await page.getByRole("link", { name: "Privacy Policy", exact: true }).click();
+  await page.getByRole("main").getByRole("link", { name: "Privacy Policy", exact: true }).click();
   await expect(page.getByRole("button", { name: "Done", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByRole("checkbox")).toBeChecked();

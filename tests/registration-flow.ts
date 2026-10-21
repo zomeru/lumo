@@ -4,7 +4,7 @@ import { expect, type Page } from "@playwright/test";
 export async function acknowledgeRegistration(page: Page, password: string) {
   await page.getByLabel("Confirm Password", { exact: true }).fill(password);
   for (const title of ["Terms of Use", "Privacy Policy"]) {
-    await page.getByRole("link", { name: title, exact: true }).click();
+    await page.getByRole("main").getByRole("link", { name: title, exact: true }).click();
     const dialog = page.getByRole("dialog", { name: title, exact: true });
     const document = dialog.getByRole("region");
     await document.focus();

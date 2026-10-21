@@ -65,7 +65,7 @@ describe("authentication and guards", () => {
     await user.type(screen.getByLabelText("Password"), "Strong-password-2026!");
     await user.type(screen.getByLabelText("Confirm Password"), "Strong-password-2026!");
     for (const name of ["Terms of Use", "Privacy Policy"]) {
-      await user.click(screen.getByRole("link", { name }));
+      await user.click(within(screen.getByRole("main")).getByRole("link", { name }));
       const region = screen.getByRole("region", { name: `${name} document` });
       Object.defineProperties(region, {
         clientHeight: { value: 300 },
