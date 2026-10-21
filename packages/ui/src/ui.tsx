@@ -21,6 +21,7 @@ export * from "./popover";
 export * from "./menu";
 export * from "./controls";
 export * from "./display";
+export * from "./view-navigation";
 export { ThemeProvider, ThemeMenu, initializeTheme } from "./theme";
 export {
   Toast,
@@ -41,7 +42,14 @@ export function Brand({
 }: ComponentProps<"a"> & { compact?: boolean }) {
   const content = (
     <>
-      <img src={logoUrl} alt="" aria-hidden="true" className="size-8 shrink-0 rounded-lg" />
+      <img
+        src={logoUrl}
+        alt=""
+        width={32}
+        height={32}
+        aria-hidden="true"
+        className="size-8 shrink-0 rounded-lg"
+      />
       <span className="text-lg font-semibold tracking-tight">
         lumo<span className="text-primary">.</span>
         {!compact && <small className="font-normal tracking-normal">Everything, connected.</small>}
@@ -108,13 +116,15 @@ export function PageHeading({
     <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
         <span className="mb-2 block text-xs font-medium text-muted-foreground">{eyebrow}</span>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-[28px]">
+        <h1 className="flex items-center gap-2 text-2xl text-balance font-semibold tracking-tight sm:text-[28px]">
           {icon}
           {title}
         </h1>
         {children && <p className="mt-2 max-w-2xl">{children}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2 pt-1">{actions}</div>}
+      {actions && (
+        <div className="flex max-w-full flex-wrap items-center gap-2 pt-1">{actions}</div>
+      )}
     </header>
   );
 }

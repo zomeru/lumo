@@ -37,6 +37,7 @@ import { useState, type ReactNode } from "react";
 
 import { AppHeader } from "../../chrome";
 import { clearWorkspaceCache, sessionQuery, workspaceQuery, workspacesQuery } from "../../lib/api";
+import { hrIcons } from "../hr/hr-icons";
 import { HrInbox } from "../hr/hr-inbox";
 import { moduleRoutes, moduleIcons } from "../office/file-modules";
 
@@ -201,7 +202,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             params={{ workspaceId }}
             onClick={() => setMenuOpen(false)}
           >
-            <FileText aria-hidden="true" />
+            <hrIcons.approvals aria-hidden="true" />
             Approvals
           </Link>
           <Link
@@ -210,7 +211,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             params={{ workspaceId }}
             onClick={() => setMenuOpen(false)}
           >
-            <CalendarDays aria-hidden="true" />
+            <hrIcons.leave aria-hidden="true" />
             Leave
           </Link>
           <Link
@@ -219,7 +220,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             params={{ workspaceId }}
             onClick={() => setMenuOpen(false)}
           >
-            <CalendarDays aria-hidden="true" />
+            <hrIcons.attendance aria-hidden="true" />
             Attendance
           </Link>
           <Link
@@ -228,7 +229,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             params={{ workspaceId }}
             onClick={() => setMenuOpen(false)}
           >
-            <FileText aria-hidden="true" />
+            <hrIcons.payroll aria-hidden="true" />
             Payroll
           </Link>
           <Link
@@ -237,7 +238,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             params={{ workspaceId }}
             onClick={() => setMenuOpen(false)}
           >
-            <FileText aria-hidden="true" />
+            <hrIcons.onboarding aria-hidden="true" />
             Onboarding
           </Link>
           <Link
@@ -246,7 +247,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
             params={{ workspaceId }}
             onClick={() => setMenuOpen(false)}
           >
-            <Users aria-hidden="true" />
+            <hrIcons.people aria-hidden="true" />
             People
           </Link>
         </NavigationGroup>

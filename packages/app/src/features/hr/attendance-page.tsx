@@ -15,6 +15,8 @@ import {
   Field,
   Loading,
   PageHeading,
+  FilterBar,
+  ViewTabs,
   SelectField,
   Table,
   TableBody,
@@ -35,8 +37,9 @@ import {
   departmentsQuery,
   useHrAction,
 } from "./hr-api";
+import { hrIcons } from "./hr-icons";
 import { useHrTab, useHrFilter, useHrMonth } from "./hr-search";
-import { HrDialog, HrForm, HrTabs, formString, saveCsv } from "./hr-ui";
+import { HrDialog, HrForm, formString, saveCsv } from "./hr-ui";
 export function AttendancePage({ workspaceId }: { workspaceId: string }) {
   const [tab, setTab] = useHrTab("My attendance", "/w/$workspaceId/attendance"),
     [correction, setCorrection] = useState<string | null>(null),
@@ -99,11 +102,15 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
   const data = attendance.data;
   return (
     <>
-      <PageHeading eyebrow="People & HR" title="Attendance">
+      <PageHeading
+        icon={<hrIcons.attendance className="size-6" aria-hidden="true" />}
+        eyebrow="People & HR"
+        title="Attendance"
+      >
         Clock actions use server time. Times are displayed in {timezone}; late arrival counts after
         the schedule’s grace period.
       </PageHeading>
-      <HrTabs
+      <ViewTabs
         tabs={[
           "My attendance",
           ...(access.data.hasReports || canHr(access.data, "hr.attendance.read_team")
@@ -199,7 +206,7 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
             </Button>
           </div>
           {tab === "Team attendance" && (
-            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <FilterBar>
               <SelectField
                 label="Filter employee"
                 value={filters.employeeId ?? "all"}
@@ -241,7 +248,7 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
                   "scheduled",
                 ].map((value) => ({ value, label: value }))}
               />
-            </div>
+            </FilterBar>
           )}
           {attendance.isPending ? (
             <Loading />

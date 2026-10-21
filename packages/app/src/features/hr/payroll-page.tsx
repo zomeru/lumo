@@ -17,6 +17,7 @@ import {
   Field,
   Loading,
   PageHeading,
+  ViewTabs,
   SelectField,
   Table,
   TableBody,
@@ -31,8 +32,9 @@ import { useState } from "react";
 
 import { api } from "../../lib/api";
 import { hrAccessQuery, hrPath, hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
+import { hrIcons } from "./hr-icons";
 import { useHrTab } from "./hr-search";
-import { HrDialog, HrForm, HrTabs, formString, saveCsv } from "./hr-ui";
+import { HrDialog, HrForm, formString, saveCsv } from "./hr-ui";
 import { PayrollSettingsPanel } from "./payroll-settings";
 const money = (amount: number) =>
   new Intl.NumberFormat(undefined, { style: "currency", currency: "PHP" }).format(amount / 100);
@@ -127,11 +129,15 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
   };
   return (
     <>
-      <PageHeading eyebrow="People & HR" title="Payroll">
+      <PageHeading
+        icon={<hrIcons.payroll className="size-6" aria-hidden="true" />}
+        eyebrow="People & HR"
+        title="Payroll"
+      >
         Payslips, restricted pay runs and effective compensation. Recording payment does not
         transfer funds.
       </PageHeading>
-      <HrTabs
+      <ViewTabs
         tabs={[
           "My Pay",
           ...(read || manage ? ["Pay Runs"] : []),

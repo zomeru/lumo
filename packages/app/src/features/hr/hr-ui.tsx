@@ -7,35 +7,6 @@ import {
   ErrorMessage,
 } from "@lumo/ui";
 import type { ReactNode, FormEvent } from "react";
-export function HrTabs({
-  tabs,
-  value,
-  onChange,
-}: {
-  tabs: string[];
-  value: string;
-  onChange: (tab: string) => void;
-}) {
-  return (
-    <nav aria-label="Section views" className="mb-5 flex flex-wrap gap-1 border-b">
-      {tabs.map((tab) => (
-        <Button
-          key={tab}
-          variant="ghost"
-          aria-current={tab === value ? "page" : undefined}
-          className={
-            tab === value
-              ? "rounded-b-none border-b-2 border-primary text-primary"
-              : "rounded-b-none text-muted-foreground"
-          }
-          onClick={() => onChange(tab)}
-        >
-          {tab}
-        </Button>
-      ))}
-    </nav>
-  );
-}
 export function HrDialog({
   title,
   open,

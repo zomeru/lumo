@@ -15,6 +15,7 @@ import {
   Field,
   Loading,
   PageHeading,
+  ViewTabs,
   Progress,
   SelectField,
 } from "@lumo/ui";
@@ -23,8 +24,9 @@ import { useState } from "react";
 import type { z } from "zod";
 
 import { hrAccessQuery, downloadHrFile, hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
+import { hrIcons } from "./hr-icons";
 import { useHrTab } from "./hr-search";
-import { HrDialog, HrForm, HrTabs, formString } from "./hr-ui";
+import { HrDialog, HrForm, formString } from "./hr-ui";
 import { uploadHrFile } from "./request-dialog";
 
 type Step = z.infer<typeof onboardingStepSchema>;
@@ -234,6 +236,7 @@ export function OnboardingPage({ workspaceId }: { workspaceId: string }) {
   return (
     <>
       <PageHeading
+        icon={<hrIcons.onboarding className="size-6" aria-hidden="true" />}
         eyebrow="People & HR"
         title="Onboarding"
         actions={
@@ -246,7 +249,7 @@ export function OnboardingPage({ workspaceId }: { workspaceId: string }) {
       >
         Personal tasks, verified submissions and reusable welcome checklists.
       </PageHeading>
-      <HrTabs
+      <ViewTabs
         tabs={[
           "My onboarding",
           ...(manage || verify || access.data.hasReports ? ["Checklists"] : []),

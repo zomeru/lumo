@@ -8,14 +8,17 @@ import {
   Field,
   Loading,
   PageHeading,
+  FilterBar,
+  ViewTabs,
   SelectField,
 } from "@lumo/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { hrAccessQuery, allPeopleQuery, downloadHrFile, hrQuery, useHrAction } from "./hr-api";
+import { hrIcons } from "./hr-icons";
 import { useHrTab, useHrFilter } from "./hr-search";
-import { HrDialog, HrForm, HrTabs, formString } from "./hr-ui";
+import { HrDialog, HrForm, formString } from "./hr-ui";
 import { RequestDialog } from "./request-dialog";
 export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
   const [tab, setTab] = useHrTab("Waiting for me", "/w/$workspaceId/approvals"),
@@ -54,6 +57,7 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
   return (
     <>
       <PageHeading
+        icon={<hrIcons.approvals className="size-6" aria-hidden="true" />}
         eyebrow="People & HR"
         title="Approvals"
         actions={
@@ -64,7 +68,7 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
       >
         Requests and sign-offs with an auditable decision history.
       </PageHeading>
-      <HrTabs
+      <ViewTabs
         tabs={[
           "Waiting for me",
           "My requests",
@@ -85,7 +89,7 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
           setOffset(0);
         }}
       />
-      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+      <FilterBar>
         <SelectField
           label="Request status"
           value={status}
@@ -113,9 +117,9 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
             "general",
           ].map((value) => ({ value, label: value }))}
         />
-      </div>
+      </FilterBar>
       {view === "all" && (
-        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <FilterBar>
           <SelectField
             label="Requester filter"
             value={filters.employeeId ?? "all"}
@@ -154,7 +158,7 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
               filters.setFilters({ toDate: event.target.value || undefined, offset: 0 })
             }
           />
-        </div>
+        </FilterBar>
       )}
       <ErrorMessage error={requests.error ?? people.error ?? action.error} />
       {requests.isPending ? (

@@ -15,6 +15,7 @@ import {
   Field,
   Loading,
   PageHeading,
+  ViewTabs,
   SelectField,
   Table,
   TableBody,
@@ -28,8 +29,9 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { hrAccessQuery, hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
+import { hrIcons } from "./hr-icons";
 import { useHrTab, useHrMonth } from "./hr-search";
-import { HrDialog, HrForm, HrTabs, formString } from "./hr-ui";
+import { HrDialog, HrForm, formString } from "./hr-ui";
 import { RequestDialog } from "./request-dialog";
 export function LeavePage({ workspaceId }: { workspaceId: string }) {
   const [tab, setTab] = useHrTab("My leave", "/w/$workspaceId/leave"),
@@ -72,6 +74,7 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
   return (
     <>
       <PageHeading
+        icon={<hrIcons.leave className="size-6" aria-hidden="true" />}
         eyebrow="People & HR"
         title="Leave"
         actions={
@@ -82,7 +85,7 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
       >
         Balances, requests and who is away. Days follow assigned work schedules and holidays.
       </PageHeading>
-      <HrTabs
+      <ViewTabs
         tabs={[
           "My leave",
           "Who is out",

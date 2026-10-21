@@ -24,6 +24,9 @@ import {
   Field,
   Loading,
   PageHeading,
+  ViewNavigation,
+  ViewNavigationItem,
+  FilterBar,
   Progress,
   SelectField,
   Table,
@@ -481,20 +484,17 @@ export function DrivePage({
         }}
       />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label="Drive views" className="flex max-w-full flex-wrap gap-1.5">
+        <ViewNavigation aria-label="Drive views">
           {views.map((view) => (
-            <Button
+            <ViewNavigationItem
               key={view.value}
-              size="sm"
-              variant={search.view === view.value ? "primary" : "ghost"}
-              aria-current={search.view === view.value ? "page" : undefined}
-              className="rounded-full"
+              active={search.view === view.value}
               onClick={() => change({ view: view.value, parentId: undefined, q: "" })}
             >
               {view.label}
-            </Button>
+            </ViewNavigationItem>
           ))}
-        </nav>
+        </ViewNavigation>
         <div className="flex items-center gap-1">
           <Button
             title="List view"
@@ -518,7 +518,7 @@ export function DrivePage({
           </Button>
         </div>
       </div>
-      <div className="mb-5 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+      <FilterBar className="[&>div:first-child]:basis-64">
         <Field
           label="Search files and folders"
           type="search"
@@ -576,7 +576,7 @@ export function DrivePage({
             { value: "type:asc", label: "File type" },
           ]}
         />
-      </div>
+      </FilterBar>
       <ErrorMessage error={listing.error ?? mutation.error ?? download.error ?? error} />
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <nav aria-label="Folder breadcrumbs" className="flex flex-wrap items-center gap-1 text-sm">

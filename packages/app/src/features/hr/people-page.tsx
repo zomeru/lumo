@@ -10,6 +10,8 @@ import {
   Field,
   Loading,
   PageHeading,
+  FilterBar,
+  ViewTabs,
   SelectField,
 } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -25,8 +27,9 @@ import {
   peopleQuery,
   useHrAction,
 } from "./hr-api";
+import { hrIcons } from "./hr-icons";
 import { useHrTab, useHrFilter } from "./hr-search";
-import { HrDialog, HrForm, HrTabs, formString } from "./hr-ui";
+import { HrDialog, HrForm, formString } from "./hr-ui";
 export function PeoplePage({ workspaceId }: { workspaceId: string }) {
   const [tab, setTab] = useHrTab("Directory", "/w/$workspaceId/people"),
     [selected, setSelected] = useState<Person | null>(null),
@@ -64,6 +67,7 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
   return (
     <>
       <PageHeading
+        icon={<hrIcons.people className="size-6" aria-hidden="true" />}
         eyebrow="People & HR"
         title="People"
         actions={
@@ -78,7 +82,7 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
       >
         Your workspace directory and reporting relationships.
       </PageHeading>
-      <HrTabs
+      <ViewTabs
         tabs={[
           "Directory",
           "Org chart",
@@ -104,7 +108,7 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
             }}
             className="mb-5 max-w-md"
           />
-          <div className="mb-4 grid gap-3 sm:grid-cols-2">
+          <FilterBar>
             <SelectField
               label="Directory department"
               value={filters.departmentId ?? "all"}
@@ -130,7 +134,7 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
                 { value: "terminated", label: "Terminated" },
               ]}
             />
-          </div>
+          </FilterBar>
           {people.isPending ? (
             <Loading />
           ) : people.data?.people.length ? (

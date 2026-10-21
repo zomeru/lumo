@@ -114,7 +114,10 @@ export function Progress({ className, max = 100, ...props }: ComponentProps<"pro
 export function Table({ className, ...props }: ComponentProps<"table">) {
   return (
     <div className="w-full overflow-x-auto rounded-lg border">
-      <table className={cn("w-full caption-bottom text-left text-sm", className)} {...props} />
+      <table
+        className={cn("w-full caption-bottom bg-surface text-left text-sm tabular-nums", className)}
+        {...props}
+      />
     </div>
   );
 }

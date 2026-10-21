@@ -24,6 +24,9 @@ let server: ReturnType<typeof mockApi>, client: QueryClient;
 let meetings: (Meeting & { hostName: string })[];
 let posted: Record<string, unknown> | null;
 beforeEach(() => {
+  // Keep today's noon meeting editable regardless of the time the suite runs.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 9, 21, 8, 0));
   server = mockApi();
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   posted = null;
@@ -90,6 +93,7 @@ afterEach(async () => {
   await client.cancelQueries();
   client.clear();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
   configurePlatform(undefined);
   onlineManager.setOnline(true);
 });
