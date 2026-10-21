@@ -8,7 +8,9 @@ import {
   payrollSettingsInputSchema,
   payrollVerifySchema,
 } from "@lumo/contracts/hr";
+import { statutoryConfigurationInputSchema } from "@lumo/contracts/payroll";
 import {
+  hrStatutoryConfiguration,
   hrCompensation,
   hrPayrollAdjustment,
   hrPayrollEmployee,
@@ -36,6 +38,8 @@ import {
 } from "./payroll";
 import { philippineRules } from "./payroll-rules";
 import { suggestedPayrollPeriod } from "./payroll-schedule";
+import { statutoryFor, invalidateStatutoryRuns } from "./statutory-config";
+import { statutoryTemplate } from "./statutory-engine";
 
 async function readPayroll(c: HrContext) {
   if (!(await c.can("hr.payroll.read_all")) && !(await c.can("hr.payroll.runs.manage"))) denied();
@@ -114,6 +118,62 @@ export function payrollRoutes(core: HrCore) {
     });
     return c.json({ ok: true });
   });
+  app.get("/payroll/statutory-configurations", async (c) =>
+    c.json(
+      await core.run(c.get("workspaceId"), c.get("user").id, async (ctx) => {
+        await ctx.require("hr.payroll.settings.manage");
+        const rows = await ctx.tx
+          .select()
+          .from(hrStatutoryConfiguration)
+          .where(eq(hrStatutoryConfiguration.workspaceId, ctx.workspaceId))
+          .orderBy(desc(hrStatutoryConfiguration.effectiveFrom));
+        return {
+          configurations: rows.map((r) => ({
+            ...r.data,
+            id: r.id,
+            actorId: r.actorId,
+            createdAt: r.createdAt,
+          })),
+          template: statutoryTemplate(),
+        };
+      }),
+    ),
+  );
+  app.post("/payroll/statutory-configurations", async (c) => {
+    const input = parse(statutoryConfigurationInputSchema, await c.req.json());
+    await core.run(c.get("workspaceId"), c.get("user").id, async (ctx) => {
+      await ctx.require("hr.payroll.settings.manage");
+      await assertOpenPayrollPeriod(ctx, input.effectiveFrom, "2200-12-31");
+      const history = await ctx.tx
+        .select()
+        .from(hrStatutoryConfiguration)
+        .where(eq(hrStatutoryConfiguration.workspaceId, ctx.workspaceId))
+        .orderBy(desc(hrStatutoryConfiguration.effectiveFrom));
+      if (history.some((r) => r.effectiveFrom === input.effectiveFrom))
+        throw new AppError(
+          409,
+          "STATUTORY_VERSION_EXISTS",
+          "Save a new effective date to retain statutory configuration history.",
+        );
+      const [row] = await ctx.tx
+        .insert(hrStatutoryConfiguration)
+        .values({
+          workspaceId: ctx.workspaceId,
+          effectiveFrom: input.effectiveFrom,
+          validThrough: input.validThrough,
+          data: input,
+          actorId: ctx.actorId,
+        })
+        .returning();
+      const invalidatedRuns = await invalidateStatutoryRuns(ctx, input.effectiveFrom);
+      await auditHr(ctx, "statutory_configuration.changed", row!.id, {
+        before: history.find((r) => r.effectiveFrom <= input.effectiveFrom)?.data ?? null,
+        after: input,
+        invalidatedRuns,
+      });
+    });
+    return c.json({ ok: true });
+  });
   app.get("/payroll/settings", async (c) =>
     c.json(
       await core.run(c.get("workspaceId"), c.get("user").id, async (ctx) => {
@@ -186,7 +246,8 @@ export function payrollRoutes(core: HrCore) {
       await core.run(c.get("workspaceId"), c.get("user").id, async (ctx) => {
         const payslips = await releasedPayslips(ctx);
         let estimate = null,
-          estimatePeriod = null;
+          estimatePeriod = null,
+          estimateUnavailableReason: string | null = null;
         const today = periodStart ?? localParts(new Date(), ctx.timezone).date,
           month = today.slice(0, 7),
           end = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
@@ -222,12 +283,18 @@ export function payrollRoutes(core: HrCore) {
           if (
             !(
               error instanceof AppError &&
-              ["PAYROLL_SETTINGS_REQUIRED", "COMPENSATION_REQUIRED"].includes(error.code)
+              [
+                "PAYROLL_SETTINGS_REQUIRED",
+                "COMPENSATION_REQUIRED",
+                "STATUTORY_CONFIGURATION_REQUIRED",
+                "STATUTORY_PERIOD_UNCOVERED",
+              ].includes(error.code)
             )
           )
             throw error;
+          estimateUnavailableReason = error.message;
         }
-        return { payslips, estimate, estimatePeriod };
+        return { payslips, estimate, estimatePeriod, estimateUnavailableReason };
       }),
     );
   });
@@ -606,13 +673,42 @@ export function payrollRoutes(core: HrCore) {
                 ? run.settingsSnapshot.timezone
                 : ctx.timezone,
             ).date ||
-          run.warnings.length ||
-          run.ruleVersion !== philippineRules.version
+          run.warnings.length
         )
           throw new AppError(
             409,
             "PAYROLL_NOT_READY",
             "The payroll period must be closed and covered by a reviewed statutory version.",
+          );
+        const sources = await ctx.tx
+          .select({ snapshot: hrPayrollEmployee.snapshot })
+          .from(hrPayrollEmployee)
+          .where(
+            and(
+              eq(hrPayrollEmployee.workspaceId, ctx.workspaceId),
+              eq(hrPayrollEmployee.runId, id),
+            ),
+          );
+        for (const source of sources) {
+          if (typeof source.snapshot.priorRunId === "string") {
+            const prior = await payrollRunFor(ctx, source.snapshot.priorRunId);
+            if (!["finalized", "paid"].includes(prior.status))
+              throw new AppError(
+                409,
+                "PAYROLL_RECONCILIATION_CHANGED",
+                "The first cutoff has changed. Return this run to draft and recalculate monthly remuneration.",
+              );
+          }
+        }
+        const applicable = await statutoryFor(ctx, run.startDate, run.endDate);
+        if (
+          run.ruleVersion !== applicable.version ||
+          run.settingsSnapshot?.statutoryConfigurationId !== applicable.id
+        )
+          throw new AppError(
+            409,
+            "STATUTORY_CONFIGURATION_CHANGED",
+            "Recalculate and independently review payroll using the applicable statutory configuration.",
           );
         const settings = payrollSettingsInputSchema.parse(run.settingsSnapshot?.data);
         await ctx.tx
@@ -668,6 +764,30 @@ export function payrollRoutes(core: HrCore) {
             409,
             "VOID_NOT_ALLOWED",
             "Paid payroll requires a subsequent-period correction; otherwise document a void reason.",
+          );
+        const [dependent] = await ctx.tx
+          .select({ id: hrPayrollRun.id })
+          .from(hrPayrollEmployee)
+          .innerJoin(
+            hrPayrollRun,
+            and(
+              eq(hrPayrollRun.workspaceId, hrPayrollEmployee.workspaceId),
+              eq(hrPayrollRun.id, hrPayrollEmployee.runId),
+            ),
+          )
+          .where(
+            and(
+              eq(hrPayrollEmployee.workspaceId, ctx.workspaceId),
+              sql`${hrPayrollEmployee.snapshot}->>'priorRunId' = ${id}`,
+              sql`${hrPayrollRun.status} in ('finalized','paid')`,
+            ),
+          )
+          .limit(1);
+        if (dependent)
+          throw new AppError(
+            409,
+            "PAYROLL_RECONCILIATION_CLOSED",
+            "A finalized month-end payroll uses this cutoff. Record a subsequent-period correction instead.",
           );
         await ctx.tx
           .update(hrPayrollRun)

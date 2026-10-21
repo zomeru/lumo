@@ -72,6 +72,11 @@ export const statutoryConfigurationInputSchema = z
   .superRefine((v, ctx) => {
     const issue = (path: (string | number)[], message: string) =>
       ctx.addIssue({ code: "custom", path, message });
+    if (!v.effectiveFrom.endsWith("-01"))
+      issue(
+        ["effectiveFrom"],
+        "Statutory versions must start on the first day of a month to keep both cutoffs consistent.",
+      );
     if (v.validThrough < v.effectiveFrom)
       issue(["validThrough"], "Review end date must follow the effective date.");
     for (const key of ["sss", "pagibig", "philhealth", "bir"] as const) {

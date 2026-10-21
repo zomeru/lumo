@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 
 import { createAuth } from "@lumo/auth";
+import { statutoryConfigurationsSchema } from "@lumo/contracts/payroll";
 import {
   membership,
   user,
@@ -79,6 +80,19 @@ function req(
 async function grant(userId: string, capability: string, scope = "workspace") {
   const r = await req("/grants", owner, "POST", { userId, capability, scope });
   expect(r.status).toBe(200);
+}
+async function configureStatutory(request: typeof req, effectiveFrom = "2025-01-01") {
+  const { template } = statutoryConfigurationsSchema.parse(
+    await (await request("/payroll/statutory-configurations")).json(),
+  );
+  const rules = { ...template, effectiveFrom, reason: "Explicitly reviewed accounting fixture" };
+  rules.sss.salaryBasis = "monthly_basic";
+  rules.sss.collection = "split";
+  rules.pagibig.salaryBasis = "monthly_basic";
+  expect((await request("/payroll/statutory-configurations", owner, "POST", rules)).status).toBe(
+    200,
+  );
+  return rules;
 }
 beforeAll(async () => {
   owner = await signup("OwnerHr");
@@ -433,6 +447,7 @@ test("Payroll runs require explicit grants, independent statutory review, immuta
     reason: "Reviewed monthly schedule",
   };
   expect((await req("/payroll/settings", owner, "POST", settings)).status).toBe(200);
+  await configureStatutory(req);
   expect(
     (
       await req("/payroll/compensation", owner, "POST", {
@@ -1129,6 +1144,7 @@ test("Payroll supports classified adjustments, independent revisions, void-and-r
     reason: "Verified business rules",
   };
   expect((await request("/payroll/settings", owner, "POST", settings)).status).toBe(200);
+  await configureStatutory(request);
   expect((await request("/payroll/settings", owner, "POST", settings)).status).toBe(409);
   expect(
     (await request("/payroll/runs", owner, "POST", { ...period, endDate: "2026-09-15" })).status,
@@ -1557,6 +1573,7 @@ test("Payroll snapshots unpaid leave, holiday/rest-day premiums, night work and 
     reason: "Semimonthly fixture",
   };
   expect((await request("/payroll/settings", owner, "POST", settings)).status).toBe(200);
+  await configureStatutory(request);
   await request("/payroll/compensation", owner, "POST", {
     userId: employee.id,
     effectiveFrom: "2026-01-01",
@@ -1806,6 +1823,7 @@ test("Payroll schedule suggestions, selected estimates, durable payout reminders
     reason: "Independent calendar test",
   };
   expect((await request("/payroll/settings", owner, "POST", settings)).status).toBe(200);
+  await configureStatutory(request);
   expect((await (await request("/payroll/schedule")).json()).period).toMatchObject({
     startDate: expect.stringMatching(/-01$/),
   });
@@ -1875,6 +1893,7 @@ test("Payroll blocks missing and incomplete sources while preserving prorated, p
     reason: "Unusual time inputs",
   };
   await request("/payroll/settings", owner, "POST", settings);
+  await configureStatutory(request);
   await request(`/people/${employee.id}`, owner, "PUT", {
     hireDate: "2026-09-10",
     endDate: "2026-09-20",
@@ -2082,4 +2101,256 @@ test("Employment termination and closed payroll source corrections require delib
       })
     ).status,
   ).toBe(201);
+});
+
+test("statutory settings are explicit, workspace-scoped, effective-dated and protected by payroll capabilities", async () => {
+  const { request } = await policyLab();
+  const path = "/payroll/statutory-configurations";
+  const draft = statutoryConfigurationsSchema.parse(await (await request(path)).json());
+  expect(draft.configurations).toEqual([]);
+  for (const actor of [admin, manager, employee]) {
+    expect((await request(path, actor)).status).toBe(403);
+    expect((await request(path, actor, "POST", draft.template)).status).toBe(403);
+  }
+  expect((await request(path, outsider)).status).toBe(404);
+  await request("/grants", owner, "POST", {
+    userId: manager.id,
+    capability: "hr.permissions.manage",
+    scope: "workspace",
+  });
+  expect((await request(path, manager)).status).toBe(403);
+  expect((await request(path, owner, "POST", { ...draft.template, confirmed: false })).status).toBe(
+    400,
+  );
+  expect(
+    (await request(path, owner, "POST", { ...draft.template, effectiveFrom: "2026-01-16" })).status,
+  ).toBe(400);
+  const rules = await configureStatutory(request);
+  expect((await request(path, owner, "POST", rules)).status).toBe(409);
+  await request("/grants", owner, "POST", {
+    userId: admin.id,
+    capability: "hr.payroll.settings.manage",
+    scope: "workspace",
+  });
+  expect((await request(path, admin)).status).toBe(200);
+  const next = {
+    ...rules,
+    effectiveFrom: "2027-01-01",
+    validThrough: "2027-12-31",
+    label: "New year reviewed rules",
+  };
+  expect((await request(path, admin, "POST", next)).status).toBe(200);
+  const saved = statutoryConfigurationsSchema.parse(await (await request(path)).json());
+  expect(saved.configurations).toHaveLength(2);
+  expect(saved.configurations[0]).toMatchObject(next);
+  expect(saved.configurations[1]).toMatchObject(rules);
+  const audit = await (await request("/audit")).json();
+  expect(
+    audit.events.filter((e: { action: string }) => e.action === "statutory_configuration.changed"),
+  ).toHaveLength(2);
+  expect((await (await req(path)).json()).configurations).toHaveLength(1);
+});
+
+async function statutoryPayrollLab(frequency = "monthly") {
+  const lab = await policyLab();
+  const settings = {
+    effectiveFrom: "2026-01-01",
+    frequency,
+    currency: "PHP",
+    workingDaysPerYear: 261,
+    minutesPerDay: 480,
+    overtimeBps: 12500,
+    holidayBps: 20000,
+    restDayBps: 13000,
+    nightDifferentialBps: 0,
+    deductUndertime: false,
+    publishOnFinalize: true,
+    payoutDay: 30,
+    reason: "Reviewed statutory integration policy",
+  };
+  expect((await lab.request("/payroll/settings", owner, "POST", settings)).status).toBe(200);
+  expect(
+    (
+      await lab.request("/payroll/compensation", owner, "POST", {
+        userId: employee.id,
+        effectiveFrom: "2026-01-01",
+        salaryMinor: 2500000,
+        reason: "Reviewed salary fixture",
+      })
+    ).status,
+  ).toBe(200);
+  await lab.request("/grants", owner, "POST", {
+    userId: admin.id,
+    capability: "hr.payroll.runs.approve",
+    scope: "workspace",
+  });
+  await lab.request("/grants", owner, "POST", {
+    userId: admin.id,
+    capability: "hr.payroll.read_all",
+    scope: "workspace",
+  });
+  return lab;
+}
+async function releaseStatutoryRun(request: typeof req, runId: string) {
+  const detail = await (await request(`/payroll/runs/${runId}`)).json();
+  expect(detail.run.warnings).toEqual([]);
+  expect(
+    (
+      await request(`/payroll/runs/${runId}/employees/${employee.id}/verify`, admin, "POST", {
+        revision: detail.run.revision,
+        expectedNetMinor: detail.employees[0].result.netMinor,
+        confirmed: true,
+        reference: "Independently reconciled statutory tables and source payroll lines",
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await request(`/payroll/runs/${runId}/action`, admin, "POST", {
+        action: "approve",
+        revision: detail.run.revision,
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await request(`/payroll/runs/${runId}/action`, owner, "POST", {
+        action: "finalize",
+        revision: detail.run.revision,
+      })
+    ).status,
+  ).toBe(200);
+  return await (await request(`/payroll/runs/${runId}`)).json();
+}
+test("configured rules drive generated payroll, invalidate open approvals and preserve finalized snapshots", async () => {
+  const { request } = await statutoryPayrollLab();
+  const period = {
+    startDate: "2026-09-01",
+    endDate: "2026-09-30",
+    cutoffDate: "2026-09-30",
+    payoutDate: "2026-09-30",
+  };
+  const created = await request("/payroll/runs", owner, "POST", period),
+    id = (await created.json()).id as string;
+  expect((await request(`/payroll/runs/${id}/calculate`, owner, "POST", {})).status).toBe(409);
+  const rules = await configureStatutory(request, "2026-01-01");
+  expect((await request(`/payroll/runs/${id}/calculate`, owner, "POST", {})).status).toBe(200);
+  const before = await (await request(`/payroll/runs/${id}`)).json();
+  expect(before.employees[0].result.netMinor).toBe(2261120);
+  const changed = structuredClone(rules);
+  changed.effectiveFrom = "2026-09-01";
+  changed.sss.employeeBps = 400;
+  changed.sss.mpfEmployeeBps = 400;
+  changed.philhealth.totalBps = 400;
+  changed.bir.monthly = [{ thresholdMinor: 0, fixedMinor: 0, bps: 0 }];
+  expect((await request("/payroll/statutory-configurations", owner, "POST", changed)).status).toBe(
+    200,
+  );
+  const invalidated = await (await request(`/payroll/runs/${id}`)).json();
+  expect(invalidated.run.status).toBe("draft");
+  expect(invalidated.run.revision).toBeGreaterThan(before.run.revision);
+  expect(invalidated.employees).toEqual([]);
+  expect((await request(`/payroll/runs/${id}/calculate`, owner, "POST", {})).status).toBe(200);
+  const calculated = await (await request(`/payroll/runs/${id}`)).json();
+  expect(calculated.employees[0].result.netMinor).toBe(2330000);
+  expect(calculated.employees[0].snapshot.rules).toEqual(changed);
+  const closed = await releaseStatutoryRun(request, id);
+  expect(
+    (
+      await request("/payroll/statutory-configurations", owner, "POST", {
+        ...rules,
+        effectiveFrom: "2026-08-01",
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await request("/payroll/statutory-configurations", owner, "POST", {
+        ...rules,
+        effectiveFrom: "2026-10-01",
+      })
+    ).status,
+  ).toBe(200);
+  expect(await (await request(`/payroll/runs/${id}`)).json()).toEqual(closed);
+  const future = await request("/payroll/runs", owner, "POST", {
+    startDate: "2027-01-01",
+    endDate: "2027-01-31",
+    cutoffDate: "2027-01-31",
+    payoutDate: "2027-01-31",
+  });
+  const futureId = (await future.json()).id as string;
+  expect((await request(`/payroll/runs/${futureId}/calculate`, owner, "POST", {})).status).toBe(
+    409,
+  );
+  const own = await (await request("/payroll/me?periodStart=2027-01-01", employee)).json();
+  expect(own.estimate).toBeNull();
+  expect(own.estimateUnavailableReason).toContain("entire payroll period");
+  expect(own.payslips[0].result).toEqual(closed.employees[0].result);
+});
+
+test("actual remuneration reconciles finalized first-cutoff earnings exactly once at month-end", async () => {
+  const { request } = await statutoryPayrollLab("semimonthly");
+  const { template } = statutoryConfigurationsSchema.parse(
+    await (await request("/payroll/statutory-configurations")).json(),
+  );
+  expect(
+    (
+      await request("/payroll/statutory-configurations", owner, "POST", {
+        ...template,
+        effectiveFrom: "2026-01-01",
+      })
+    ).status,
+  ).toBe(200);
+  const create = async (start: string, end: string) => {
+    const reply = await request("/payroll/runs", owner, "POST", {
+      startDate: start,
+      endDate: end,
+      cutoffDate: end,
+      payoutDate: end,
+    });
+    expect(reply.status).toBe(201);
+    return (await reply.json()).id as string;
+  };
+  const first = await create("2026-09-01", "2026-09-15"),
+    second = await create("2026-09-16", "2026-09-30");
+  await request(`/payroll/runs/${second}/calculate`, owner, "POST", {});
+  const incomplete = await (await request(`/payroll/runs/${second}`)).json();
+  expect(incomplete.run.warnings.join(" ")).toContain("Finalize the first cutoff");
+  await request(`/payroll/runs/${first}/adjustments`, owner, "POST", {
+    userId: employee.id,
+    label: "Taxable incentive",
+    amountMinor: 500000,
+    classification: "earning_taxable",
+    reason: "Approved monthly incentive",
+    idempotencyKey: randomUUID(),
+  });
+  await request(`/payroll/runs/${first}/calculate`, owner, "POST", {});
+  const firstClosed = await releaseStatutoryRun(request, first);
+  expect(
+    firstClosed.employees[0].result.lines.find((l: { label: string }) => l.label === "SSS")
+      .amountMinor,
+  ).toBe(0);
+  await request(`/payroll/runs/${second}/calculate`, owner, "POST", {});
+  const monthEnd = await (await request(`/payroll/runs/${second}`)).json();
+  expect(monthEnd.employees[0].snapshot.priorRunId).toBe(first);
+  expect(monthEnd.employees[0].snapshot.input.priorRemunerationMinor).toBe(1750000);
+  expect(
+    monthEnd.employees[0].result.lines.find((l: { label: string }) => l.label === "SSS MPF")
+      .amountMinor,
+  ).toBe(50000);
+  const once = monthEnd.employees[0].result;
+  await request(`/payroll/runs/${second}/calculate`, owner, "POST", {});
+  expect((await (await request(`/payroll/runs/${second}`)).json()).employees[0].result).toEqual(
+    once,
+  );
+  await releaseStatutoryRun(request, second);
+  expect(
+    (
+      await request(`/payroll/runs/${first}/action`, owner, "POST", {
+        action: "void",
+        revision: firstClosed.run.revision,
+        reason: "Cannot invalidate closed month reconciliation",
+      })
+    ).status,
+  ).toBe(409);
 });

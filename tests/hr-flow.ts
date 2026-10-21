@@ -156,6 +156,10 @@ export async function verifyHr(owner: Page, colleague: Page, screenshot: (name: 
     payoutDay: 30,
     reason: "E2E fixture business settings",
   });
+  const statutory = (
+    await api(owner, `/workspaces/${workspaceId}/hr/payroll/statutory-configurations`)
+  ).body as { template: unknown };
+  await configure("/payroll/statutory-configurations", statutory.template);
   await configure("/payroll/compensation", {
     userId: teammate.user.id,
     effectiveFrom: "2026-01-01",

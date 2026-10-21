@@ -2,6 +2,10 @@ import type { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
 import { idSchema, okSchema, errorSchema } from "@lumo/contracts";
 import * as hr from "@lumo/contracts/hr";
+import {
+  statutoryConfigurationInputSchema,
+  statutoryConfigurationsSchema,
+} from "@lumo/contracts/payroll";
 
 import type { ApiContext } from "../../lib/context";
 
@@ -203,6 +207,17 @@ export function documentHr(app: OpenAPIHono<ApiContext>) {
       path: "/payroll/compensation",
       response: okSchema,
       input: hr.compensationInputSchema,
+    },
+    {
+      method: "get",
+      path: "/payroll/statutory-configurations",
+      response: statutoryConfigurationsSchema,
+    },
+    {
+      method: "post",
+      path: "/payroll/statutory-configurations",
+      response: okSchema,
+      input: statutoryConfigurationInputSchema,
     },
     { method: "get", path: "/payroll/settings", response: hr.payrollSettingsSchema },
     {

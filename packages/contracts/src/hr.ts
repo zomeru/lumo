@@ -504,6 +504,7 @@ export const ownPaySchema = z.object({
   ),
   estimate: payrollResultSchema.nullable(),
   estimatePeriod: z.string().nullable(),
+  estimateUnavailableReason: z.string().nullable().optional(),
 });
 export const payrollAdjustmentInputSchema = z.strictObject({
   userId: z.uuid(),

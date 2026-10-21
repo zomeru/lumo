@@ -23,7 +23,7 @@ import { attendanceMonth } from "./attendance";
 import { datesBetween, employeeCalendar, localParts, scheduleOn, scheduledDay } from "./calendar";
 import { auditHr, type HrContext } from "./core";
 import { calculatePay, roundedRatio, type PayrollEngineInput } from "./payroll-engine";
-import { philippineRules } from "./payroll-rules";
+import { statutoryFor } from "./statutory-config";
 
 export const closedPayroll = (status: string) => ["finalized", "paid", "voided"].includes(status);
 export async function payrollRunFor(c: HrContext, id: string) {
@@ -111,7 +111,9 @@ export async function employeePay(
   settings: PayrollSettings,
   runId?: string,
   privileged = true,
+  statutory?: Awaited<ReturnType<typeof statutoryFor>>,
 ) {
+  const configuration = statutory ?? (await statutoryFor(c, period.startDate, period.endDate));
   const compensation = await c.tx
     .select()
     .from(hrCompensation)
@@ -284,7 +286,55 @@ export async function employeePay(
     secondCutoff: Number(period.startDate.slice(8)) > 15,
     adjustments: parsedAdjustments,
   };
-  const result = calculatePay(input, settings);
+  input.finalCollection = Boolean(employee?.endDate && employee.endDate <= period.endDate);
+  let priorRunId: string | null = null;
+  if (
+    settings.frequency === "semimonthly" &&
+    input.secondCutoff &&
+    [configuration.rules.sss, configuration.rules.pagibig, configuration.rules.philhealth].some(
+      (p) => p.enabled && p.salaryBasis === "period_remuneration",
+    )
+  ) {
+    const month = period.startDate.slice(0, 7);
+    const [prior] = await c.tx
+      .select({ run: hrPayrollRun, employee: hrPayrollEmployee })
+      .from(hrPayrollRun)
+      .innerJoin(
+        hrPayrollEmployee,
+        and(
+          eq(hrPayrollEmployee.workspaceId, hrPayrollRun.workspaceId),
+          eq(hrPayrollEmployee.runId, hrPayrollRun.id),
+          eq(hrPayrollEmployee.userId, userId),
+        ),
+      )
+      .where(
+        and(
+          eq(hrPayrollRun.workspaceId, c.workspaceId),
+          eq(hrPayrollRun.startDate, `${month}-01`),
+          eq(hrPayrollRun.endDate, `${month}-15`),
+          sql`${hrPayrollRun.status} in ('finalized','paid')`,
+        ),
+      )
+      .limit(1);
+    if (prior) {
+      const result = payrollResultSchema.parse(prior.employee.result);
+      input.priorRemunerationMinor = Math.max(
+        0,
+        result.grossMinor -
+          result.lines
+            .filter(
+              (l) =>
+                l.source === "approved unpaid leave" ||
+                l.source === "reviewed attendance, configured policy",
+            )
+            .reduce((n, l) => n + l.amountMinor, 0),
+      );
+      priorRunId = prior.run.id;
+    } else if (!employee?.hireDate || employee.hireDate < period.startDate)
+      warnings.push("Finalize the first cutoff before reconciling monthly statutory remuneration.");
+  }
+  const result = calculatePay(input, settings, configuration);
+  if (!privileged) result.warnings.push(...warnings);
   if (days.some((d) => d.status === "incomplete"))
     warnings.push("Close or correct incomplete attendance before finalization.");
   if (days.some((d) => d.correctionId) && settings.nightDifferentialBps > 0)
@@ -298,9 +348,11 @@ export async function employeePay(
   return {
     result,
     snapshot: {
-      engineVersion: "lumo-payroll-1",
-      ruleVersion: philippineRules.version,
-      rules: philippineRules,
+      engineVersion: "lumo-payroll-2",
+      ruleVersion: configuration.version,
+      statutoryConfigurationId: configuration.id,
+      rules: configuration.rules,
+      priorRunId,
       settings,
       compensation: compensation.map(({ id, effectiveFrom, salaryMinor, allowances }) => ({
         id,
@@ -326,9 +378,8 @@ export async function calculateRun(c: HrContext, id: string) {
   if (closedPayroll(run.status) || run.status === "approved")
     throw new AppError(409, "RUN_IMMUTABLE", "Return an open run to draft before recalculating.");
   const settings = await settingsFor(c, run.endDate);
+  const configuration = await statutoryFor(c, run.startDate, run.endDate);
   const warnings: string[] = [];
-  if (run.startDate < philippineRules.effectiveFrom || run.endDate > philippineRules.effectiveTo)
-    warnings.push("The selected statutory rule version does not cover this period.");
   const employees = await c.tx
     .select()
     .from(hrEmployee)
@@ -352,7 +403,15 @@ export async function calculateRun(c: HrContext, id: string) {
   for (const { hr_employees: employee } of employees) {
     if (employee.employmentType !== "employee") continue;
     try {
-      const calculated = await employeePay(c, employee.userId, run, settings.parsed, id);
+      const calculated = await employeePay(
+        c,
+        employee.userId,
+        run,
+        settings.parsed,
+        id,
+        true,
+        configuration,
+      );
       warnings.push(...calculated.warnings.map((w) => `${employee.userId}: ${w}`));
       await c.tx.insert(hrPayrollEmployee).values({
         workspaceId: c.workspaceId,
@@ -376,8 +435,14 @@ export async function calculateRun(c: HrContext, id: string) {
       revision: run.revision + 1,
       calculatedBy: c.actorId,
       approvedBy: null,
-      settingsSnapshot: { data: settings.parsed, timezone: c.timezone, settingsId: settings.id },
-      ruleVersion: philippineRules.version,
+      settingsSnapshot: {
+        data: settings.parsed,
+        timezone: c.timezone,
+        settingsId: settings.id,
+        statutoryConfigurationId: configuration.id,
+        statutory: configuration.rules,
+      },
+      ruleVersion: configuration.version,
       warnings,
     })
     .where(and(eq(hrPayrollRun.workspaceId, c.workspaceId), eq(hrPayrollRun.id, id)));

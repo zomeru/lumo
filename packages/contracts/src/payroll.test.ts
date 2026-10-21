@@ -82,6 +82,9 @@ describe("statutory configuration validation", () => {
   });
   it.each([
     (v: StatutoryConfigurationInput) => {
+      v.effectiveFrom = "2026-01-16";
+    },
+    (v: StatutoryConfigurationInput) => {
       v.validThrough = "2025-01-01";
     },
     (v: StatutoryConfigurationInput) => {
