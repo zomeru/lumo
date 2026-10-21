@@ -12,6 +12,7 @@ import {
   type Browser,
 } from "@playwright/test";
 
+import { verifyCalendar } from "../calendar-flow";
 import { verifyDrive } from "../drive-flow";
 import { verifyFileModules } from "../file-modules-flow";
 import { verifyDesktopScrolling } from "./scrollbars";
@@ -308,6 +309,7 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
     await page.getByLabel("Meeting title").fill("Desktop planning");
     await page.getByRole("button", { name: "Create meeting" }).click();
     await expect(page.getByRole("link", { name: "Open Desktop planning" })).toBeVisible();
+    await verifyCalendar(page, testInfo.outputPath("desktop-calendar.png"));
     await app.close();
     app = await launch(dir);
     page = await app.firstWindow();

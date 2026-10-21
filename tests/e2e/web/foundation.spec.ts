@@ -3,12 +3,21 @@ import { resolve } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { verifyCalendar } from "../../calendar-flow";
 import { verifyDrive } from "../../drive-flow";
 import { verifyFileModules } from "../../file-modules-flow";
 
 async function selectOption(page: Page, label: string, option: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();
   await page.getByRole("option", { name: option, exact: true }).click();
+  const control =
+    label === "Workspace"
+      ? page
+          .locator("[data-app-sidebar]")
+          .getByRole("combobox", { name: label, exact: true, includeHidden: true })
+      : page.getByRole("combobox", { name: label, exact: true });
+  await expect(control).toHaveText(option);
+  await expect(control).toBeEnabled();
 }
 
 import { verifyDesignSystem } from "./design-system";
@@ -63,6 +72,8 @@ test("account, setup, Drive, invitations, switching and revocation work with the
   await expect(page).toHaveURL(/\/login/);
   await register(page, "Alice Chen", ownerEmail);
   const personalHome = page.url();
+  await verifyCalendar(page, testInfo.outputPath("calendar.png"));
+  await page.goto(personalHome);
   await verifyDrive(page, testInfo.outputPath("drive.png"));
   await page.goto(personalHome);
   await expect(page.getByRole("heading", { name: "Make yourself at home, Alice" })).toBeVisible();
