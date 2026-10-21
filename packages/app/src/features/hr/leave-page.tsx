@@ -4,6 +4,7 @@ import {
   leaveBalancesSchema,
   leavePoliciesSchema,
   whoOutSchema,
+  type LeavePolicy,
 } from "@lumo/contracts/hr";
 import {
   Badge,
@@ -27,20 +28,22 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { hrAccessQuery, hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
-import { useHrTab } from "./hr-search";
+import { useHrTab, useHrMonth } from "./hr-search";
 import { HrDialog, HrForm, HrTabs, formString } from "./hr-ui";
 import { RequestDialog } from "./request-dialog";
 export function LeavePage({ workspaceId }: { workspaceId: string }) {
   const [tab, setTab] = useHrTab("My leave", "/w/$workspaceId/leave"),
     [open, setOpen] = useState(false),
     [policyOpen, setPolicyOpen] = useState(false),
+    [editingPolicy, setEditingPolicy] = useState<LeavePolicy | null>(null),
     [ledger, setLedger] = useState<string | null>(null),
     [adjust, setAdjust] = useState(false),
-    [year, setYear] = useState(() => new Date().getFullYear()),
-    [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+    [selectedYear, setYear] = useState<number>();
   const access = useQuery(hrAccessQuery(workspaceId)),
     people = useQuery(allPeopleQuery(workspaceId)),
     policies = useQuery(hrQuery(workspaceId, "/leave/policies", leavePoliciesSchema));
+  const { month, setMonth } = useHrMonth("/w/$workspaceId/leave", access.data?.timezone ?? "UTC");
+  const year = selectedYear ?? Number(month.slice(0, 4));
   const action = useHrAction(workspaceId);
   const balances = useQuery(
       hrQuery(
@@ -112,7 +115,10 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
                   {b.name} {!b.paid && <Badge>Unpaid</Badge>}
                 </h2>
                 <p className="my-3 text-2xl font-semibold text-foreground">
-                  {b.balanceHalfDays / 2} days left
+                  {policies.data?.policies.find((p) => p.id === b.leaveTypeId)?.enforceBalance ===
+                  false
+                    ? "No fixed limit"
+                    : `${b.balanceHalfDays / 2} days left`}
                 </p>
                 <p>
                   {b.usedHalfDays / 2} used · {b.pendingHalfDays / 2} pending
@@ -233,7 +239,13 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
       )}
       {tab === "Policies" && (
         <>
-          <Button className="mb-4" onClick={() => setPolicyOpen(true)}>
+          <Button
+            className="mb-4"
+            onClick={() => {
+              setEditingPolicy(null);
+              setPolicyOpen(true);
+            }}
+          >
             Add leave policy
           </Button>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -247,6 +259,15 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
                 <p>
                   Effective {p.effectiveFrom} · version {p.version}
                 </p>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingPolicy(p);
+                    setPolicyOpen(true);
+                  }}
+                >
+                  Edit policy
+                </Button>
                 <Button
                   size="sm"
                   disabled={action.isPending}
@@ -293,7 +314,8 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
           onSubmit={(data) =>
             action.mutate(
               {
-                path: "/leave/policies",
+                path: editingPolicy ? `/leave/policies/${editingPolicy.id}` : "/leave/policies",
+                method: editingPolicy ? "PUT" : "POST",
                 body: {
                   name: formString(data, "name"),
                   paid: formString(data, "paid") === "true",
@@ -301,7 +323,10 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
                   accrualHalfDaysMonthly: Number(formString(data, "accrualHalfDaysMonthly")),
                   carryoverHalfDays: Number(formString(data, "carryoverHalfDays")),
                   eligibleAfterDays: Number(formString(data, "eligibleAfterDays")),
-                  allowHalfDay: true,
+                  allowHalfDay: formString(data, "allowHalfDay") === "true",
+                  carryoverExpiryMonth: formString(data, "carryoverExpiryMonth")
+                    ? Number(formString(data, "carryoverExpiryMonth"))
+                    : null,
                   requireDocumentation: formString(data, "requireDocumentation") === "true",
                   enforceBalance: formString(data, "enforceBalance") === "true",
                   effectiveFrom: formString(data, "effectiveFrom"),
@@ -311,9 +336,10 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
             )
           }
         >
-          <Field name="name" label="Leave category" required />
+          <Field name="name" label="Leave category" defaultValue={editingPolicy?.name} required />
           <SelectField
             name="paid"
+            defaultValue={String(editingPolicy?.paid ?? true)}
             label="Pay treatment"
             options={[
               { value: "true", label: "Paid leave" },
@@ -326,14 +352,14 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
             type="number"
             min="0"
             max="732"
-            defaultValue="0"
+            defaultValue={editingPolicy?.allocationHalfDays ?? 0}
             required
           />
           <Field
             name="accrualHalfDaysMonthly"
             label="Monthly accrual (half-day units)"
             type="number"
-            defaultValue="0"
+            defaultValue={editingPolicy?.accrualHalfDaysMonthly ?? 0}
             min="0"
             max="62"
           />
@@ -341,7 +367,7 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
             name="carryoverHalfDays"
             label="Maximum carryover (half-day units)"
             type="number"
-            defaultValue="0"
+            defaultValue={editingPolicy?.carryoverHalfDays ?? 0}
             min="0"
             max="732"
           />
@@ -349,11 +375,35 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
             name="eligibleAfterDays"
             label="Eligibility after hire (calendar days)"
             type="number"
-            defaultValue="0"
+            defaultValue={editingPolicy?.eligibleAfterDays ?? 0}
             min="0"
           />
-          <Field name="effectiveFrom" label="Effective from" type="date" required />
+          <Field
+            name="effectiveFrom"
+            label="Effective from"
+            type="date"
+            defaultValue={editingPolicy?.effectiveFrom}
+            required
+          />
+          <Field
+            label="Carryover expiry month (optional, 1–12)"
+            name="carryoverExpiryMonth"
+            type="number"
+            min="1"
+            max="12"
+            defaultValue={editingPolicy?.carryoverExpiryMonth ?? ""}
+          />
           <SelectField
+            label="Partial-day requests"
+            name="allowHalfDay"
+            defaultValue={String(editingPolicy?.allowHalfDay ?? true)}
+            options={[
+              { value: "true", label: "Allow half days" },
+              { value: "false", label: "Full days only" },
+            ]}
+          />
+          <SelectField
+            defaultValue={String(editingPolicy?.requireDocumentation ?? false)}
             name="requireDocumentation"
             label="Documentation"
             options={[
@@ -362,6 +412,7 @@ export function LeavePage({ workspaceId }: { workspaceId: string }) {
             ]}
           />
           <SelectField
+            defaultValue={String(editingPolicy?.enforceBalance ?? true)}
             name="enforceBalance"
             label="Balance limit"
             options={[

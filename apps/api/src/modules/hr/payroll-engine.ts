@@ -64,6 +64,15 @@ export type PayrollEngineInput = {
   basicMinor: number;
   monthlySalaryMinor: number;
   allowances: { label: string; amountMinor: number; taxable: boolean }[];
+  timeAmounts?: Record<
+    | "Unpaid leave"
+    | "Attendance deduction"
+    | "Approved overtime"
+    | "Approved holiday work"
+    | "Approved rest-day work"
+    | "Night differential",
+    number
+  >;
   unpaidMinutes: number;
   undertimeMinutes: number;
   overtimeMinutes: number;
@@ -104,8 +113,10 @@ export function calculatePay(input: PayrollEngineInput, settings: PayrollSetting
     if (allowance.taxable) taxable += amount;
     else warnings.push("Confirm non-taxable allowance eligibility and annual limits.");
   }
-  const unpaid = minuteAmount(input.unpaidMinutes),
-    undertime = settings.deductUndertime ? minuteAmount(input.undertimeMinutes) : 0;
+  const unpaid = input.timeAmounts?.["Unpaid leave"] ?? minuteAmount(input.unpaidMinutes),
+    undertime = settings.deductUndertime
+      ? (input.timeAmounts?.["Attendance deduction"] ?? minuteAmount(input.undertimeMinutes))
+      : 0;
   line("Unpaid leave", "deduction", unpaid, "approved unpaid leave");
   line("Attendance deduction", "deduction", undertime, "reviewed attendance, configured policy");
   taxable -= unpaid + undertime;
@@ -115,7 +126,7 @@ export function calculatePay(input: PayrollEngineInput, settings: PayrollSetting
     ["Approved rest-day work", input.restMinutes, settings.restDayBps],
     ["Night differential", input.nightMinutes, settings.nightDifferentialBps],
   ] as const) {
-    const amount = minuteAmount(minutes, bps);
+    const amount = input.timeAmounts?.[label] ?? minuteAmount(minutes, bps);
     line(label, "earning", amount, "attendance and approved request snapshot");
     taxable += amount;
   }

@@ -15,8 +15,18 @@ export const hrQuery = <S extends z.ZodType>(workspaceId: string, path: string, 
     refetchInterval: 30000,
   });
 export const hrAccessQuery = (id: string) => hrQuery(id, "/access", hrAccessSchema);
-export const peopleQuery = (id: string, q = "", offset = 0) =>
-  hrQuery(id, `/people?q=${encodeURIComponent(q)}&offset=${offset}`, peopleSchema);
+export const peopleQuery = (
+  id: string,
+  q = "",
+  offset = 0,
+  departmentId?: string,
+  status?: string,
+) =>
+  hrQuery(
+    id,
+    `/people?q=${encodeURIComponent(q)}&offset=${offset}${departmentId ? `&departmentId=${departmentId}` : ""}${status && status !== "all" ? `&status=${encodeURIComponent(status)}` : ""}`,
+    peopleSchema,
+  );
 export const departmentsQuery = (id: string) => hrQuery(id, "/departments", departmentsSchema);
 export function useHrAction(workspaceId: string) {
   const client = useQueryClient();
@@ -30,7 +40,12 @@ export function useHrAction(workspaceId: string) {
       body?: unknown;
       method?: string;
     }) => command(`${hrPath(workspaceId)}${path}`, method, body),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["workspace", workspaceId, "hr"] }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["workspace", workspaceId, "hr"] }),
+        client.invalidateQueries({ queryKey: ["hr-inbox", workspaceId] }),
+      ]);
+    },
   });
 }
 

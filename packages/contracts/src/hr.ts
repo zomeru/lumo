@@ -58,7 +58,11 @@ export const employmentInputSchema = z
     endDate: calendarDateSchema.nullable().default(null),
     location: z.string().trim().max(150).default(""),
   })
-  .refine((v) => !v.endDate || !v.hireDate || v.endDate >= v.hireDate);
+  .refine((v) => !v.endDate || !v.hireDate || v.endDate >= v.hireDate)
+  .refine(
+    (v) => v.status !== "terminated" || Boolean(v.endDate),
+    "Terminated employment requires an end date",
+  );
 export const departmentInputSchema = z.strictObject({
   name: z.string().trim().min(1).max(100),
   managerId: z.uuid().nullable().default(null),
@@ -303,6 +307,7 @@ export const leavePolicySchema = leavePolicyInputSchema.extend({
   id: z.uuid(),
   version: z.number(),
 });
+export type LeavePolicy = z.infer<typeof leavePolicySchema>;
 export const leavePoliciesSchema = z.object({ policies: z.array(leavePolicySchema) });
 export const leaveBalanceSchema = z.object({
   userId: z.uuid(),
@@ -437,8 +442,13 @@ export const payrollRunInputSchema = z
     reason: z.string().trim().max(500).default(""),
   })
   .refine(
-    (v) => v.endDate >= v.startDate && v.payoutDate >= v.endDate && v.cutoffDate <= v.endDate,
+    (v) =>
+      v.endDate >= v.startDate &&
+      v.payoutDate >= v.endDate &&
+      v.cutoffDate >= v.startDate &&
+      v.cutoffDate <= v.endDate,
   );
+export const payrollScheduleSchema = z.object({ period: payrollRunInputSchema.nullable() });
 export const payrollLineSchema = z.object({
   label: z.string(),
   kind: z.enum(["earning", "deduction", "employer"]),

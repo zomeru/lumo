@@ -95,9 +95,11 @@ export async function clearWorkspaceCache(client: QueryClient) {
   await Promise.all([
     client.cancelQueries({ queryKey: ["workspace"] }),
     client.cancelQueries({ queryKey: ["meeting"] }),
+    client.cancelQueries({ queryKey: ["hr-inbox"] }),
   ]);
   client.removeQueries({ queryKey: ["workspace"] });
   client.removeQueries({ queryKey: ["meeting"] });
+  client.removeQueries({ queryKey: ["hr-inbox"] });
 }
 
 export async function refreshWorkspaces(client: QueryClient) {

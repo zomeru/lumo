@@ -237,7 +237,7 @@ export async function validateLeave(c: HrContext, details: RequestDetails, reque
           ...details,
           charges,
           paid: policy.paid,
-          policyVersion: type.version,
+          policyVersion: request?.details.policyVersion ?? type.version,
           policySnapshot: policy,
         },
       })

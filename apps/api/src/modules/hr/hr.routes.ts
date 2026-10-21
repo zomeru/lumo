@@ -19,6 +19,7 @@ import { leaveRoutes } from "./leave.routes";
 import { onboardingTaskAccess } from "./onboarding";
 import { onboardingRoutes } from "./onboarding.routes";
 import { guardPayrollRequestChange } from "./payroll";
+import { remindPayrollDue } from "./payroll-schedule";
 import { payrollRoutes } from "./payroll.routes";
 import { peopleRoutes } from "./people.routes";
 
@@ -130,26 +131,29 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, 
   });
   app.get("/workspaces/:workspaceId/hr/notifications", async (c) =>
     c.json(
-      await run(c, async (ctx) => ({
-        notifications: await ctx.tx
-          .select({
-            id: hrNotification.id,
-            title: hrNotification.title,
-            module: hrNotification.module,
-            targetId: hrNotification.targetId,
-            readAt: hrNotification.readAt,
-            createdAt: hrNotification.createdAt,
-          })
-          .from(hrNotification)
-          .where(
-            and(
-              eq(hrNotification.workspaceId, ctx.workspaceId),
-              eq(hrNotification.userId, ctx.actorId),
-            ),
-          )
-          .orderBy(desc(hrNotification.createdAt))
-          .limit(100),
-      })),
+      await run(c, async (ctx) => {
+        await remindPayrollDue(ctx);
+        return {
+          notifications: await ctx.tx
+            .select({
+              id: hrNotification.id,
+              title: hrNotification.title,
+              module: hrNotification.module,
+              targetId: hrNotification.targetId,
+              readAt: hrNotification.readAt,
+              createdAt: hrNotification.createdAt,
+            })
+            .from(hrNotification)
+            .where(
+              and(
+                eq(hrNotification.workspaceId, ctx.workspaceId),
+                eq(hrNotification.userId, ctx.actorId),
+              ),
+            )
+            .orderBy(desc(hrNotification.createdAt))
+            .limit(100),
+        };
+      }),
     ),
   );
   app.post("/workspaces/:workspaceId/hr/notifications/:id/read", async (c) => {

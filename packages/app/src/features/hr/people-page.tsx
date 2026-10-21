@@ -14,7 +14,7 @@ import {
 } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { workspaceQuery } from "../../lib/api";
 import { HrAdmin } from "./hr-admin";
@@ -36,8 +36,11 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
       managerId: string | null;
       archived: boolean;
     } | null>(null);
+  const filters = useHrFilter("/w/$workspaceId/people");
   const { q, setQ, offset, setOffset } = useHrFilter("/w/$workspaceId/people");
-  const people = useQuery(peopleQuery(workspaceId, q, offset)),
+  const people = useQuery(
+      peopleQuery(workspaceId, q, offset, filters.departmentId, filters.status),
+    ),
     all = useQuery(allPeopleQuery(workspaceId)),
     departments = useQuery(departmentsQuery(workspaceId)),
     access = useQuery(hrAccessQuery(workspaceId)),
@@ -101,6 +104,33 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
             }}
             className="mb-5 max-w-md"
           />
+          <div className="mb-4 grid gap-3 sm:grid-cols-2">
+            <SelectField
+              label="Directory department"
+              value={filters.departmentId ?? "all"}
+              onValueChange={(value) =>
+                filters.setFilters({ departmentId: value === "all" ? undefined : value, offset: 0 })
+              }
+              options={[
+                { value: "all", label: "All departments" },
+                ...(departments.data?.departments ?? []).map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                })),
+              ]}
+            />
+            <SelectField
+              label="Employment status filter"
+              value={filters.status ?? "all"}
+              onValueChange={(status) => filters.setFilters({ status, offset: 0 })}
+              options={[
+                { value: "all", label: "All statuses" },
+                { value: "active", label: "Active" },
+                { value: "on_leave", label: "On leave" },
+                { value: "terminated", label: "Terminated" },
+              ]}
+            />
+          </div>
           {people.isPending ? (
             <Loading />
           ) : people.data?.people.length ? (
@@ -135,32 +165,7 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
           </div>
         </>
       )}
-      {tab === "Org chart" && (
-        <div className="grid gap-3">
-          {(all.data?.people ?? []).map((p) => (
-            <Card key={p.userId} className="p-4">
-              <strong>{p.name}</strong>
-              <p>
-                {p.jobTitle || "Workspace member"} · {p.department || "No department"}
-              </p>
-              <small>
-                Reports to:{" "}
-                {p.managerId
-                  ? (all.data?.people.find((m) => m.userId === p.managerId)?.name ??
-                    "Manager unavailable")
-                  : "No manager assigned"}
-              </small>
-              <p>
-                Direct reports:{" "}
-                {all.data?.people
-                  .filter((e) => e.managerId === p.userId)
-                  .map((e) => e.name)
-                  .join(", ") || "None"}
-              </p>
-            </Card>
-          ))}
-        </div>
-      )}
+      {tab === "Org chart" && <OrgChart people={all.data?.people ?? []} />}
       {tab === "Departments" && (
         <>
           <div className="mb-4">
@@ -342,5 +347,50 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
         )}
       </HrDialog>
     </>
+  );
+}
+
+function OrgChart({ people }: { people: Person[] }) {
+  const visited = new Set<string>();
+  function branch(person: Person, ancestors: Set<string>): ReactNode {
+    if (ancestors.has(person.userId))
+      return (
+        <li key={`cycle:${person.userId}`} role="alert">
+          Reporting cycle detected for {person.name}. Ask HR to correct the manager assignment.
+        </li>
+      );
+    visited.add(person.userId);
+    const next = new Set(ancestors);
+    next.add(person.userId);
+    const reports = people.filter((p) => p.managerId === person.userId);
+    return (
+      <li key={person.userId}>
+        <Card className="mb-3 p-4">
+          <strong>{person.name}</strong>
+          <p>
+            {person.jobTitle || "Workspace member"} · {person.department || "No department"}
+          </p>
+          <small>
+            Reports to:{" "}
+            {person.managerId
+              ? (people.find((p) => p.userId === person.managerId)?.name ?? "Manager unavailable")
+              : "No manager assigned"}
+          </small>
+          <p>Direct reports: {reports.map((p) => p.name).join(", ") || "None"}</p>
+        </Card>
+        {reports.length > 0 && (
+          <ul className="ml-5 border-l pl-4">{reports.map((p) => branch(p, next))}</ul>
+        )}
+      </li>
+    );
+  }
+  const roots = people.filter((p) => !p.managerId || !people.some((m) => m.userId === p.managerId));
+  const nodes = roots.map((p) => branch(p, new Set()));
+  for (const person of people)
+    if (!visited.has(person.userId)) nodes.push(branch(person, new Set()));
+  return (
+    <section aria-label="Reporting hierarchy">
+      <ul>{nodes}</ul>
+    </section>
   );
 }

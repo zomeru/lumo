@@ -27,18 +27,36 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { api } from "../../lib/api";
-import { hrAccessQuery, hrPath, hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
-import { useHrTab } from "./hr-search";
+import {
+  hrAccessQuery,
+  hrPath,
+  hrQuery,
+  allPeopleQuery,
+  departmentsQuery,
+  useHrAction,
+} from "./hr-api";
+import { useHrTab, useHrFilter, useHrMonth } from "./hr-search";
 import { HrDialog, HrForm, HrTabs, formString, saveCsv } from "./hr-ui";
 export function AttendancePage({ workspaceId }: { workspaceId: string }) {
   const [tab, setTab] = useHrTab("My attendance", "/w/$workspaceId/attendance"),
-    [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)),
     [correction, setCorrection] = useState<string | null>(null),
     [schedule, setSchedule] = useState(false);
   const access = useQuery(hrAccessQuery(workspaceId)),
     people = useQuery(allPeopleQuery(workspaceId)),
     action = useHrAction(workspaceId);
-  const path = `/attendance?month=${month}&team=${tab === "Team attendance"}`;
+  const { month, setMonth } = useHrMonth(
+    "/w/$workspaceId/attendance",
+    access.data?.timezone ?? "UTC",
+  );
+  const filters = useHrFilter("/w/$workspaceId/attendance"),
+    departments = useQuery(departmentsQuery(workspaceId));
+  const query = new URLSearchParams({ month, team: String(tab === "Team attendance") });
+  if (tab === "Team attendance") {
+    if (filters.employeeId) query.set("userId", filters.employeeId);
+    if (filters.departmentId) query.set("departmentId", filters.departmentId);
+    if (filters.status && filters.status !== "all") query.set("status", filters.status);
+  }
+  const path = `/attendance?${query}`;
   const attendance = useQuery(hrQuery(workspaceId, path, attendanceSchema));
   const schedules = useQuery({
     ...hrQuery(workspaceId, "/schedules", schedulesSchema),
@@ -58,10 +76,7 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
   });
   const download = useMutation({
     mutationFn: async () => {
-      const data = await api(
-        `${hrPath(workspaceId)}/attendance/export?month=${month}&team=${tab === "Team attendance"}`,
-        csvResultSchema,
-      );
+      const data = await api(`${hrPath(workspaceId)}/attendance/export?${query}`, csvResultSchema);
       saveCsv(data.filename, data.content);
     },
   });
@@ -116,7 +131,15 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
                 <time className="my-3 block text-3xl font-semibold">
                   {format(data?.serverTime ?? null)}
                 </time>
-                <Badge>{data?.state ?? "Loading"}</Badge>
+                <Badge>
+                  {data?.state === "out"
+                    ? "Not clocked in"
+                    : data?.state === "break"
+                      ? "On break"
+                      : data?.state === "working"
+                        ? "Working"
+                        : "Loading"}
+                </Badge>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   {(data?.state === "out"
                     ? ["clock_in"]
@@ -175,10 +198,55 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
               Export CSV
             </Button>
           </div>
+          {tab === "Team attendance" && (
+            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+              <SelectField
+                label="Filter employee"
+                value={filters.employeeId ?? "all"}
+                onValueChange={(value) =>
+                  filters.setFilters({ employeeId: value === "all" ? undefined : value })
+                }
+                options={[
+                  { value: "all", label: "Authorized team" },
+                  ...(people.data?.people ?? []).map((p) => ({ value: p.userId, label: p.name })),
+                ]}
+              />
+              <SelectField
+                label="Filter department"
+                value={filters.departmentId ?? "all"}
+                onValueChange={(value) =>
+                  filters.setFilters({ departmentId: value === "all" ? undefined : value })
+                }
+                options={[
+                  { value: "all", label: "All departments" },
+                  ...(departments.data?.departments ?? []).map((d) => ({
+                    value: d.id,
+                    label: d.name,
+                  })),
+                ]}
+              />
+              <SelectField
+                label="Filter attendance status"
+                value={filters.status ?? "all"}
+                onValueChange={filters.setStatus}
+                options={[
+                  "all",
+                  "present",
+                  "absent",
+                  "incomplete",
+                  "approved leave",
+                  "holiday",
+                  "rest day",
+                  "unscheduled",
+                  "scheduled",
+                ].map((value) => ({ value, label: value }))}
+              />
+            </div>
+          )}
           {attendance.isPending ? (
             <Loading />
           ) : (
-            <Table>
+            <Table className="whitespace-nowrap">
               <TableHeader>
                 <TableRow>
                   {[

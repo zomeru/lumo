@@ -3,7 +3,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 
 import { createAuth } from "@lumo/auth";
-import { membership, user } from "@lumo/database/schema";
+import {
+  membership,
+  user,
+  workspace,
+  hrShift,
+  hrPayrollRun,
+  hrPayrollAdjustment,
+} from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
 import { eq } from "drizzle-orm";
 import { beforeAll, afterAll, expect, test } from "vitest";
@@ -752,4 +759,1327 @@ test("Sensitive access remains explicit after grants, review history is protecte
   expect(paid).toBeTruthy();
   const historical = await (await req(`/payroll/runs/${paid.id}`)).json();
   expect(historical.employees.some((e: { userId: string }) => e.userId === employee.id)).toBe(true);
+});
+
+async function policyLab() {
+  const [ws] = await database.db
+    .insert(workspace)
+    .values({ name: `HR lab ${randomUUID()}`, timezone: "Asia/Manila", currency: "PHP" })
+    .returning();
+  await database.db.insert(membership).values([
+    { workspaceId: ws!.id, userId: owner.id, role: "owner" },
+    { workspaceId: ws!.id, userId: admin.id, role: "admin" },
+    { workspaceId: ws!.id, userId: employee.id },
+    { workspaceId: ws!.id, userId: manager.id },
+  ]);
+  const request = (path: string, actor = owner, method = "GET", body?: unknown) =>
+    req(path, actor, method, body, ws!.id);
+  expect(
+    (
+      await request(`/people/${employee.id}`, owner, "PUT", {
+        employeeCode: "LAB001",
+        managerId: manager.id,
+        hireDate: "2025-01-01",
+      })
+    ).status,
+  ).toBe(200);
+  const schedule = {
+    userId: employee.id,
+    effectiveFrom: "2025-01-01",
+    weekdays: [1, 2, 3, 4, 5],
+    startMinute: 480,
+    endMinute: 1020,
+    breakMinutes: 60,
+    graceMinutes: 15,
+    paidBreaks: false,
+  };
+  expect((await request("/schedules", owner, "POST", schedule)).status).toBe(200);
+  return { id: ws!.id, request, schedule };
+}
+test("Department and request policy administration cover edits, missing records, blocked routing and required receipts", async () => {
+  const { request, id: workspaceId } = await policyLab();
+  const department = await request("/departments", owner, "POST", {
+    name: "Ops",
+    managerId: manager.id,
+  });
+  expect(department.status).toBe(201);
+  const depId = (await department.json()).id as string;
+  expect((await request("/departments", owner, "POST", { name: "Ops" })).status).toBe(409);
+  expect(
+    (await request(`/departments/${depId}`, owner, "PUT", { name: "Operations", archived: true }))
+      .status,
+  ).toBe(200);
+  expect(
+    (await request(`/departments/${randomUUID()}`, owner, "PUT", { name: "Unknown" })).status,
+  ).toBe(404);
+  expect(
+    (await request(`/people/${employee.id}`, owner, "PUT", { departmentId: depId })).status,
+  ).toBe(404);
+  expect((await request("/approval-policies", employee)).status).toBe(403);
+  expect(
+    (
+      await request("/approval-policies", owner, "POST", {
+        type: "expense",
+        approverIds: [manager.id, admin.id],
+        requireAttachment: true,
+      })
+    ).status,
+  ).toBe(200);
+  expect((await (await request("/approval-policies")).json()).policies).toHaveLength(1);
+  const expense = {
+    subject: "Receipt required",
+    details: {
+      type: "expense",
+      amountMinor: 10000,
+      currency: "PHP",
+      date: "2026-10-01",
+      category: "Supplies",
+    },
+  };
+  expect((await request("/requests", employee, "POST", expense)).status).toBe(409);
+  const created = await request("/requests", employee, "POST", { ...expense, draft: true });
+  const id = (await created.json()).id as string;
+  expect(
+    (
+      await request(`/requests/${id}`, employee, "PUT", {
+        ...expense,
+        subject: "Edited receipt",
+        draft: true,
+      })
+    ).status,
+  ).toBe(200);
+  expect((await request(`/requests/${id}`, manager, "PUT", expense)).status).toBe(403);
+  expect(
+    (await request(`/requests/${id}/action`, employee, "POST", { action: "submit" })).status,
+  ).toBe(409);
+  expect(
+    (
+      await request(`/requests/${id}/action`, owner, "POST", {
+        action: "reassign",
+        approverIds: [],
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await request(`/requests/${id}/action`, owner, "POST", {
+        action: "reassign",
+        approverIds: [employee.id],
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await request(`/requests/${id}/action`, owner, "POST", {
+        action: "reassign",
+        approverIds: [outsider.id],
+      })
+    ).status,
+  ).toBe(404);
+  const upload = await request(`/files/request/${id}/uploads`, employee, "POST", {
+    name: "not-an-image.png",
+    mimeType: "image/png",
+    size: 4,
+    checksum: memory.sha(Buffer.from("MZxx")),
+  });
+  const fileId = (await upload.json()).id as string;
+  memory.put(`hr/${workspaceId}/${fileId}/staging`, Buffer.from("MZxx"), "image/png");
+  expect((await request(`/files/${fileId}/complete`, employee, "POST", {})).status).toBe(400);
+  expect(
+    (await request(`/requests/${id}/action`, employee, "POST", { action: "cancel" })).status,
+  ).toBe(200);
+  const general = await request("/requests", employee, "POST", {
+    subject: "Rejectable",
+    details: { type: "general" },
+  });
+  const generalId = (await general.json()).id as string;
+  expect(
+    (
+      await request(`/requests/${generalId}/action`, manager, "POST", {
+        action: "reject",
+        comment: "Budget unavailable",
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (await request(`/requests/${generalId}/action`, manager, "POST", { action: "reject" })).status,
+  ).toBe(200);
+  expect(
+    (await request(`/requests/${generalId}/action`, manager, "POST", { action: "approve" })).status,
+  ).toBe(409);
+  expect(
+    (await request(`/requests/${generalId}/action`, employee, "POST", { action: "cancel" })).status,
+  ).toBe(409);
+  expect(
+    (
+      await request(`/requests/${generalId}/action`, owner, "POST", {
+        action: "reassign",
+        approverIds: [admin.id],
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await request(
+        `/requests?view=all&status=rejected&type=general&employeeId=${employee.id}&approverId=${manager.id}&fromDate=2025-01-01&toDate=2027-01-01`,
+      )
+    ).status,
+  ).toBe(200);
+  const notifications = await (await request("/notifications", employee)).json();
+  expect(
+    (
+      await request(
+        `/notifications/${notifications.notifications[0].id}/read`,
+        employee,
+        "POST",
+        {},
+      )
+    ).status,
+  ).toBe(200);
+});
+test("Leave accrual, carryover expiry, eligibility, half days, unpaid leave and policy snapshots remain consistent", async () => {
+  const { request } = await policyLab();
+  const initial = {
+    name: "Accruing leave",
+    paid: true,
+    allocationHalfDays: 10,
+    accrualHalfDaysMonthly: 2,
+    carryoverHalfDays: 4,
+    carryoverExpiryMonth: 3,
+    effectiveFrom: "2025-01-01",
+  };
+  const created = await request("/leave/policies", owner, "POST", initial);
+  const typeId = (await created.json()).id as string;
+  expect((await request("/leave/policies", owner, "POST", initial)).status).toBe(409);
+  await request("/leave/balances?year=2025", employee);
+  const current = await (await request("/leave/balances?year=2026", employee)).json();
+  expect(current.balances[0].balanceHalfDays).toBe(10 + 2 * (new Date().getUTCMonth() + 1));
+  expect(
+    current.balances[0].ledger.some((l: { source: string }) => l.source === "expiry:2026"),
+  ).toBe(true);
+  expect((await request("/leave/balances?team=true&year=2026", employee)).status).toBe(403);
+  expect((await request("/leave/balances?team=true&year=2026", manager)).status).toBe(200);
+  const leave = await request("/requests", employee, "POST", {
+    subject: "Half day",
+    details: {
+      type: "leave",
+      leaveTypeId: typeId,
+      startDate: "2026-10-22",
+      endDate: "2026-10-22",
+      halfDay: true,
+    },
+  });
+  expect(leave.status).toBe(201);
+  const id = (await leave.json()).id as string;
+  expect(
+    (
+      await request(`/leave/policies/${typeId}`, owner, "PUT", {
+        ...initial,
+        paid: false,
+        allowHalfDay: false,
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (await request(`/requests/${id}/action`, manager, "POST", { action: "approve" })).status,
+  ).toBe(200);
+  const approved = await (await request("/requests?view=mine", employee)).json();
+  expect(approved.requests[0].details.paid).toBe(true);
+  expect(approved.requests[0].details.policyVersion).toBe(1);
+  expect(
+    (await request(`/requests/${id}/action`, employee, "POST", { action: "cancel" })).status,
+  ).toBe(200);
+  expect(
+    (
+      await request("/requests", employee, "POST", {
+        subject: "Disallowed half",
+        details: {
+          type: "leave",
+          leaveTypeId: typeId,
+          startDate: "2026-10-23",
+          endDate: "2026-10-23",
+          halfDay: true,
+        },
+      })
+    ).status,
+  ).toBe(400);
+  const unpaid = await request("/leave/policies", owner, "POST", {
+    name: "Unpaid",
+    paid: false,
+    allocationHalfDays: 0,
+    enforceBalance: false,
+    effectiveFrom: "2025-01-01",
+  });
+  const unpaidId = (await unpaid.json()).id as string;
+  const requestLeave = await request("/requests", employee, "POST", {
+    subject: "Unpaid day",
+    details: {
+      type: "leave",
+      leaveTypeId: unpaidId,
+      startDate: "2026-10-23",
+      endDate: "2026-10-23",
+    },
+  });
+  expect(requestLeave.status).toBe(201);
+  const unpaidRequest = (await requestLeave.json()).id as string;
+  expect(
+    (await request(`/requests/${unpaidRequest}/action`, manager, "POST", { action: "approve" }))
+      .status,
+  ).toBe(200);
+  expect(
+    (
+      await request("/leave/adjustments", owner, "POST", {
+        userId: employee.id,
+        leaveTypeId: randomUUID(),
+        year: 2026,
+        amountHalfDays: 2,
+        reason: "Missing policy",
+        idempotencyKey: randomUUID(),
+      })
+    ).status,
+  ).toBe(404);
+  expect(
+    (await request(`/leave/policies/${typeId}`, owner, "PUT", { ...initial, archived: true }))
+      .status,
+  ).toBe(200);
+  expect(
+    (
+      await request("/requests", employee, "POST", {
+        subject: "Archived",
+        details: {
+          type: "leave",
+          leaveTypeId: typeId,
+          startDate: "2026-10-26",
+          endDate: "2026-10-26",
+        },
+      })
+    ).status,
+  ).toBe(400);
+});
+test("Attendance aggregates split shifts without inventing lateness and scopes filtered team exports", async () => {
+  const lab = await policyLab();
+  const base = {
+    workspaceId: lab.id,
+    userId: employee.id,
+    workDate: "2026-10-20",
+    timezone: "Asia/Manila",
+    schedule: lab.schedule,
+    breaks: [],
+  };
+  await database.db.insert(hrShift).values([
+    {
+      ...base,
+      clockIn: new Date("2026-10-20T00:00:00Z"),
+      clockOut: new Date("2026-10-20T04:00:00Z"),
+    },
+    {
+      ...base,
+      clockIn: new Date("2026-10-20T05:00:00Z"),
+      clockOut: new Date("2026-10-20T09:00:00Z"),
+    },
+  ]);
+  const report = await (await lab.request("/attendance?month=2026-10", employee)).json();
+  const day = report.days.find((d: { date: string }) => d.date === "2026-10-20");
+  expect(day.workedMinutes).toBe(480);
+  expect(day.late).toBe(false);
+  expect(day.lateMinutes).toBe(0);
+  expect((await lab.request("/attendance?month=2026-10&team=true", employee)).status).toBe(403);
+  expect(
+    (await lab.request("/attendance?month=2026-10&team=true&status=absent", manager)).status,
+  ).toBe(200);
+  expect(
+    (
+      await lab.request(
+        `/attendance/export?month=2026-10&team=true&departmentId=${randomUUID()}`,
+        manager,
+      )
+    ).status,
+  ).toBe(200);
+  expect((await lab.request("/attendance?month=invalid", employee)).status).toBe(400);
+  expect((await lab.request("/schedules", employee)).status).toBe(403);
+  expect((await lab.request("/schedules", owner, "POST", lab.schedule)).status).toBe(409);
+  expect(
+    (await lab.request("/schedules", owner, "POST", { ...lab.schedule, userId: outsider.id }))
+      .status,
+  ).toBe(404);
+});
+
+test("Payroll supports classified adjustments, independent revisions, void-and-reissue and effective workday rates", async () => {
+  const { id: workspaceId, request, schedule } = await policyLab();
+  const period = {
+    startDate: "2026-09-01",
+    endDate: "2026-09-30",
+    cutoffDate: "2026-09-30",
+    payoutDate: "2026-09-30",
+  };
+  expect((await request("/payroll/runs", owner, "POST", period)).status).toBe(409);
+  const settings = {
+    effectiveFrom: "2026-01-01",
+    frequency: "monthly",
+    currency: "PHP",
+    workingDaysPerYear: 261,
+    minutesPerDay: 480,
+    overtimeBps: 12500,
+    holidayBps: 20000,
+    restDayBps: 13000,
+    nightDifferentialBps: 1000,
+    deductUndertime: false,
+    publishOnFinalize: true,
+    payoutDay: 30,
+    reason: "Verified business rules",
+  };
+  expect((await request("/payroll/settings", owner, "POST", settings)).status).toBe(200);
+  expect((await request("/payroll/settings", owner, "POST", settings)).status).toBe(409);
+  expect(
+    (await request("/payroll/runs", owner, "POST", { ...period, endDate: "2026-09-15" })).status,
+  ).toBe(400);
+  expect(
+    (await request("/payroll/runs", owner, "POST", { ...period, cutoffDate: "2026-08-31" })).status,
+  ).toBe(400);
+  const created = await request("/payroll/runs", owner, "POST", period);
+  expect(created.status).toBe(201);
+  const id = (await created.json()).id as string;
+  expect((await request("/payroll/runs", owner, "POST", period)).status).toBe(409);
+  expect((await request(`/payroll/runs/${id}/calculate`, admin, "POST", {})).status).toBe(403);
+  expect((await request(`/payroll/runs/${id}/calculate`, owner, "POST", {})).status).toBe(200);
+  let detail = await (await request(`/payroll/runs/${id}`)).json();
+  expect(detail.run.warnings).not.toHaveLength(0);
+  expect(
+    (
+      await request("/payroll/compensation", owner, "POST", {
+        userId: outsider.id,
+        effectiveFrom: "2026-01-01",
+        salaryMinor: 1,
+        reason: "Not a member",
+      })
+    ).status,
+  ).toBe(404);
+  for (const [effectiveFrom, salaryMinor] of [
+    ["2026-01-01", 2500000],
+    ["2026-09-16", 3000000],
+  ] as const)
+    expect(
+      (
+        await request("/payroll/compensation", owner, "POST", {
+          userId: employee.id,
+          effectiveFrom,
+          salaryMinor,
+          reason: "Effective compensation",
+        })
+      ).status,
+    ).toBe(200);
+  expect(
+    (
+      await request("/payroll/compensation", owner, "POST", {
+        userId: employee.id,
+        effectiveFrom: "2026-01-01",
+        salaryMinor: 2500000,
+        reason: "Duplicate date",
+      })
+    ).status,
+  ).toBe(409);
+  await request("/holidays", owner, "POST", { date: "2026-09-01", name: "Lab holiday" });
+  await database.db.insert(hrShift).values({
+    workspaceId,
+    userId: employee.id,
+    workDate: "2026-09-03",
+    clockIn: new Date("2026-09-03T00:00:00Z"),
+    clockOut: new Date("2026-09-03T11:00:00Z"),
+    timezone: "Asia/Manila",
+    schedule,
+    breaks: [{ start: "2026-09-03T04:00:00Z", end: "2026-09-03T05:00:00Z" }],
+  });
+  const overtime = await request("/requests", employee, "POST", {
+    subject: "Approved extra time",
+    details: { type: "overtime", date: "2026-09-03", durationMinutes: 120 },
+  });
+  const overtimeId = (await overtime.json()).id as string;
+  expect(
+    (await request(`/requests/${overtimeId}/action`, manager, "POST", { action: "approve" }))
+      .status,
+  ).toBe(200);
+  const purchase = await request("/requests", employee, "POST", {
+    subject: "Purchase",
+    details: {
+      type: "purchase",
+      amountMinor: 10000,
+      currency: "PHP",
+      quantity: 1,
+      vendor: "Supplier",
+    },
+  });
+  const purchaseId = (await purchase.json()).id as string;
+  await request(`/requests/${purchaseId}/action`, manager, "POST", { action: "approve" });
+  const adjustment = {
+    userId: employee.id,
+    label: "Reviewed reimbursement",
+    amountMinor: 10000,
+    classification: "earning_nontaxable",
+    reason: "Receipt independently checked",
+    idempotencyKey: randomUUID(),
+  };
+  expect(
+    (
+      await request(`/payroll/runs/${id}/adjustments`, owner, "POST", {
+        ...adjustment,
+        userId: owner.id,
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/adjustments`, owner, "POST", {
+        ...adjustment,
+        sourceRequestId: purchaseId,
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/adjustments`, owner, "POST", {
+        ...adjustment,
+        sourceRequestId: randomUUID(),
+      })
+    ).status,
+  ).toBe(404);
+  for (let i = 0; i < 2; i++)
+    expect(
+      (await request(`/payroll/runs/${id}/adjustments`, owner, "POST", adjustment)).status,
+    ).toBe(200);
+  expect((await request(`/payroll/runs/${id}/calculate`, owner, "POST", {})).status).toBe(200);
+  detail = await (await request(`/payroll/runs/${id}`)).json();
+  const result = detail.employees[0].result;
+  expect(result.lines.find((l: { label: string }) => l.label === "Basic pay").amountMinor).toBe(
+    2761905,
+  );
+  expect(
+    result.lines.find((l: { label: string }) => l.label === "Approved overtime").amountMinor,
+  ).toBe(35920);
+  expect(
+    result.lines.filter((l: { label: string }) => l.label === "Reviewed reimbursement"),
+  ).toHaveLength(1);
+  expect(detail.employees[0].snapshot.compensationSources).toHaveLength(2);
+  await request("/grants", owner, "POST", {
+    userId: admin.id,
+    capability: "hr.payroll.runs.approve",
+    scope: "workspace",
+  });
+  await request("/grants", owner, "POST", {
+    userId: admin.id,
+    capability: "hr.payroll.read_all",
+    scope: "workspace",
+  });
+  const verify = {
+    revision: detail.run.revision,
+    expectedNetMinor: result.netMinor,
+    reference: "Reviewed every line and official contribution tables with source records",
+    confirmed: true,
+  };
+  expect(
+    (await request(`/payroll/runs/${id}/employees/${admin.id}/verify`, admin, "POST", verify))
+      .status,
+  ).toBe(403);
+  expect(
+    (await request(`/payroll/runs/${id}/employees/${randomUUID()}/verify`, admin, "POST", verify))
+      .status,
+  ).toBe(404);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/employees/${employee.id}/verify`, admin, "POST", {
+        ...verify,
+        revision: 1,
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (await request(`/payroll/runs/${id}/employees/${employee.id}/verify`, admin, "POST", verify))
+      .status,
+  ).toBe(200);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/action`, owner, "POST", {
+        action: "return_to_draft",
+        revision: verify.revision,
+      })
+    ).status,
+  ).toBe(200);
+  await request(`/payroll/runs/${id}/calculate`, owner, "POST", {});
+  detail = await (await request(`/payroll/runs/${id}`)).json();
+  expect(detail.employees[0].verifiedBy).toBeNull();
+  verify.revision = detail.run.revision;
+  await request(`/payroll/runs/${id}/employees/${employee.id}/verify`, admin, "POST", verify);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/action`, admin, "POST", {
+        action: "approve",
+        revision: verify.revision,
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/adjustments`, owner, "POST", {
+        ...adjustment,
+        idempotencyKey: randomUUID(),
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/action`, owner, "POST", {
+        action: "finalize",
+        revision: verify.revision - 1,
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/action`, owner, "POST", {
+        action: "finalize",
+        revision: verify.revision,
+      })
+    ).status,
+  ).toBe(200);
+  expect((await (await request("/payroll/me", employee)).json()).payslips).toHaveLength(1);
+  expect(
+    (await request(`/requests/${overtimeId}/action`, employee, "POST", { action: "cancel" }))
+      .status,
+  ).toBe(409);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/action`, owner, "POST", {
+        action: "return_to_draft",
+        revision: verify.revision,
+      })
+    ).status,
+  ).toBe(409);
+  expect((await request(`/payroll/runs/${id}/export`)).status).toBe(200);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/action`, owner, "POST", {
+        action: "void",
+        revision: verify.revision,
+        reason: "Incorrect employee inputs; reissue after correction",
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/action`, owner, "POST", {
+        action: "void",
+        revision: verify.revision,
+        reason: "Already voided",
+      })
+    ).status,
+  ).toBe(409);
+  const replacement = await request("/payroll/runs", owner, "POST", {
+    ...period,
+    replacesRunId: id,
+    reason: "Reissue after documented correction",
+  });
+  expect(replacement.status).toBe(201);
+});
+test("Onboarding handles role assignments, independent verification, reopening and archived templates", async () => {
+  const { request } = await policyLab();
+  const step = {
+    title: "Policy",
+    instructions: "Read carefully",
+    group: "Day one",
+    assigneeRole: "employee",
+    dueOffsetDays: 0,
+    required: true,
+    requiresVerification: false,
+  };
+  const template = await request("/onboarding/templates", owner, "POST", {
+    name: "Role checklist",
+    steps: [
+      step,
+      { ...step, title: "Manager review", assigneeRole: "manager", requiresVerification: true },
+      { ...step, title: "HR form", assigneeRole: "hr", requiresVerification: true },
+      { ...step, title: "IT optional", assigneeRole: "it", required: false },
+    ],
+  });
+  const templateId = (await template.json()).id as string;
+  expect((await request("/onboarding/templates", employee)).status).toBe(403);
+  const assignment = await request("/onboarding/instances", owner, "POST", {
+    templateId,
+    userId: employee.id,
+    startDate: "2026-10-21",
+    hrAssigneeId: owner.id,
+  });
+  const id = (await assignment.json()).id as string;
+  const detail = await (await request(`/onboarding/instances/${id}`)).json();
+  const tasks = detail.tasks as {
+    id: string;
+    assigneeId: string | null;
+    step: { title: string };
+    status: string;
+  }[];
+  const employeeTask = tasks.find((t) => t.step.title === "Policy")!,
+    managerTask = tasks.find((t) => t.step.title === "Manager review")!,
+    hrTask = tasks.find((t) => t.step.title === "HR form")!,
+    itTask = tasks.find((t) => t.step.title === "IT optional")!;
+  expect(
+    (
+      await request(`/onboarding/tasks/${employeeTask.id}/action`, employee, "POST", {
+        action: "complete",
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await request(`/onboarding/tasks/${employeeTask.id}/action`, employee, "POST", {
+        action: "complete",
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await request(`/onboarding/tasks/${employeeTask.id}/action`, owner, "POST", {
+        action: "verify",
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await request(`/onboarding/tasks/${employeeTask.id}/action`, owner, "POST", {
+        action: "reopen",
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await request(`/onboarding/tasks/${employeeTask.id}/action`, owner, "POST", {
+        action: "reopen",
+        comment: "Correct acknowledgment",
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (await request(`/onboarding/tasks/${itTask.id}/action`, owner, "POST", { action: "reassign" }))
+      .status,
+  ).toBe(400);
+  expect(
+    (
+      await request(`/onboarding/tasks/${itTask.id}/action`, owner, "POST", {
+        action: "reassign",
+        assigneeId: admin.id,
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (await request(`/onboarding/tasks/${itTask.id}/action`, admin, "POST", { action: "complete" }))
+      .status,
+  ).toBe(200);
+  expect(
+    (await request(`/onboarding/tasks/${hrTask.id}/action`, owner, "POST", { action: "complete" }))
+      .status,
+  ).toBe(200);
+  expect(
+    (await request(`/onboarding/tasks/${hrTask.id}/action`, owner, "POST", { action: "verify" }))
+      .status,
+  ).toBe(403);
+  expect(
+    (
+      await request(`/onboarding/tasks/${managerTask.id}/action`, manager, "POST", {
+        action: "complete",
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await request(`/onboarding/tasks/${managerTask.id}/action`, owner, "POST", {
+        action: "verify",
+      })
+    ).status,
+  ).toBe(200);
+  expect((await request("/onboarding?view=checklists", manager)).status).toBe(200);
+  expect((await request("/onboarding?view=checklists", admin)).status).toBe(403);
+  expect(
+    (
+      await request(`/onboarding/templates/${templateId}`, owner, "PUT", {
+        name: "Archived",
+        active: false,
+        steps: [step],
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await request("/onboarding/instances", owner, "POST", {
+        templateId,
+        userId: employee.id,
+        startDate: "2026-10-21",
+        hrAssigneeId: owner.id,
+      })
+    ).status,
+  ).toBe(404);
+  expect((await request(`/onboarding/instances/${randomUUID()}`, employee)).status).toBe(404);
+  expect(
+    (
+      await request(`/onboarding/tasks/${randomUUID()}/action`, employee, "POST", {
+        action: "complete",
+      })
+    ).status,
+  ).toBe(404);
+  const blockedUpload = await request(`/files/task/${managerTask.id}/uploads`, manager, "POST", {
+    name: "late.txt",
+    mimeType: "text/plain",
+    size: 4,
+    checksum: memory.sha(Buffer.from("late")),
+  });
+  expect(blockedUpload.status).toBe(409);
+});
+
+test("Payroll snapshots unpaid leave, holiday/rest-day premiums, night work and semimonthly settings", async () => {
+  const { id: workspaceId, request, schedule } = await policyLab();
+  const night = {
+    ...schedule,
+    effectiveFrom: "2026-09-03",
+    startMinute: 1320,
+    endMinute: 360,
+    breakMinutes: 0,
+  };
+  await request("/schedules", owner, "POST", night);
+  const settings = {
+    effectiveFrom: "2026-01-01",
+    frequency: "semimonthly",
+    currency: "PHP",
+    workingDaysPerYear: 261,
+    minutesPerDay: 480,
+    overtimeBps: 12500,
+    holidayBps: 20000,
+    restDayBps: 13000,
+    nightDifferentialBps: 1000,
+    deductUndertime: false,
+    publishOnFinalize: false,
+    payoutDay: 30,
+    reason: "Semimonthly fixture",
+  };
+  expect((await request("/payroll/settings", owner, "POST", settings)).status).toBe(200);
+  await request("/payroll/compensation", owner, "POST", {
+    userId: employee.id,
+    effectiveFrom: "2026-01-01",
+    salaryMinor: 2500000,
+    reason: "Monthly salary",
+    allowances: [{ label: "Taxable transport", amountMinor: 10000, taxable: true }],
+  });
+  await request("/holidays", owner, "POST", { date: "2026-09-04", name: "Holiday" });
+  const type = await request("/leave/policies", owner, "POST", {
+    name: "Unpaid",
+    paid: false,
+    allocationHalfDays: 0,
+    enforceBalance: false,
+    effectiveFrom: "2026-01-01",
+  });
+  const typeId = (await type.json()).id as string;
+  const leave = await request("/requests", employee, "POST", {
+    subject: "Unpaid day",
+    details: { type: "leave", leaveTypeId: typeId, startDate: "2026-09-02", endDate: "2026-09-02" },
+  });
+  await request(`/requests/${(await leave.json()).id}/action`, manager, "POST", {
+    action: "approve",
+  });
+  for (const date of ["2026-09-04", "2026-09-05"]) {
+    const work = await request("/requests", employee, "POST", {
+      subject: "Approved special-day work",
+      details: { type: "overtime", date, durationMinutes: 480 },
+    });
+    await request(`/requests/${(await work.json()).id}/action`, manager, "POST", {
+      action: "approve",
+    });
+    await database.db.insert(hrShift).values({
+      workspaceId,
+      userId: employee.id,
+      workDate: date,
+      timezone: "Asia/Manila",
+      schedule: night,
+      clockIn: new Date(`${date}T14:00:00Z`),
+      clockOut: new Date(new Date(`${date}T14:00:00Z`).getTime() + 8 * 3600000),
+      breaks: [],
+    });
+  }
+  const created = await request("/payroll/runs", owner, "POST", {
+    startDate: "2026-09-01",
+    endDate: "2026-09-15",
+    cutoffDate: "2026-09-15",
+    payoutDate: "2026-09-15",
+  });
+  expect(created.status).toBe(201);
+  const id = (await created.json()).id as string;
+  expect((await request(`/payroll/runs/${id}/calculate`, owner, "POST", {})).status).toBe(200);
+  const detail = await (await request(`/payroll/runs/${id}`)).json();
+  const lines = detail.employees[0].result.lines as { label: string; amountMinor: number }[];
+  for (const label of [
+    "Unpaid leave",
+    "Approved holiday work",
+    "Approved rest-day work",
+    "Night differential",
+    "Taxable transport",
+  ])
+    expect(lines.find((l) => l.label === label)?.amountMinor).toBeGreaterThan(0);
+  const source = detail.employees[0].snapshot.input;
+  expect(source.holidayMinutes).toBe(480);
+  expect(source.restMinutes).toBe(480);
+  expect(source.nightMinutes).toBe(960);
+  expect(
+    (
+      await request(`/payroll/runs/${id}/action`, owner, "POST", {
+        action: "publish",
+        revision: detail.run.revision,
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await request("/payroll/runs", owner, "POST", {
+        startDate: "2026-09-16",
+        endDate: "2026-09-30",
+        cutoffDate: "2026-09-30",
+        payoutDate: "2026-09-30",
+      })
+    ).status,
+  ).toBe(201);
+});
+test("Private upload state rejects bad metadata, unauthorized writers and unknown targets", async () => {
+  const { id: workspaceId, request } = await policyLab();
+  const draft = await request("/requests", employee, "POST", {
+    subject: "Private draft",
+    details: { type: "general" },
+    draft: true,
+  });
+  const id = (await draft.json()).id as string;
+  const data = Buffer.from("document");
+  const input = {
+    name: "document.txt",
+    mimeType: "text/plain",
+    size: data.length,
+    checksum: memory.sha(data),
+  };
+  expect((await request(`/files/request/${id}/uploads`, manager, "POST", input)).status).toBe(403);
+  expect((await request(`/files/unknown/${id}/uploads`, employee, "POST", input)).status).toBe(404);
+  expect((await request(`/files/${randomUUID()}/download`, employee, "POST", {})).status).toBe(404);
+  const upload = await request(`/files/request/${id}/uploads`, employee, "POST", input);
+  const fileId = (await upload.json()).id as string;
+  memory.put(`hr/${workspaceId}/${fileId}/staging`, Buffer.from("bad"), "text/plain");
+  expect((await request(`/files/${fileId}/complete`, employee, "POST", {})).status).toBe(400);
+  memory.put(`hr/${workspaceId}/${fileId}/staging`, data, "text/plain");
+  expect((await request(`/files/${fileId}/complete`, employee, "POST", {})).status).toBe(200);
+  expect((await request(`/files/${fileId}/complete`, employee, "POST", {})).status).toBe(200);
+  expect((await request(`/files/${fileId}/download`, manager, "POST", {})).status).toBe(200);
+  expect((await request(`/files/${fileId}/download`, admin, "POST", {})).status).toBe(404);
+  await request(`/requests/${id}/action`, employee, "POST", { action: "submit" });
+  await request(`/requests/${id}/action`, manager, "POST", { action: "approve" });
+  expect((await request(`/files/request/${id}/uploads`, employee, "POST", input)).status).toBe(403);
+});
+
+test("Leave reserves other pending dates, requires documents and validates eligibility and missing policies", async () => {
+  const { id: workspaceId, request } = await policyLab();
+  const created = await request("/leave/policies", owner, "POST", {
+    name: "Limited",
+    paid: true,
+    allocationHalfDays: 2,
+    effectiveFrom: "2026-01-01",
+    requireDocumentation: true,
+  });
+  const typeId = (await created.json()).id as string;
+  const input = {
+    subject: "Documented leave",
+    details: { type: "leave", leaveTypeId: typeId, startDate: "2026-10-22", endDate: "2026-10-22" },
+  };
+  const draft = await request("/requests", employee, "POST", { ...input, draft: true });
+  const id = (await draft.json()).id as string;
+  expect(
+    (await request(`/requests/${id}/action`, employee, "POST", { action: "submit" })).status,
+  ).toBe(400);
+  const bytes = Buffer.from("evidence");
+  const upload = await request(`/files/request/${id}/uploads`, employee, "POST", {
+    name: "evidence.txt",
+    size: bytes.length,
+    mimeType: "text/plain",
+    checksum: memory.sha(bytes),
+  });
+  const fileId = (await upload.json()).id as string;
+  memory.put(`hr/${workspaceId}/${fileId}/staging`, bytes, "text/plain");
+  await request(`/files/${fileId}/complete`, employee, "POST", {});
+  expect(
+    (await request(`/requests/${id}/action`, employee, "POST", { action: "submit" })).status,
+  ).toBe(200);
+  expect(
+    (
+      await request("/requests", employee, "POST", {
+        ...input,
+        details: { ...input.details, startDate: "2026-10-23", endDate: "2026-10-23" },
+      })
+    ).status,
+  ).toBe(409);
+  const pending = await (await request("/leave/balances?team=true&year=2026", manager)).json();
+  expect(pending.balances.some((b: { pendingHalfDays: number }) => b.pendingHalfDays === 2)).toBe(
+    true,
+  );
+  expect(
+    (
+      await request(`/leave/policies/${randomUUID()}`, owner, "PUT", {
+        name: "Unknown",
+        paid: true,
+        allocationHalfDays: 2,
+        effectiveFrom: "2026-01-01",
+      })
+    ).status,
+  ).toBe(404);
+  expect(
+    (
+      await request("/requests", employee, "POST", {
+        ...input,
+        details: { ...input.details, leaveTypeId: randomUUID() },
+      })
+    ).status,
+  ).toBe(404);
+  expect(
+    (
+      await request(`/people/${employee.id}`, owner, "PUT", {
+        hireDate: "2026-10-01",
+        managerId: manager.id,
+      })
+    ).status,
+  ).toBe(200);
+  const delayed = await request("/leave/policies", owner, "POST", {
+    name: "Probation",
+    paid: true,
+    allocationHalfDays: 20,
+    eligibleAfterDays: 90,
+    effectiveFrom: "2026-01-01",
+  });
+  expect(
+    (
+      await request("/requests", employee, "POST", {
+        ...input,
+        details: { ...input.details, leaveTypeId: (await delayed.json()).id },
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await request("/grants", owner, "POST", {
+        userId: manager.id,
+        capability: "hr.attendance.read_team",
+        scope: "direct_reports",
+      })
+    ).status,
+  ).toBe(200);
+  expect((await request("/attendance?month=2026-10&team=true", manager)).status).toBe(200);
+  expect(
+    (
+      await request("/grants", owner, "POST", {
+        userId: manager.id,
+        capability: "hr.attendance.read_team",
+        scope: "workspace",
+        revoke: true,
+      })
+    ).status,
+  ).toBe(200);
+  expect((await request("/people?q=LAB&limit=1")).status).toBe(200);
+  const page = await (await request("/people?limit=1")).json();
+  expect(page.nextOffset).toBe(1);
+  const audit = await (await request("/audit?limit=1")).json();
+  expect(audit.nextOffset).toBe(1);
+  expect((await request(`/requests/${randomUUID()}/history`, employee)).status).toBe(404);
+  expect((await request(`/requests/${id}`, employee, "PUT", input)).status).toBe(409);
+});
+
+test("Payroll schedule suggestions, selected estimates, durable payout reminders and API documentation respect authorization", async () => {
+  const { id, request } = await policyLab();
+  expect((await request("/payroll/schedule", admin)).status).toBe(403);
+  expect((await (await request("/payroll/schedule")).json()).period).toBeNull();
+  expect((await (await request("/payroll/me", employee)).json()).estimate).toBeNull();
+  const settings = {
+    effectiveFrom: "2025-01-01",
+    frequency: "monthly",
+    currency: "PHP",
+    workingDaysPerYear: 261,
+    minutesPerDay: 480,
+    overtimeBps: 12500,
+    holidayBps: 20000,
+    restDayBps: 13000,
+    deductUndertime: false,
+    payoutDay: 31,
+    reason: "Independent calendar test",
+  };
+  expect((await request("/payroll/settings", owner, "POST", settings)).status).toBe(200);
+  expect((await (await request("/payroll/schedule")).json()).period).toMatchObject({
+    startDate: expect.stringMatching(/-01$/),
+  });
+  expect((await request("/payroll/me?periodStart=2026-09-02", employee)).status).toBe(400);
+  expect((await request("/payroll/me?periodStart=invalid", employee)).status).toBe(400);
+  expect(
+    (
+      await request("/payroll/compensation", owner, "POST", {
+        userId: employee.id,
+        effectiveFrom: "2026-01-01",
+        salaryMinor: 2500000,
+        reason: "Fixture salary",
+      })
+    ).status,
+  ).toBe(200);
+  const estimate = await (await request("/payroll/me?periodStart=2026-09-01", employee)).json();
+  expect(estimate.estimatePeriod).toBe("2026-09-01 – 2026-09-30");
+  expect(estimate.estimate.netMinor).toBeGreaterThan(0);
+  const [run] = await database.db
+    .insert(hrPayrollRun)
+    .values({
+      workspaceId: id,
+      createdBy: owner.id,
+      startDate: "2025-01-01",
+      endDate: "2025-01-31",
+      cutoffDate: "2025-01-31",
+      payoutDate: "2025-01-31",
+      status: "finalized",
+    })
+    .returning();
+  const notifications = async () => (await request("/notifications")).json();
+  const first = await notifications();
+  const reminder = first.notifications.filter(
+    (n: { title: string }) => n.title === "Payroll payout is due",
+  );
+  expect(reminder).toHaveLength(1);
+  expect((await notifications()).notifications).toEqual(first.notifications);
+  expect((await (await request("/notifications", admin)).json()).notifications).toEqual([]);
+  await request(`/notifications/${reminder[0].id}/read`, owner, "POST", {});
+  expect((await notifications()).notifications[0].readAt).toBeTruthy();
+  await database.db
+    .update(hrPayrollRun)
+    .set({ status: "paid" })
+    .where(eq(hrPayrollRun.id, run!.id));
+  expect((await notifications()).notifications).toHaveLength(1);
+  const doc = await (await app.request("/api/openapi.json")).json();
+  expect(
+    doc.paths["/api/v1/workspaces/{workspaceId}/hr/payroll/runs/{id}/action"].post.security,
+  ).toEqual([{ cookieAuth: [] }]);
+  expect(doc.paths["/api/v1/workspaces/{workspaceId}/hr/requests"].post.requestBody).toBeTruthy();
+});
+
+test("Payroll blocks missing and incomplete sources while preserving prorated, paid-break and night-work evidence", async () => {
+  const { id, request, schedule } = await policyLab();
+  const settings = {
+    effectiveFrom: "2025-01-01",
+    frequency: "monthly",
+    currency: "PHP",
+    workingDaysPerYear: 261,
+    minutesPerDay: 480,
+    overtimeBps: 12500,
+    holidayBps: 20000,
+    restDayBps: 13000,
+    nightDifferentialBps: 1000,
+    deductUndertime: false,
+    payoutDay: 31,
+    reason: "Unusual time inputs",
+  };
+  await request("/payroll/settings", owner, "POST", settings);
+  await request(`/people/${employee.id}`, owner, "PUT", {
+    hireDate: "2026-09-10",
+    endDate: "2026-09-20",
+    managerId: manager.id,
+  });
+  await request(`/people/${admin.id}`, owner, "PUT", { employmentType: "contractor" });
+  await request("/schedules", owner, "POST", {
+    ...schedule,
+    effectiveFrom: "2026-09-15",
+    paidBreaks: true,
+  });
+  await request("/payroll/compensation", owner, "POST", {
+    userId: employee.id,
+    effectiveFrom: "2026-09-15",
+    salaryMinor: 2500000,
+    reason: "Partial coverage fixture",
+  });
+  const base = { workspaceId: id, userId: employee.id, timezone: "Asia/Manila" };
+  await database.db.insert(hrShift).values([
+    {
+      ...base,
+      workDate: "2026-09-15",
+      schedule,
+      clockIn: new Date("2026-09-15T14:00:00Z"),
+      clockOut: new Date("2026-09-15T22:00:00Z"),
+      breaks: [{ start: "2026-09-15T16:00:00Z", end: "2026-09-15T17:00:00Z" }],
+    },
+    {
+      ...base,
+      workDate: "2026-09-16",
+      schedule: { ...schedule, paidBreaks: true },
+      clockIn: new Date("2026-09-16T14:00:00Z"),
+      clockOut: new Date("2026-09-16T22:00:00Z"),
+      breaks: [{ start: "2026-09-16T16:00:00Z", end: null }],
+    },
+    {
+      ...base,
+      workDate: "2026-09-17",
+      schedule: null,
+      clockIn: new Date("2026-09-17T14:00:00Z"),
+      clockOut: new Date("2026-09-18T15:00:00Z"),
+      breaks: [{ start: "2026-09-17T16:00:00Z", end: null }],
+    },
+    {
+      ...base,
+      workDate: "2026-09-18",
+      schedule,
+      clockIn: new Date("2026-09-18T14:00:00Z"),
+      clockOut: null,
+      breaks: [{ start: "2026-09-18T16:00:00Z", end: null }],
+    },
+  ]);
+  const correction = await request("/requests", employee, "POST", {
+    subject: "Correct day shift",
+    details: {
+      type: "attendance_correction",
+      date: "2026-09-16",
+      clockIn: "2026-09-16T00:00:00Z",
+      clockOut: "2026-09-16T09:00:00Z",
+      breakMinutes: 60,
+    },
+  });
+  expect(
+    (
+      await request(`/requests/${(await correction.json()).id}/action`, manager, "POST", {
+        action: "approve",
+      })
+    ).status,
+  ).toBe(200);
+  const created = await request("/payroll/runs", owner, "POST", {
+    startDate: "2026-09-01",
+    endDate: "2026-09-30",
+    cutoffDate: "2026-09-30",
+    payoutDate: "2026-09-30",
+  });
+  const runId = (await created.json()).id as string;
+  expect((await request(`/payroll/runs/${runId}/calculate`, owner, "POST", {})).status).toBe(200);
+  const detail = await (await request(`/payroll/runs/${runId}`)).json();
+  expect(detail.run.warnings.join(" ")).toContain("Compensation does not cover");
+  expect(detail.run.warnings.join(" ")).toContain("24 hours");
+  expect(detail.run.warnings.join(" ")).toContain("incomplete");
+  expect(detail.employees).toHaveLength(1);
+  expect(detail.employees[0].result.warnings.join(" ")).toContain("Prorated");
+  expect(detail.employees[0].result.warnings.join(" ")).toContain("corrected breaks");
+  expect(detail.employees[0].snapshot.input.nightMinutes).toBeGreaterThan(0);
+  const personal = await request("/payroll/me?periodStart=2026-09-01", owner);
+  expect((await personal.json()).estimate).toBeNull();
+});
+
+test("Directory filters apply before pagination without exposing confidential fields", async () => {
+  const { request } = await policyLab();
+  const department = await request("/departments", owner, "POST", { name: "Filtered team" });
+  const id = (await department.json()).id as string;
+  await request(`/people/${employee.id}`, owner, "PUT", { departmentId: id, status: "on_leave" });
+  const result = await (
+    await request(`/people?departmentId=${id}&status=on_leave&limit=1`, admin)
+  ).json();
+  expect(result.people).toHaveLength(1);
+  expect(result.people[0].userId).toBe(employee.id);
+  expect(result.nextOffset).toBeNull();
+  expect(JSON.stringify(result)).not.toMatch(/salary|compensation|email|tax/);
+  expect((await (await request(`/people?departmentId=${randomUUID()}`)).json()).people).toEqual([]);
+  expect((await request("/people?status=invalid")).status).toBe(400);
+});
+
+test("Employment termination and closed payroll source corrections require deliberate history", async () => {
+  const { id, request } = await policyLab();
+  expect(
+    (await request(`/people/${employee.id}`, owner, "PUT", { status: "terminated" })).status,
+  ).toBe(400);
+  expect(
+    (
+      await request(`/people/${employee.id}`, owner, "PUT", {
+        status: "terminated",
+        endDate: "2026-09-30",
+        managerId: manager.id,
+      })
+    ).status,
+  ).toBe(200);
+  const expense = await request("/requests", employee, "POST", {
+    subject: "Closed source",
+    details: {
+      type: "expense",
+      amountMinor: 1000,
+      currency: "PHP",
+      date: "2026-09-01",
+      category: "Travel expense",
+    },
+  });
+  expect(expense.status).toBe(201);
+  const sourceId = (await expense.json()).id as string;
+  expect(
+    (await request(`/requests/${sourceId}/action`, manager, "POST", { action: "approve" })).status,
+  ).toBe(200);
+  const [run] = await database.db
+    .insert(hrPayrollRun)
+    .values({
+      workspaceId: id,
+      createdBy: owner.id,
+      startDate: "2026-09-01",
+      endDate: "2026-09-30",
+      cutoffDate: "2026-09-30",
+      payoutDate: "2026-09-30",
+      status: "finalized",
+    })
+    .returning();
+  await database.db.insert(hrPayrollAdjustment).values({
+    workspaceId: id,
+    runId: run!.id,
+    userId: employee.id,
+    sourceRequestId: sourceId,
+    data: {},
+    actorId: owner.id,
+    idempotencyKey: randomUUID(),
+  });
+  expect(
+    (await request(`/requests/${sourceId}/action`, employee, "POST", { action: "cancel" })).status,
+  ).toBe(409);
+  expect(
+    (
+      await request("/payroll/settings", owner, "POST", {
+        effectiveFrom: "2026-10-01",
+        frequency: "monthly",
+        currency: "PHP",
+        workingDaysPerYear: 261,
+        minutesPerDay: 480,
+        overtimeBps: 12500,
+        holidayBps: 20000,
+        restDayBps: 13000,
+        deductUndertime: false,
+        payoutDay: 31,
+        reason: "New period fixture",
+      })
+    ).status,
+  ).toBe(200);
+  await database.db
+    .update(hrPayrollRun)
+    .set({ status: "voided" })
+    .where(eq(hrPayrollRun.id, run!.id));
+  const [voided] = await database.db
+    .insert(hrPayrollRun)
+    .values({
+      workspaceId: id,
+      createdBy: owner.id,
+      startDate: "2026-10-01",
+      endDate: "2026-10-31",
+      cutoffDate: "2026-10-31",
+      payoutDate: "2026-10-31",
+      status: "voided",
+    })
+    .returning();
+  const period = {
+    startDate: "2026-10-01",
+    endDate: "2026-10-31",
+    cutoffDate: "2026-10-31",
+    payoutDate: "2026-10-31",
+  };
+  expect((await request("/payroll/runs", owner, "POST", period)).status).toBe(409);
+  expect(
+    (
+      await request("/payroll/runs", owner, "POST", {
+        ...period,
+        replacesRunId: voided!.id,
+        reason: "Controlled replacement with original evidence",
+      })
+    ).status,
+  ).toBe(201);
 });

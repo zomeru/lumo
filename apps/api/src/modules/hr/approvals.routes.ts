@@ -207,16 +207,9 @@ export function approvalsRoutes(core: HrCore, hooks: RequestHooks) {
         await recordRequest(ctx, id, "cancelled", input.comment);
         return;
       }
-      if (row.requesterId === ctx.actorId || row.approverIds[row.currentStep] !== ctx.actorId)
-        denied();
-      const status =
-        input.action === "reject"
-          ? "rejected"
-          : row.currentStep + 1 === row.approverIds.length
-            ? "approved"
-            : "pending";
-      if (row.status !== "pending") {
-        // Retry by the original decider is safe, without replaying the domain transition.
+      if (row.requesterId === ctx.actorId) denied();
+      const assigned = row.approverIds[row.currentStep] === ctx.actorId;
+      if (!assigned || row.status !== "pending") {
         const prior = await ctx.tx
           .select()
           .from(hrRequestEvent)
@@ -229,8 +222,15 @@ export function approvalsRoutes(core: HrCore, hooks: RequestHooks) {
             ),
           );
         if (prior.length) return;
+        if (!assigned) denied();
         throw new AppError(409, "INVALID_STATE", "This request is no longer pending.");
       }
+      const status =
+        input.action === "reject"
+          ? "rejected"
+          : row.currentStep + 1 === row.approverIds.length
+            ? "approved"
+            : "pending";
       if (status === "approved")
         await hooks.validate(ctx, requestDetailsSchema.parse(row.details), id);
       await hooks.transition(ctx, row, status);

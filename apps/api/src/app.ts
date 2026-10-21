@@ -32,6 +32,7 @@ import { driveRoutes } from "./modules/drive/drive.routes";
 import { createDriveService } from "./modules/drive/drive.service";
 import { hrRoutes } from "./modules/hr/hr.routes";
 import { activateOnboarding } from "./modules/hr/onboarding";
+import { documentHr } from "./modules/hr/openapi";
 import { officeRoutes, officeMachineRoutes } from "./modules/office/office.routes";
 import { createOfficeService } from "./modules/office/office.service";
 import { createOfficeProvider, officeKey, type OfficeProvider } from "./modules/office/provider";
@@ -291,6 +292,7 @@ export function createApp({
         : "better-auth.session_token",
   });
   documentFoundation(app);
+  documentHr(app);
   app.doc31("/api/openapi.json", {
     openapi: "3.1.0",
     info: { title: "Lumo API", version: "1.0.0" },

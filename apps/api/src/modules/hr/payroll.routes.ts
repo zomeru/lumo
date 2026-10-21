@@ -1,5 +1,6 @@
 import { idSchema } from "@lumo/contracts";
 import {
+  calendarDateSchema,
   compensationInputSchema,
   payrollAdjustmentInputSchema,
   payrollResultSchema,
@@ -34,6 +35,7 @@ import {
   settingsFor,
 } from "./payroll";
 import { philippineRules } from "./payroll-rules";
+import { suggestedPayrollPeriod } from "./payroll-schedule";
 
 async function readPayroll(c: HrContext) {
   if (!(await c.can("hr.payroll.read_all")) && !(await c.can("hr.payroll.runs.manage"))) denied();
@@ -129,6 +131,22 @@ export function payrollRoutes(core: HrCore) {
       }),
     ),
   );
+  app.get("/payroll/schedule", async (c) =>
+    c.json(
+      await core.run(c.get("workspaceId"), c.get("user").id, async (ctx) => {
+        await ctx.require("hr.payroll.runs.manage");
+        try {
+          const today = localParts(new Date(), ctx.timezone).date;
+          const setting = await settingsFor(ctx, today);
+          return { period: suggestedPayrollPeriod(setting.parsed, today) };
+        } catch (error) {
+          if (error instanceof AppError && error.code === "PAYROLL_SETTINGS_REQUIRED")
+            return { period: null };
+          throw error;
+        }
+      }),
+    ),
+  );
   app.post("/payroll/settings", async (c) => {
     const input = parse(payrollSettingsInputSchema, await c.req.json());
     await core.run(c.get("workspaceId"), c.get("user").id, async (ctx) => {
@@ -159,19 +177,34 @@ export function payrollRoutes(core: HrCore) {
     });
     return c.json({ ok: true });
   });
-  app.get("/payroll/me", async (c) =>
-    c.json(
+  app.get("/payroll/me", async (c) => {
+    const { periodStart } = parse(
+      z.object({ periodStart: calendarDateSchema.optional() }),
+      c.req.query(),
+    );
+    return c.json(
       await core.run(c.get("workspaceId"), c.get("user").id, async (ctx) => {
         const payslips = await releasedPayslips(ctx);
         let estimate = null,
           estimatePeriod = null;
-        const today = localParts(new Date(), ctx.timezone).date,
+        const today = periodStart ?? localParts(new Date(), ctx.timezone).date,
           month = today.slice(0, 7),
           end = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
             .toISOString()
             .slice(0, 10);
         try {
           const setting = await settingsFor(ctx, today);
+          if (
+            periodStart &&
+            (setting.parsed.frequency === "monthly"
+              ? periodStart.slice(8) !== "01"
+              : !["01", "16"].includes(periodStart.slice(8)))
+          )
+            throw new AppError(
+              400,
+              "INVALID_ESTIMATE_PERIOD",
+              "Choose day 1 for monthly payroll, or day 1/16 for semimonthly payroll.",
+            );
           const first = setting.parsed.frequency === "semimonthly" && Number(today.slice(8)) <= 15;
           const startDate = `${month}-${first || setting.parsed.frequency === "monthly" ? "01" : "16"}`,
             endDate = first ? `${month}-15` : end;
@@ -196,8 +229,8 @@ export function payrollRoutes(core: HrCore) {
         }
         return { payslips, estimate, estimatePeriod };
       }),
-    ),
-  );
+    );
+  });
   app.get("/payroll/me/:runId/export", async (c) => {
     const id = parse(idSchema, c.req.param("runId"));
     return c.json(
@@ -290,6 +323,26 @@ export function payrollRoutes(core: HrCore) {
             "DUPLICATE_PAY_PERIOD",
             "An active payroll run already covers this period.",
           );
+        if (!input.replacesRunId) {
+          const [voided] = await ctx.tx
+            .select({ id: hrPayrollRun.id })
+            .from(hrPayrollRun)
+            .where(
+              and(
+                eq(hrPayrollRun.workspaceId, ctx.workspaceId),
+                eq(hrPayrollRun.status, "voided"),
+                eq(hrPayrollRun.startDate, input.startDate),
+                eq(hrPayrollRun.endDate, input.endDate),
+              ),
+            )
+            .limit(1);
+          if (voided)
+            throw new AppError(
+              409,
+              "REPLACEMENT_REQUIRED",
+              "Link the voided run and document the reason when reissuing this period.",
+            );
+        }
         if (input.replacesRunId) {
           const replaced = await payrollRunFor(ctx, input.replacesRunId);
           if (

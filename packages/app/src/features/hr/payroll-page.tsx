@@ -5,6 +5,7 @@ import {
   ownPaySchema,
   payRunsSchema,
   payrollDetailSchema,
+  payrollScheduleSchema,
   type PayrollResult,
 } from "@lumo/contracts/hr";
 import {
@@ -65,6 +66,7 @@ function PayBreakdown({ result }: { result: PayrollResult }) {
 }
 export function PayrollPage({ workspaceId }: { workspaceId: string }) {
   const [tab, setTab] = useHrTab("My Pay", "/w/$workspaceId/payroll"),
+    [estimateStart, setEstimateStart] = useState(""),
     [newRun, setNewRun] = useState(false),
     [salary, setSalary] = useState(false),
     [runId, setRunId] = useState<string | null>(null),
@@ -74,7 +76,11 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
     people = useQuery(allPeopleQuery(workspaceId)),
     action = useHrAction(workspaceId);
   const own = useQuery({
-      ...hrQuery(workspaceId, "/payroll/me", ownPaySchema),
+      ...hrQuery(
+        workspaceId,
+        `/payroll/me${estimateStart ? `?periodStart=${estimateStart}` : ""}`,
+        ownPaySchema,
+      ),
       enabled: tab === "My Pay",
     }),
     runs = useQuery({
@@ -85,6 +91,10 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
       ...hrQuery(workspaceId, "/payroll/compensation", compensationsSchema),
       enabled: tab === "Employees",
     });
+  const schedule = useQuery({
+    ...hrQuery(workspaceId, "/payroll/schedule", payrollScheduleSchema),
+    enabled: newRun,
+  });
   const detail = useQuery({
     ...hrQuery(workspaceId, `/payroll/runs/${runId}`, payrollDetailSchema),
     enabled: !!runId,
@@ -175,6 +185,13 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
             </Card>
             <Card>
               <h2>Take-home pay estimate</h2>
+              <Field
+                className="my-3"
+                type="date"
+                label="Estimate period start (day 1 or 16)"
+                value={estimateStart}
+                onChange={(event) => setEstimateStart(event.target.value)}
+              />
               <Badge>Estimate — requires payroll review</Badge>
               <p className="my-3">{own.data?.estimatePeriod}</p>
               {own.data?.estimate ? (
@@ -263,37 +280,66 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
         <PayrollSettingsPanel workspaceId={workspaceId} access={permissions} />
       )}
       <HrDialog title="Create payroll period" open={newRun} onClose={() => setNewRun(false)}>
-        <HrForm
-          busy={action.isPending}
-          error={action.error}
-          label="Create draft run"
-          onSubmit={(data) =>
-            action.mutate(
-              {
-                path: "/payroll/runs",
-                body: {
-                  startDate: formString(data, "startDate"),
-                  endDate: formString(data, "endDate"),
-                  cutoffDate: formString(data, "cutoffDate"),
-                  payoutDate: formString(data, "payoutDate"),
-                  replacesRunId: formString(data, "replacesRunId") || null,
-                  reason: formString(data, "reason"),
+        <ErrorMessage error={schedule.error} />
+        {schedule.isPending ? (
+          <Loading />
+        ) : (
+          <HrForm
+            busy={action.isPending}
+            error={action.error}
+            label="Create draft run"
+            onSubmit={(data) =>
+              action.mutate(
+                {
+                  path: "/payroll/runs",
+                  body: {
+                    startDate: formString(data, "startDate"),
+                    endDate: formString(data, "endDate"),
+                    cutoffDate: formString(data, "cutoffDate"),
+                    payoutDate: formString(data, "payoutDate"),
+                    replacesRunId: formString(data, "replacesRunId") || null,
+                    reason: formString(data, "reason"),
+                  },
                 },
-              },
-              { onSuccess: () => setNewRun(false) },
-            )
-          }
-        >
-          <p>
-            Use a full calendar month, or the configured 1–15 / 16–month-end semimonthly period.
-          </p>
-          <Field type="date" name="startDate" label="Period start" required />
-          <Field type="date" name="endDate" label="Period end" required />
-          <Field type="date" name="cutoffDate" label="Attendance cutoff" required />
-          <Field type="date" name="payoutDate" label="Payout date" required />
-          <Field name="replacesRunId" label="Voided run ID to replace (optional)" />
-          <Field name="reason" label="Replacement reason (when applicable)" />
-        </HrForm>
+                { onSuccess: () => setNewRun(false) },
+              )
+            }
+          >
+            <p>
+              Use a full calendar month, or the configured 1–15 / 16–month-end semimonthly period.
+            </p>
+            <Field
+              type="date"
+              name="startDate"
+              defaultValue={schedule.data?.period?.startDate}
+              label="Period start"
+              required
+            />
+            <Field
+              type="date"
+              name="endDate"
+              defaultValue={schedule.data?.period?.endDate}
+              label="Period end"
+              required
+            />
+            <Field
+              type="date"
+              name="cutoffDate"
+              defaultValue={schedule.data?.period?.cutoffDate}
+              label="Attendance cutoff"
+              required
+            />
+            <Field
+              type="date"
+              name="payoutDate"
+              defaultValue={schedule.data?.period?.payoutDate}
+              label="Payout date"
+              required
+            />
+            <Field name="replacesRunId" label="Voided run ID to replace (optional)" />
+            <Field name="reason" label="Replacement reason (when applicable)" />
+          </HrForm>
+        )}
       </HrDialog>
       <HrDialog title="Effective compensation" open={salary} onClose={() => setSalary(false)}>
         <HrForm

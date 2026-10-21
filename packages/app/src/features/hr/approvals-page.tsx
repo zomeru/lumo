@@ -13,7 +13,7 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { hrAccessQuery, downloadHrFile, hrQuery, useHrAction } from "./hr-api";
+import { hrAccessQuery, allPeopleQuery, downloadHrFile, hrQuery, useHrAction } from "./hr-api";
 import { useHrTab, useHrFilter } from "./hr-search";
 import { HrDialog, HrForm, HrTabs, formString } from "./hr-ui";
 import { RequestDialog } from "./request-dialog";
@@ -21,21 +21,25 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
   const [tab, setTab] = useHrTab("Waiting for me", "/w/$workspaceId/approvals"),
     [open, setOpen] = useState(false),
     [selected, setSelected] = useState<Approval | null>(null),
-    [editing, setEditing] = useState<Approval | null>(null),
-    [status, setStatus] = useState("all"),
-    [requestType, setRequestType] = useState("all");
-  const { q, setQ, offset, setOffset } = useHrFilter("/w/$workspaceId/approvals");
+    [editing, setEditing] = useState<Approval | null>(null);
+  const filters = useHrFilter("/w/$workspaceId/approvals");
+  const { q, setQ, offset, setOffset } = filters;
+  const status = filters.status ?? "all",
+    requestType = filters.requestType ?? "all";
+  const people = useQuery(allPeopleQuery(workspaceId));
   const access = useQuery(hrAccessQuery(workspaceId));
   const action = useHrAction(workspaceId);
   const download = useMutation({ mutationFn: (id: string) => downloadHrFile(workspaceId, id) });
   const view = tab === "Waiting for me" ? "waiting" : tab === "My requests" ? "mine" : "all";
-  const requests = useQuery(
-    hrQuery(
-      workspaceId,
-      `/requests?view=${view}&q=${encodeURIComponent(q)}&offset=${offset}${status !== "all" ? `&status=${status}` : ""}${requestType !== "all" ? `&type=${requestType}` : ""}`,
-      approvalsSchema,
-    ),
-  );
+  const query = new URLSearchParams({ view, q, offset: String(offset) });
+  if (status !== "all") query.set("status", status);
+  if (requestType !== "all") query.set("type", requestType);
+  if (view === "all")
+    for (const name of ["employeeId", "approverId", "fromDate", "toDate"] as const) {
+      const value = filters[name];
+      if (value) query.set(name, value);
+    }
+  const requests = useQuery(hrQuery(workspaceId, `/requests?${query}`, approvalsSchema));
   const history = useQuery({
     ...hrQuery(workspaceId, `/requests/${selected?.id}/history`, approvalHistorySchema),
     enabled: !!selected,
@@ -86,8 +90,7 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
           label="Request status"
           value={status}
           onValueChange={(v) => {
-            setStatus(v);
-            setOffset(0);
+            filters.setFilters({ status: v, offset: 0 });
           }}
           options={["all", "draft", "pending", "approved", "rejected", "cancelled"].map(
             (value) => ({ value, label: value }),
@@ -97,8 +100,7 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
           label="Request type"
           value={requestType}
           onValueChange={(v) => {
-            setRequestType(v);
-            setOffset(0);
+            filters.setFilters({ requestType: v, offset: 0 });
           }}
           options={[
             "all",
@@ -112,7 +114,49 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
           ].map((value) => ({ value, label: value }))}
         />
       </div>
-      <ErrorMessage error={requests.error ?? action.error} />
+      {view === "all" && (
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SelectField
+            label="Requester filter"
+            value={filters.employeeId ?? "all"}
+            options={[
+              { value: "all", label: "All employees" },
+              ...(people.data?.people ?? []).map((p) => ({ value: p.userId, label: p.name })),
+            ]}
+            onValueChange={(value) =>
+              filters.setFilters({ employeeId: value === "all" ? undefined : value, offset: 0 })
+            }
+          />
+          <SelectField
+            label="Approver filter"
+            value={filters.approverId ?? "all"}
+            options={[
+              { value: "all", label: "All approvers" },
+              ...(people.data?.people ?? []).map((p) => ({ value: p.userId, label: p.name })),
+            ]}
+            onValueChange={(value) =>
+              filters.setFilters({ approverId: value === "all" ? undefined : value, offset: 0 })
+            }
+          />
+          <Field
+            label="Created from"
+            type="date"
+            value={filters.fromDate ?? ""}
+            onChange={(event) =>
+              filters.setFilters({ fromDate: event.target.value || undefined, offset: 0 })
+            }
+          />
+          <Field
+            label="Created through"
+            type="date"
+            value={filters.toDate ?? ""}
+            onChange={(event) =>
+              filters.setFilters({ toDate: event.target.value || undefined, offset: 0 })
+            }
+          />
+        </div>
+      )}
+      <ErrorMessage error={requests.error ?? people.error ?? action.error} />
       {requests.isPending ? (
         <Loading />
       ) : requests.data?.requests.length ? (
@@ -121,6 +165,11 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
             <Card key={r.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div>
                 <h2>{r.subject}</h2>
+                <p>
+                  {people.data?.people.find((p) => p.userId === r.requesterId)?.name ??
+                    "Former workspace member"}{" "}
+                  · {requestSummary(r)}
+                </p>
                 <p>
                   {r.details.type} · {new Date(r.createdAt).toLocaleDateString()} · {r.priority}
                 </p>
@@ -258,5 +307,17 @@ export function ApprovalsPage({ workspaceId }: { workspaceId: string }) {
         )}
       </HrDialog>
     </>
+  );
+}
+
+function requestSummary(request: Approval) {
+  const details = request.details;
+  if (details.type === "leave" || details.type === "travel")
+    return `${details.startDate} – ${details.endDate}`;
+  if (details.type === "overtime") return `${details.date} · ${details.durationMinutes} minutes`;
+  if (details.type === "attendance_correction") return details.date;
+  if (details.type === "general") return "General request";
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: details.currency }).format(
+    details.amountMinor / 100,
   );
 }

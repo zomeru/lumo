@@ -3,6 +3,7 @@ import { departmentInputSchema, employmentInputSchema, hrPageSchema } from "@lum
 import { hrDepartment, hrEmployee, membership, user } from "@lumo/database/schema";
 import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { z } from "zod";
 
 import type { ApiContext } from "../../lib/context";
 import { AppError, missing, parse } from "../../lib/errors";
@@ -11,7 +12,13 @@ import { auditHr, requireHrMember, type HrCore } from "./core";
 export function peopleRoutes(core: HrCore) {
   const app = new Hono<ApiContext>();
   app.get("/people", async (c) => {
-    const { q, offset, limit } = parse(hrPageSchema, c.req.query());
+    const { q, offset, limit, departmentId, status } = parse(
+      hrPageSchema.extend({
+        departmentId: idSchema.optional(),
+        status: z.enum(["active", "on_leave", "terminated"]).optional(),
+      }),
+      c.req.query(),
+    );
     return c.json(
       await core.run(c.get("workspaceId"), c.get("user").id, async (ctx) => {
         const rows = await ctx.tx
@@ -50,6 +57,8 @@ export function peopleRoutes(core: HrCore) {
           .where(
             and(
               eq(membership.workspaceId, ctx.workspaceId),
+              departmentId ? eq(hrEmployee.departmentId, departmentId) : undefined,
+              status ? sql`coalesce(${hrEmployee.status}, 'active') = ${status}` : undefined,
               q
                 ? or(
                     ilike(user.name, `%${q}%`),

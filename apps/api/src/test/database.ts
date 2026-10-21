@@ -7,7 +7,7 @@ import { createDatabase } from "@lumo/database";
 import { sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 
-export async function createTestDatabase(url: string | undefined) {
+export async function createTestDatabase(url: string | undefined, throughMigration?: number) {
   if (!url || !new URL(url).pathname.endsWith("_test"))
     throw new Error(
       "TEST_DATABASE_URL must point to a dedicated database ending in _test. See apps/api/.env.example.",
@@ -39,8 +39,30 @@ export async function createTestDatabase(url: string | undefined) {
         );
       }
     }
-    await migrate(database.db, { migrationsFolder: migrationsDir, migrationsSchema: namespace });
-    return { ...database, url: scopedUrl.toString(), cleanup };
+    const journalPath = join(migrationsDir, "meta/_journal.json"),
+      journalText = await readFile(journalPath, "utf8");
+    if (throughMigration !== undefined) {
+      const journal = JSON.parse(journalText) as { entries: { idx: number }[] };
+      await writeFile(
+        journalPath,
+        JSON.stringify({
+          ...journal,
+          entries: journal.entries.filter((entry) => entry.idx <= throughMigration),
+        }),
+      );
+    }
+    const applyMigrations = () =>
+      migrate(database.db, { migrationsFolder: migrationsDir, migrationsSchema: namespace });
+    await applyMigrations();
+    return {
+      ...database,
+      url: scopedUrl.toString(),
+      cleanup,
+      migrateRemaining: async () => {
+        await writeFile(journalPath, journalText);
+        await applyMigrations();
+      },
+    };
   } catch (error) {
     await cleanup();
     throw error;

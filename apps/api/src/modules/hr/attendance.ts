@@ -58,7 +58,7 @@ export function shiftMinutes(
     late: lateMinutes > (schedule?.graceMinutes ?? 15),
   };
 }
-export function csvCell(value: string | number | boolean | null | undefined) {
+function csvCell(value: string | number | boolean | null | undefined) {
   const text = String(value ?? "");
   return `"${(/^[\s]*[=+\-@\t\r\n]/.test(text) ? "'" : "") + text.replaceAll('"', '""')}"`;
 }
@@ -96,6 +96,7 @@ export async function attendanceMonth(
     )
       denied();
   }
+  if (input.team === "true" && input.userId) userIds = userIds.filter((id) => id === input.userId);
   if (input.departmentId)
     userIds = userIds.filter((id) =>
       employees.some((e) => e.userId === id && e.departmentId === input.departmentId),

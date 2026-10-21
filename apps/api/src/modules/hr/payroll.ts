@@ -16,7 +16,7 @@ import {
   hrShift,
   membership,
 } from "@lumo/database/schema";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql, or, isNull, lte, gte } from "drizzle-orm";
 
 import { AppError, missing } from "../../lib/errors";
 import { attendanceMonth } from "./attendance";
@@ -73,7 +73,7 @@ export async function assertOpenPayrollPeriod(c: HrContext, start: string, end: 
       "This affects a finalized payroll period. Record a subsequent-period adjustment instead.",
     );
 }
-export function nightMinutes(
+function nightMinutes(
   shift: {
     clockIn: Date;
     clockOut: Date | null;
@@ -86,7 +86,7 @@ export function nightMinutes(
   let minutes = 0;
   for (
     let time = shift.clockIn.getTime();
-    time + 60000 <= shift.clockOut.getTime();
+    time + 60000 <= Math.min(shift.clockOut.getTime(), shift.clockIn.getTime() + 86400000);
     time += 60000
   ) {
     const local = localParts(new Date(time), shift.timezone);
@@ -188,6 +188,20 @@ export async function employeePay(
     overtimeMinutes = 0,
     holidayMinutes = 0,
     restMinutes = 0;
+  const timeAmounts: NonNullable<PayrollEngineInput["timeAmounts"]> = {
+    "Unpaid leave": 0,
+    "Attendance deduction": 0,
+    "Approved overtime": 0,
+    "Approved holiday work": 0,
+    "Approved rest-day work": 0,
+    "Night differential": 0,
+  };
+  const rate = (date: string, minutes: number, bps = 10000) =>
+    roundedRatio(
+      compensation.filter((row) => row.effectiveFrom <= date).at(-1)?.salaryMinor ?? 0,
+      12 * minutes * bps,
+      settings.workingDaysPerYear * settings.minutesPerDay * 10000,
+    );
   for (const day of days) {
     const schedule = scheduleOn(calendar.schedules, day.date);
     if (!schedule) continue;
@@ -200,12 +214,21 @@ export async function employeePay(
         (n, r) => n + Number(((r.details.charges as Record<string, number>) ?? {})[day.date] ?? 0),
         0,
       );
-    unpaidMinutes += Math.floor((scheduledMinutes * unpaidHalfDays) / 2);
+    const unpaidDay = Math.floor((scheduledMinutes * unpaidHalfDays) / 2);
+    unpaidMinutes += unpaidDay;
+    timeAmounts["Unpaid leave"] += rate(day.date, unpaidDay);
+    timeAmounts["Attendance deduction"] += rate(day.date, day.undertimeMinutes);
     const approvedMinutes = Math.min(day.overtimeMinutes, day.approvedOvertimeMinutes);
-    if (calendar.holidays.includes(day.date)) holidayMinutes += approvedMinutes;
-    else if (!schedule.weekdays.includes(new Date(`${day.date}T12:00:00Z`).getUTCDay()))
+    if (calendar.holidays.includes(day.date)) {
+      holidayMinutes += approvedMinutes;
+      timeAmounts["Approved holiday work"] += rate(day.date, approvedMinutes, settings.holidayBps);
+    } else if (!schedule.weekdays.includes(new Date(`${day.date}T12:00:00Z`).getUTCDay())) {
       restMinutes += approvedMinutes;
-    else overtimeMinutes += approvedMinutes;
+      timeAmounts["Approved rest-day work"] += rate(day.date, approvedMinutes, settings.restDayBps);
+    } else {
+      overtimeMinutes += approvedMinutes;
+      timeAmounts["Approved overtime"] += rate(day.date, approvedMinutes, settings.overtimeBps);
+    }
   }
   const shifts = await c.tx
     .select()
@@ -222,6 +245,18 @@ export async function employeePay(
       n + nightMinutes(s, s.schedule ? scheduleInputSchema.parse(s.schedule).paidBreaks : false),
     0,
   );
+  for (const shift of shifts) {
+    if (shift.clockOut && shift.clockOut.getTime() - shift.clockIn.getTime() > 86400000)
+      warnings.push("Correct shifts longer than 24 hours before finalization.");
+    timeAmounts["Night differential"] += rate(
+      shift.workDate,
+      nightMinutes(
+        shift,
+        shift.schedule ? scheduleInputSchema.parse(shift.schedule).paidBreaks : false,
+      ),
+      settings.nightDifferentialBps,
+    );
+  }
   const adjustments = runId
     ? await c.tx
         .select()
@@ -237,6 +272,7 @@ export async function employeePay(
   const parsedAdjustments = adjustments.map((a) => payrollAdjustmentInputSchema.parse(a.data));
   const input: PayrollEngineInput = {
     basicMinor,
+    timeAmounts,
     monthlySalaryMinor: current.salaryMinor,
     allowances: current.allowances,
     unpaidMinutes,
@@ -252,7 +288,7 @@ export async function employeePay(
   if (days.some((d) => d.status === "incomplete"))
     warnings.push("Close or correct incomplete attendance before finalization.");
   if (days.some((d) => d.correctionId) && settings.nightDifferentialBps > 0)
-    warnings.push(
+    result.warnings.push(
       "Verify night differential against corrected breaks; apply a documented adjustment if needed.",
     );
   if (eligibleMinutes !== totalMinutes)
@@ -306,8 +342,8 @@ export async function calculateRun(c: HrContext, id: string) {
     .where(
       and(
         eq(hrEmployee.workspaceId, c.workspaceId),
-        sql`${hrEmployee.hireDate} is null or ${hrEmployee.hireDate} <= ${run.endDate}`,
-        sql`${hrEmployee.endDate} is null or ${hrEmployee.endDate} >= ${run.startDate}`,
+        or(isNull(hrEmployee.hireDate), lte(hrEmployee.hireDate, run.endDate)),
+        or(isNull(hrEmployee.endDate), gte(hrEmployee.endDate, run.startDate)),
       ),
     );
   await c.tx
@@ -352,6 +388,32 @@ export async function guardPayrollRequestChange(
   row: typeof hrRequest.$inferSelect,
   status: string,
 ) {
+  if (status === "cancelled" && row.status === "approved") {
+    const [included] = await c.tx
+      .select({ runId: hrPayrollRun.id })
+      .from(hrPayrollAdjustment)
+      .innerJoin(
+        hrPayrollRun,
+        and(
+          eq(hrPayrollRun.workspaceId, hrPayrollAdjustment.workspaceId),
+          eq(hrPayrollRun.id, hrPayrollAdjustment.runId),
+        ),
+      )
+      .where(
+        and(
+          eq(hrPayrollAdjustment.workspaceId, c.workspaceId),
+          eq(hrPayrollAdjustment.sourceRequestId, row.id),
+          sql`${hrPayrollRun.status} in ('finalized','paid')`,
+        ),
+      )
+      .limit(1);
+    if (included)
+      throw new AppError(
+        409,
+        "PAYROLL_PERIOD_CLOSED",
+        "This request is included in closed payroll. Record a subsequent-period correction instead.",
+      );
+  }
   if (!["leave", "overtime", "attendance_correction"].includes(String(row.details.type))) return;
   if (status !== "approved" && !(status === "cancelled" && row.status === "approved")) return;
   const start = String(row.details.startDate ?? row.details.date),

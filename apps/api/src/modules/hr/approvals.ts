@@ -40,7 +40,7 @@ export async function recordRequest(c: HrContext, id: string, action: string, co
     .values({ workspaceId: c.workspaceId, requestId: id, actorId: c.actorId, action, comment });
   await auditHr(c, `request.${action}`, id);
 }
-export async function routeRequest(
+async function routeRequest(
   c: HrContext,
   details: RequestDetails,
   requesterId: string,

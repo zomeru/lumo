@@ -10,7 +10,13 @@ import { HrDialog } from "./hr-ui";
 export function HrInbox({ workspaceId }: { workspaceId: string }) {
   const [open, setOpen] = useState(false),
     action = useHrAction(workspaceId);
-  const inbox = useQuery(hrQuery(workspaceId, "/notifications", hrNotificationsSchema));
+  const inbox = useQuery({
+    ...hrQuery(workspaceId, "/notifications", hrNotificationsSchema),
+    // Drive and Office invalidate the broad workspace key after each file action.
+    // Inbox refresh is independent, while workspace/session changes still clear it.
+    queryKey: ["hr-inbox", workspaceId],
+    staleTime: 30000,
+  });
   const unread = inbox.data?.notifications.filter((n) => !n.readAt).length ?? 0;
   return (
     <>

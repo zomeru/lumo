@@ -129,3 +129,50 @@ test("integer rounding, classified adjustments and nonnegative validation", () =
     ).warnings,
   ).toContain("Invalid negative payroll total; correct the input before finalization.");
 });
+
+test("explicit statutory adjustments stay classified and financial overflow is rejected", () => {
+  const result = calculatePay(
+    {
+      ...input,
+      adjustments: [
+        {
+          label: "SSS correction",
+          amountMinor: 100,
+          classification: "sss",
+          reason: "Reconciled source",
+        },
+        {
+          label: "Health correction",
+          amountMinor: 100,
+          classification: "philhealth",
+          reason: "Reconciled source",
+        },
+        {
+          label: "Fund correction",
+          amountMinor: 100,
+          classification: "pagibig",
+          reason: "Reconciled source",
+        },
+        {
+          label: "Employer correction",
+          amountMinor: 100,
+          classification: "employer",
+          reason: "Reconciled source",
+        },
+        {
+          label: "Withholding correction",
+          amountMinor: 100,
+          classification: "withholding",
+          reason: "Reconciled source",
+        },
+      ],
+    },
+    settings,
+  );
+  expect(result.employerMinor).toBe(335600);
+  expect(result.lines.find((l) => l.label === "SSS correction")?.kind).toBe("deduction");
+  expect(() => roundedRatio(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 1)).toThrow(
+    "Financial result overflow",
+  );
+  expect(calculatePay({ ...input, basicMinor: 0 }, settings).netMinor).toBeLessThan(0);
+});
