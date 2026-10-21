@@ -238,7 +238,7 @@ and Drive IAM/encryption/CORS setup; include `hr/*` in that bucket role's existi
 permissions, with no public ACL. Integration tests use the existing in-memory storage adapter; E2E
 seeds actual PostgreSQL records through authenticated APIs. `tests/hr-flow.ts` is the reusable demo
 seed/workflow: owner and employee accounts, scoped profiles/schedules/leave, requests, real reviewed
-payroll and onboarding. It runs in the isolated E2E environment and captures the six screens.
+payroll and onboarding. It runs in the isolated E2E environment and captures the six screens plus the statutory editor. The workflow saves custom SSS rates through the actual settings UI and verifies the resulting net pay before release.
 Fixtures are intentionally confined to test databases. For a persistent development workspace,
 create it through the existing owner setup and follow the configuration guide; no production
 salaries, government IDs or illustrative statutory entitlements are automatically seeded.
@@ -289,21 +289,22 @@ Private uploads can still contain sensitive material and require the same deploy
 
 | Check | Result |
 | --- | --- |
-| `pnpm check:all` | Format, type-aware lint, package boundaries, dependency consistency/usage, fresh route generation/typechecking and all 477 tests passed |
-| Coverage, unchanged 90% gates | Statements 95.55%, branches 90.67%, functions 93.94%, lines 96.82% |
+| All `pnpm check:all` stages | Format, type-aware lint, boundaries, dependency consistency/usage, fresh route generation/typechecking and all 526 tests passed |
+| Coverage, unchanged 90% gates | Statements 95.68%, branches 90.97%, functions 94.15%, lines 96.90% |
 | `pnpm build` | API, shared route build, web and Electron builds passed |
 | Fresh and existing-schema migration tests | Passed; users, personal workspaces and memberships preserved; repeat migration applies safely |
-| `pnpm db:generate` | No schema changes, nothing to migrate |
+| `pnpm db:generate` / `pnpm db:migrate` | Additive statutory migration `0014` generated and applied after a local backup; subsequent generation reports no schema drift |
 | Full Chromium browser project | 8 passed |
 | Full mobile Chromium project | 7 passed, 1 existing desktop-scrollbar-drag scenario skipped on touch devices |
-| Final focused browser HR workflows | Chromium and mobile Chromium both passed after the final screen changes |
+| Statutory workflow in full browser projects | Custom SSS rates saved through the UI, persisted, calculated, independently verified and published in Chromium and mobile Chromium |
 | Full Electron suite under Xvfb | 5 passed; 5 existing environment/provider-gated cases skipped (native maximize/minimize, live Chat/RTC/screen capture) |
 
 Browser projects were run with separate fresh test-server instances to preserve real authentication
 burst limits. The combined command creates eight accounts in rapid succession; it is not a reason
 to weaken production rate limiting. Initial regressions also exposed broad file invalidation
 refreshing the inbox and a calendar test selecting before focus was ready. The inbox now uses a
-separate workspace-keyed cache namespace cleared on switching; the calendar helper waits for its
+separate workspace-keyed cache namespace cleared on switching; section navigation rechecks access
+without rewriting an already active workspace, avoiding redundant requests under the real limit; the calendar helper waits for its
 route/listbox and verifies keyboard focus before selecting UTC.
 
 Screenshots of the six HR screens were inspected on desktop Chromium, mobile and Electron. They

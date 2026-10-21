@@ -31,12 +31,12 @@ Review reference: [Web Interface Guidelines](https://github.com/vercel-labs/web-
 
 ## Payroll follow-through
 
-The existing engine already calculates contributions, but reads one application-owned
-configuration and only displays source references in Settings. Add explicit, immutable,
-workspace-scoped effective configurations with structured contribution/table editors,
-backend validation and calculation selection, source/evidence history and audit records.
-Preserve existing finalized snapshots, capability boundaries and independent release review.
-New settings change future calculations; saving a configuration performs no payment.
+The former engine read one application-owned configuration and Settings displayed only
+source references. Settings now provides structured, persisted contribution/table editors,
+backend validation and effective version selection, source/evidence history and audit records.
+Existing finalized snapshots, capability boundaries and independent release review remain.
+Every engine call requires an explicit rule configuration; new generation resolves a saved
+workspace version. New settings change future calculations; saving performs no payment.
 
 ### Effective versions and calculation boundary
 
@@ -79,3 +79,37 @@ Reference template sources (reviewed 2026-10-21; references do not certify appli
 - [PhilHealth Advisory 2025-0002](https://www.philhealth.gov.ph/advisories/2025/PA2025-0002.pdf).
 - [Pag-IBIG Circular 460, official DMW-hosted copy](https://dmw.gov.ph/archives/v1/resources/dsms/DMW/ISN-EXT/2025/DMW-ADVISORY-37-2025.pdf).
 - [BIR RR 11-2018 Annex E, 2023 onward tables](https://bir-cdn.bir.gov.ph/local/pdf/Annex%20E%20RR%2011-2018.pdf).
+
+
+### Validation and operation
+
+Migration `0014` adds the statutory configuration table without changing existing payroll
+rows. Upgrade tests retain historical finalized snapshots, leave the configuration table
+empty, and verify date/uniqueness constraints. The local database was backed up before
+applying the migration; generating again reports no drift.
+
+All CI gate stages pass: formatting, type-aware Oxlint, package boundaries, dependency
+consistency/usage, route generation and strict TypeScript. All 526 tests pass with the
+unchanged 90% coverage requirements (statements 95.68%, branches 90.97%, functions 94.15%,
+lines 96.90%). Calculation tests cover source thresholds, customized rates/tables, floors,
+caps, component rounding, odd-centavo allocation, collection timing and withholding.
+Real database tests exercise explicit grants, workspace isolation, persistence, effective
+selection, invalidated calculations, immutable history, cutoffs, hires/departures and
+voided reconciliation sources. UI tests cover structured editing, row operations,
+exemptions, evidence, errors, immutable history and access-limited queries.
+
+API, shared app, web and Electron production builds pass. Full Chromium has eight passing
+end-to-end tests; mobile Chromium has seven and the existing desktop scrollbar-drag
+scenario is skipped on touch devices. Electron under Xvfb has five passes, including the
+statutory workflow through sandboxed IPC, and five existing window-manager/live-provider
+skips (maximize/minimize, Chat, RTC and screen capture). The shared HR workflow saves custom SSS rates through
+the editor, checks persisted rates and the independently expected net pay, finalizes and
+publishes the employee's itemized payslip. Desktop/browser projects use separate isolated
+servers so authentication and API limits remain enabled. Navigation avoids rewriting an
+unchanged active workspace while continuing to recheck membership.
+
+For each workspace, grant `hr.payroll.settings.manage` explicitly, configure business
+policies and compensation, then review and save statutory settings covering the intended
+month. The supplied source template is inactive. Later changes need a new effective month;
+review the end date before it expires. Follow the independent payroll verification workflow
+before finalization and retain source/evidence references with each version.
