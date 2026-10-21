@@ -445,3 +445,31 @@ describe("failure, pagination and stale-session recovery", () => {
     ).toBe(false);
   });
 });
+
+test("section navigation rechecks access without rewriting an unchanged active workspace", async () => {
+  const { router } = await renderRoute(`/w/${personalId}`);
+  const writes = () =>
+    server.fetch.mock.calls.filter(
+      ([path, init]) =>
+        typeof path === "string" && path.endsWith("/me/active-workspace") && init?.method === "PUT",
+    );
+  expect(writes()).toHaveLength(0);
+  await act(async () => {
+    await router.navigate({ to: "/w/$workspaceId/contacts", params: { workspaceId: personalId } });
+  });
+  expect(writes()).toHaveLength(0);
+  expect(
+    server.fetch.mock.calls.filter(
+      ([path]) => typeof path === "string" && path.endsWith(`/workspaces/${personalId}`),
+    ).length,
+  ).toBeGreaterThan(1);
+  await act(async () => {
+    await router.navigate({ to: "/w/$workspaceId", params: { workspaceId: teamId } });
+  });
+  expect(writes()).toHaveLength(1);
+  expect(server.state.activeWorkspaceId).toBe(teamId);
+  await act(async () => {
+    await router.navigate({ to: "/w/$workspaceId/contacts", params: { workspaceId: teamId } });
+  });
+  expect(writes()).toHaveLength(1);
+});
