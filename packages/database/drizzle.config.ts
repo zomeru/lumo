@@ -7,7 +7,7 @@ const envFile = new URL("../../apps/api/.env", import.meta.url);
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 export default defineConfig({
-  schema: "./src/schema.ts",
+  schema: "./src/schema/index.ts",
   out: "./migrations",
   dialect: "postgresql",
   dbCredentials: process.env.DATABASE_URL
