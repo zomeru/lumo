@@ -192,6 +192,20 @@ test("People profiles remain workspace scoped, reject reporting cycles and omit 
   expect(directory.people).toHaveLength(1);
   expect(directory.people[0].role).toBe("member");
   expect(directory.people[0].managerId).toBe(manager.id);
+  expect(directory.people[0]).toMatchObject({
+    employeeCode: "",
+    hireDate: null,
+    endDate: null,
+    employmentType: "",
+  });
+  const privileged = await (await req("/people?q=Engineer", admin)).json();
+  expect(privileged.people[0].employeeCode).toBe("EMP001");
+  expect((await req("/people?sort=unknown", employee)).status).toBe(400);
+  const filtered = await (
+    await req("/people?role=member&sort=department&order=desc", employee)
+  ).json();
+  expect(filtered.people.every((person: { role: string }) => person.role === "member")).toBe(true);
+  expect((await req("/people", outsider)).status).toBe(404);
   for (const field of ["salary", "compensation", "email", "taxId", "password"])
     expect(JSON.stringify(directory)).not.toContain(`"${field}"`);
   const deps = await (await req("/departments")).json();

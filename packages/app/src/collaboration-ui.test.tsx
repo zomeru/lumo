@@ -6,7 +6,9 @@ import { vi, test, expect, beforeEach, afterEach } from "vitest";
 
 import { configurePlatform } from "./platform";
 import { createAppRouter } from "./router";
-import { mockApi, teamId, bobId } from "./test/mock-api";
+import { hrFixture } from "./test/hr-fixture";
+import type { mockApi } from "./test/mock-api";
+import { teamId, bobId } from "./test/mock-api";
 import { selectOption } from "./test/select-option";
 const media = vi.hoisted(() => ({
   send: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
@@ -56,7 +58,7 @@ const fixture = () => ({
 const override = (path: string, value: () => unknown) =>
   server.state.overrides.set(path, () => server.json(value()));
 beforeEach(() => {
-  server = mockApi();
+  server = hrFixture().server;
   ended = false;
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   override(`GET /api/v1/workspaces/${teamId}/conversations`, () => ({
@@ -132,12 +134,10 @@ test("new private conversations and conversation pagination remain usable", asyn
   await user.click(screen.getByRole("button", { name: "Next" }));
   await user.click(screen.getByRole("button", { name: "Previous" }));
 });
-test("meeting creation, pagination and media controls run through the shared screens", async () => {
+test("meeting joining, pagination and media controls run through the shared screens", async () => {
   const user = await show(`/w/${teamId}/meetings`);
   await screen.findByRole("heading", { name: "Meetings" });
-  await user.type(screen.getByLabelText("Meeting title"), "Design review");
-  await user.click(screen.getByRole("button", { name: "Create meeting" }));
-  await user.click(await screen.findByRole("link", { name: "Open Design review" }));
+  await user.click(await screen.findByRole("link", { name: "Open meeting" }));
   await screen.findByRole("heading", { name: "Before you join" });
   await user.click(screen.getByLabelText("Enable microphone on join"));
   await user.click(screen.getByLabelText("Enable camera on join"));

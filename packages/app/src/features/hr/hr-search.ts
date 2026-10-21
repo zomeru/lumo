@@ -3,6 +3,9 @@ import { useState } from "react";
 import { z } from "zod";
 export const hrSearchSchema = z.object({
   tab: z.string().max(40).optional().catch(undefined),
+  role: z.enum(["owner", "admin", "moderator", "member"]).optional().catch(undefined),
+  sort: z.enum(["name", "jobTitle", "department", "role"]).optional().catch(undefined),
+  order: z.enum(["asc", "desc"]).optional().catch(undefined),
   q: z.string().max(100).optional().catch(undefined),
   offset: z.number().int().min(0).max(100000).optional().catch(undefined),
   month: z
@@ -39,6 +42,9 @@ export function useHrFilter(from: HrRoute) {
   const search = useSearch({ strict: false }),
     navigate = useNavigate({ from });
   return {
+    role: search.role,
+    sort: search.sort,
+    order: search.order,
     q: search.q ?? "",
     offset: search.offset ?? 0,
     month: search.month,

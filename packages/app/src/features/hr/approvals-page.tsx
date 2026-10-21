@@ -321,7 +321,7 @@ function requestSummary(request: Approval) {
     return `${formatDate(details.startDate)} – ${formatDate(details.endDate)}`;
   if (details.type === "overtime")
     return `${formatDate(details.date)} · ${details.durationMinutes} minutes`;
-  if (details.type === "attendance_correction") return details.date;
+  if (details.type === "attendance_correction") return formatDate(details.date);
   if (details.type === "general") return "General request";
   return new Intl.NumberFormat(undefined, { style: "currency", currency: details.currency }).format(
     details.amountMinor / 100,

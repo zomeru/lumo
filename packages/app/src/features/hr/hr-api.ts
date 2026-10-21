@@ -21,10 +21,13 @@ export const peopleQuery = (
   offset = 0,
   departmentId?: string,
   status?: string,
+  role?: string,
+  sort = "name",
+  order = "asc",
 ) =>
   hrQuery(
     id,
-    `/people?q=${encodeURIComponent(q)}&offset=${offset}${departmentId ? `&departmentId=${departmentId}` : ""}${status && status !== "all" ? `&status=${encodeURIComponent(status)}` : ""}`,
+    `/people?q=${encodeURIComponent(q)}&offset=${offset}${departmentId ? `&departmentId=${departmentId}` : ""}${status && status !== "all" ? `&status=${encodeURIComponent(status)}` : ""}${role ? `&role=${encodeURIComponent(role)}` : ""}&sort=${encodeURIComponent(sort)}&order=${encodeURIComponent(order)}`,
     peopleSchema,
   );
 export const departmentsQuery = (id: string) => hrQuery(id, "/departments", departmentsSchema);
@@ -69,6 +72,7 @@ export async function downloadHrFile(workspaceId: string, id: string) {
 export const allPeopleQuery = (workspaceId: string) =>
   queryOptions({
     queryKey: ["workspace", workspaceId, "hr", "people-options"],
+    refetchInterval: 30000,
     retry: false,
     staleTime: 0,
     queryFn: async ({ signal }) => {

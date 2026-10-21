@@ -80,8 +80,8 @@ export function HomePage({ workspaceId }: { workspaceId: string }) {
               ))}
             </div>
             <Button asChild variant="ghost" size="sm" className="text-primary">
-              <Link to="/w/$workspaceId/contacts" params={{ workspaceId }}>
-                Explore contacts
+              <Link to="/w/$workspaceId/people" params={{ workspaceId }}>
+                Explore people
                 <ArrowRight aria-hidden="true" />
               </Link>
             </Button>

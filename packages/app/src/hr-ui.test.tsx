@@ -76,7 +76,7 @@ test("People edits scoped profiles and departments, shows reporting relationship
   expect(body(`/people/${bobId}`, "PUT").jobTitle).toBe("Senior Engineer");
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   await user.click(screen.getByRole("button", { name: "Org chart" }));
-  expect(await screen.findByText(/Reports to: Alice Chen/)).toBeVisible();
+  expect(await screen.findByText(/Reports to: Alice Chen/)).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Departments" }));
   await user.click(await screen.findByRole("button", { name: "Edit department" }));
   change("Department name", "Engineering & Design");
@@ -160,7 +160,7 @@ test("Leave shows ledger, absence visibility, scoped balances and policy actions
   expect(await screen.findByText(/15 days · Opening/)).toBeVisible();
   await close(user);
   await user.click(screen.getByRole("button", { name: "Who is out" }));
-  expect(await screen.findByText(/Away · 2026-10-22/)).toBeVisible();
+  expect(await screen.findByText(/Away · Oct. 22, 2026/)).toBeVisible();
   change("Month", "2026-11");
   await user.click(screen.getByRole("button", { name: "Team balances" }));
   expect(await screen.findByRole("table")).toBeVisible();
@@ -732,7 +732,7 @@ test("People handles unassigned employment, missing managers and paginated direc
   );
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   await user.click(screen.getByRole("button", { name: "Org chart" }));
-  expect(await screen.findByText(/Manager unavailable/)).toBeVisible();
+  expect(await screen.findByText(/Manager unavailable/)).toBeInTheDocument();
   expect(screen.getByText(/No department/)).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Departments" }));
   expect(await screen.findByText(/Unassigned/)).toBeVisible();
@@ -846,7 +846,7 @@ test.each([
       endDate: "2026-10-23",
       halfDay: false,
     },
-    text: "2026-10-22 – 2026-10-23",
+    text: "Oct. 22, 2026 – Oct. 23, 2026",
   },
   {
     details: {
@@ -857,11 +857,11 @@ test.each([
       amountMinor: 10000,
       currency: "PHP",
     },
-    text: "2026-10-22 – 2026-10-23",
+    text: "Oct. 22, 2026 – Oct. 23, 2026",
   },
   {
     details: { type: "overtime", date: "2026-10-21", durationMinutes: 120 },
-    text: "2026-10-21 · 120 minutes",
+    text: "Oct. 21, 2026 · 120 minutes",
   },
   { details: { type: "general" }, text: "General request" },
   {
@@ -872,7 +872,7 @@ test.each([
       clockOut: "2026-10-21T09:00:00Z",
       breakMinutes: 60,
     },
-    text: "2026-10-21",
+    text: "Oct. 21, 2026",
   },
 ] as const)(
   "Approval cards show the requester and relevant $details.type facts",
@@ -1018,4 +1018,24 @@ test("statutory settings errors remain visible and grants-only administrators ne
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Statutory configuration access denied",
   );
+});
+
+test("organization visualization connects nodes and supports collapse, search, zoom and profiles", async () => {
+  HTMLElement.prototype.scrollTo = vi.fn<HTMLElement["scrollTo"]>();
+  const { user } = await show("people");
+  await user.click(screen.getByRole("button", { name: "Org chart" }));
+  await screen.findByRole("button", { name: /View profile: Bob Rivera/ });
+  expect(document.querySelectorAll('svg path[stroke="currentColor"]').length).toBeGreaterThan(0);
+  await user.click(screen.getByRole("button", { name: "Collapse reports for Alice Chen" }));
+  expect(
+    screen.queryByRole("button", { name: /View profile: Bob Rivera/ }),
+  ).not.toBeInTheDocument();
+  change("Find in organization", "Bob");
+  await user.click(screen.getByRole("button", { name: "Locate" }));
+  await user.click(await screen.findByRole("button", { name: /View profile: Bob Rivera/ }));
+  expect(screen.getByRole("dialog", { name: "Bob Rivera" })).toBeVisible();
+  await close(user);
+  await user.click(screen.getByRole("button", { name: "Zoom out" }));
+  expect(screen.getByLabelText("Chart zoom")).toHaveTextContent("90%");
+  await user.click(screen.getByRole("button", { name: "Fit to view" }));
 });

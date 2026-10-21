@@ -1,3 +1,4 @@
+import { conversationSchema } from "@lumo/contracts/collaboration";
 import { canHr, type Person } from "@lumo/contracts/hr";
 import { canInvite } from "@lumo/contracts/permissions";
 import {
@@ -13,12 +14,18 @@ import {
   FilterBar,
   ViewTabs,
   SelectField,
+  Table,
+  TableHeader,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
 } from "@lumo/ui";
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 
-import { workspaceQuery } from "../../lib/api";
+import { api, sessionQuery, workspaceQuery } from "../../lib/api";
 import { HrAdmin } from "./hr-admin";
 import {
   departmentsQuery,
@@ -30,6 +37,7 @@ import {
 import { hrIcons } from "./hr-icons";
 import { useHrTab, useHrFilter } from "./hr-search";
 import { HrDialog, HrForm, formString } from "./hr-ui";
+import { OrgChart } from "./org-chart";
 export function PeoplePage({ workspaceId }: { workspaceId: string }) {
   const [tab, setTab] = useHrTab("Directory", "/w/$workspaceId/people"),
     [selected, setSelected] = useState<Person | null>(null),
@@ -42,12 +50,35 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
   const filters = useHrFilter("/w/$workspaceId/people");
   const { q, setQ, offset, setOffset } = useHrFilter("/w/$workspaceId/people");
   const people = useQuery(
-      peopleQuery(workspaceId, q, offset, filters.departmentId, filters.status),
+      peopleQuery(
+        workspaceId,
+        q,
+        offset,
+        filters.departmentId,
+        filters.status,
+        filters.role,
+        filters.sort,
+        filters.order,
+      ),
     ),
     all = useQuery(allPeopleQuery(workspaceId)),
     departments = useQuery(departmentsQuery(workspaceId)),
     access = useQuery(hrAccessQuery(workspaceId)),
     ws = useQuery(workspaceQuery(workspaceId));
+  const session = useQuery(sessionQuery());
+  const navigate = useNavigate();
+  const message = useMutation({
+    mutationFn: (userId: string) =>
+      api(`/workspaces/${workspaceId}/conversations`, conversationSchema, {
+        method: "POST",
+        body: { kind: "direct", name: "Direct message", memberIds: [userId] },
+      }),
+    onSuccess: (conversation) =>
+      navigate({
+        to: "/w/$workspaceId/messenger/$conversationId",
+        params: { workspaceId, conversationId: conversation.id },
+      }),
+  });
   const action = useHrAction(workspaceId);
   if (!access.data)
     return (
@@ -95,7 +126,9 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
         value={tab}
         onChange={setTab}
       />
-      <ErrorMessage error={people.error ?? departments.error ?? action.error} />
+      <ErrorMessage
+        error={people.error ?? all.error ?? departments.error ?? action.error ?? message.error}
+      />
       {tab === "Directory" && (
         <>
           <Field
@@ -134,28 +167,115 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
                 { value: "terminated", label: "Terminated" },
               ]}
             />
+            <SelectField
+              label="Workspace role"
+              value={filters.role ?? "all"}
+              onValueChange={(role) =>
+                filters.setFilters({
+                  role:
+                    role === "all"
+                      ? undefined
+                      : (role as "owner" | "admin" | "moderator" | "member"),
+                  offset: 0,
+                })
+              }
+              options={[
+                { value: "all", label: "All roles" },
+                ...["owner", "admin", "moderator", "member"].map((value) => ({
+                  value,
+                  label: value,
+                })),
+              ]}
+            />
           </FilterBar>
           {people.isPending ? (
             <Loading />
           ) : people.data?.people.length ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {people.data.people.map((p) => (
-                <Card key={p.userId} className="flex items-start gap-3 p-4">
-                  <Avatar name={p.name} src={p.image ?? undefined} />
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-sm">{p.name}</h2>
-                    <p>{p.jobTitle || "Workspace member"}</p>
-                    <small>
-                      {p.department} {p.location}
-                    </small>
-                    <Badge>{p.status}</Badge>
-                    <Button size="sm" variant="ghost" onClick={() => setSelected(p)}>
-                      View profile
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <Table aria-label="People directory">
+              <TableHeader>
+                <TableRow>
+                  {(
+                    [
+                      ["name", "Name"],
+                      ["jobTitle", "Position"],
+                      ["department", "Department"],
+                      ["role", "Role"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <TableHead
+                      key={key}
+                      aria-sort={
+                        (filters.sort ?? "name") === key
+                          ? filters.order === "desc"
+                            ? "descending"
+                            : "ascending"
+                          : "none"
+                      }
+                    >
+                      <button
+                        type="button"
+                        className="py-2 hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+                        onClick={() =>
+                          filters.setFilters({
+                            sort: key,
+                            order:
+                              filters.sort === key && filters.order !== "desc" ? "desc" : "asc",
+                            offset: 0,
+                          })
+                        }
+                      >
+                        {label}
+                        {(filters.sort ?? "name") === key
+                          ? filters.order === "desc"
+                            ? " ↓"
+                            : " ↑"
+                          : ""}
+                      </button>
+                    </TableHead>
+                  ))}
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {people.data.people.map((p) => (
+                  <TableRow key={p.userId}>
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <Avatar size="sm" name={p.name} src={p.image ?? undefined} />
+                        <h2 className="text-sm font-medium whitespace-nowrap">{p.name}</h2>
+                      </div>
+                    </TableCell>
+                    <TableCell>{p.jobTitle || "Workspace member"}</TableCell>
+                    <TableCell>{p.department || "—"}</TableCell>
+                    <TableCell>
+                      <Badge>{p.role}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge>{p.status.replaceAll("_", " ")}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => setSelected(p)}>
+                          View profile
+                        </Button>
+                        {p.userId !== session.data?.user.id && (
+                          <Button
+                            size="sm"
+                            disabled={message.isPending}
+                            onClick={() => message.mutate(p.userId)}
+                          >
+                            Message {p.name}
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : people.isError ? (
+            <Button onClick={() => void people.refetch()}>Retry directory</Button>
           ) : (
             <EmptyState title="No people match your search" />
           )}
@@ -169,7 +289,14 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
           </div>
         </>
       )}
-      {tab === "Org chart" && <OrgChart people={all.data?.people ?? []} />}
+      {tab === "Org chart" &&
+        (all.isPending ? (
+          <Loading label="Loading organization…" />
+        ) : all.isError ? (
+          <Button onClick={() => void all.refetch()}>Retry organization</Button>
+        ) : (
+          <OrgChart people={all.data?.people ?? []} onSelect={setSelected} />
+        ))}
       {tab === "Departments" && (
         <>
           <div className="mb-4">
@@ -351,50 +478,5 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
         )}
       </HrDialog>
     </>
-  );
-}
-
-function OrgChart({ people }: { people: Person[] }) {
-  const visited = new Set<string>();
-  function branch(person: Person, ancestors: Set<string>): ReactNode {
-    if (ancestors.has(person.userId))
-      return (
-        <li key={`cycle:${person.userId}`} role="alert">
-          Reporting cycle detected for {person.name}. Ask HR to correct the manager assignment.
-        </li>
-      );
-    visited.add(person.userId);
-    const next = new Set(ancestors);
-    next.add(person.userId);
-    const reports = people.filter((p) => p.managerId === person.userId);
-    return (
-      <li key={person.userId}>
-        <Card className="mb-3 p-4">
-          <strong>{person.name}</strong>
-          <p>
-            {person.jobTitle || "Workspace member"} · {person.department || "No department"}
-          </p>
-          <small>
-            Reports to:{" "}
-            {person.managerId
-              ? (people.find((p) => p.userId === person.managerId)?.name ?? "Manager unavailable")
-              : "No manager assigned"}
-          </small>
-          <p>Direct reports: {reports.map((p) => p.name).join(", ") || "None"}</p>
-        </Card>
-        {reports.length > 0 && (
-          <ul className="ml-5 border-l pl-4">{reports.map((p) => branch(p, next))}</ul>
-        )}
-      </li>
-    );
-  }
-  const roots = people.filter((p) => !p.managerId || !people.some((m) => m.userId === p.managerId));
-  const nodes = roots.map((p) => branch(p, new Set()));
-  for (const person of people)
-    if (!visited.has(person.userId)) nodes.push(branch(person, new Set()));
-  return (
-    <section aria-label="Reporting hierarchy">
-      <ul>{nodes}</ul>
-    </section>
   );
 }

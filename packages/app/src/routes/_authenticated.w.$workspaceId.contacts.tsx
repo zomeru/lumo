@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { ContactsPage } from "../features/workspaces/contacts-page";
+import { hrSearchSchema } from "../features/hr/hr-search";
 export const Route = createFileRoute("/_authenticated/w/$workspaceId/contacts")({
-  component: function RoutePage() {
-    return <ContactsPage workspaceId={Route.useParams().workspaceId} />;
+  validateSearch: hrSearchSchema,
+  beforeLoad: ({ params, search }) => {
+    throw redirect({ to: "/w/$workspaceId/people", params, search, replace: true });
   },
 });

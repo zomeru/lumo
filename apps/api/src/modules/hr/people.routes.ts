@@ -1,7 +1,7 @@
-import { idSchema } from "@lumo/contracts";
+import { idSchema, roleSchema } from "@lumo/contracts";
 import { departmentInputSchema, employmentInputSchema, hrPageSchema } from "@lumo/contracts/hr";
-import { hrDepartment, hrEmployee, membership, user } from "@lumo/database/schema";
-import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
+import { hrDepartment, hrEmployee, membership, profile, user } from "@lumo/database/schema";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 
@@ -12,9 +12,12 @@ import { auditHr, requireHrMember, type HrCore } from "./core";
 export function peopleRoutes(core: HrCore) {
   const app = new Hono<ApiContext>();
   app.get("/people", async (c) => {
-    const { q, offset, limit, departmentId, status } = parse(
+    const { q, offset, limit, departmentId, status, role, sort, order } = parse(
       hrPageSchema.extend({
         departmentId: idSchema.optional(),
+        role: roleSchema.optional(),
+        sort: z.enum(["name", "jobTitle", "department", "role"]).default("name"),
+        order: z.enum(["asc", "desc"]).default("asc"),
         status: z.enum(["active", "on_leave", "terminated"]).optional(),
       }),
       c.req.query(),
@@ -28,9 +31,9 @@ export function peopleRoutes(core: HrCore) {
             image: user.image,
             role: membership.role,
             employeeCode: sql<string>`coalesce(${hrEmployee.employeeCode}, '')`,
-            jobTitle: sql<string>`coalesce(${hrEmployee.jobTitle}, '')`,
+            jobTitle: sql<string>`coalesce(nullif(${hrEmployee.jobTitle}, ''), ${profile.jobTitle}, '')`,
             departmentId: hrEmployee.departmentId,
-            department: sql<string>`coalesce(${hrDepartment.name}, '')`,
+            department: sql<string>`coalesce(${hrDepartment.name}, ${profile.department}, '')`,
             managerId: hrEmployee.managerId,
             employmentType: sql<string>`coalesce(${hrEmployee.employmentType}, 'employee')`,
             status: sql<string>`coalesce(${hrEmployee.status}, 'active')`,
@@ -40,6 +43,7 @@ export function peopleRoutes(core: HrCore) {
           })
           .from(membership)
           .innerJoin(user, eq(user.id, membership.userId))
+          .leftJoin(profile, eq(profile.userId, user.id))
           .leftJoin(
             hrEmployee,
             and(
@@ -57,22 +61,48 @@ export function peopleRoutes(core: HrCore) {
           .where(
             and(
               eq(membership.workspaceId, ctx.workspaceId),
+              role ? eq(membership.role, role) : undefined,
               departmentId ? eq(hrEmployee.departmentId, departmentId) : undefined,
               status ? sql`coalesce(${hrEmployee.status}, 'active') = ${status}` : undefined,
               q
                 ? or(
                     ilike(user.name, `%${q}%`),
                     ilike(hrEmployee.jobTitle, `%${q}%`),
+                    ilike(profile.jobTitle, `%${q}%`),
+                    ilike(profile.department, `%${q}%`),
                     ilike(hrDepartment.name, `%${q}%`),
                   )
                 : undefined,
             ),
           )
-          .orderBy(asc(user.name), asc(user.id))
+          .orderBy(
+            (order === "desc" ? desc : asc)(
+              {
+                name: user.name,
+                jobTitle: hrEmployee.jobTitle,
+                department: hrDepartment.name,
+                role: membership.role,
+              }[sort],
+            ),
+            asc(user.id),
+          )
           .offset(offset)
           .limit(limit + 1);
         return {
-          people: rows.slice(0, limit),
+          people: rows.slice(0, limit).map((person) =>
+            ctx.owner ||
+            ctx.grants.some(
+              (grant) => grant.capability === "hr.people.manage" && grant.scope === "workspace",
+            )
+              ? person
+              : {
+                  ...person,
+                  employeeCode: "",
+                  employmentType: "",
+                  hireDate: null,
+                  endDate: null,
+                },
+          ),
           nextOffset: rows.length > limit ? offset + limit : null,
         };
       }),
