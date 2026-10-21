@@ -10,6 +10,8 @@ import { denied, parse, missing } from "../../lib/errors";
 import type { Storage } from "../../storage/storage";
 import type { createWorkspaceService } from "../workspaces/workspace.service";
 import { approvalsRoutes } from "./approvals.routes";
+import { validateCorrection, transitionCorrection } from "./attendance";
+import { attendanceRoutes } from "./attendance.routes";
 import { auditHr, createHrCore, requireHrMember } from "./core";
 import { hrFilesRoutes } from "./files.routes";
 import { validateLeave, transitionLeave } from "./leave";
@@ -167,8 +169,12 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, 
     approvalsRoutes(core, {
       validate: async (ctx, details, requestId) => {
         await validateLeave(ctx, details, requestId);
+        await validateCorrection(ctx, details);
       },
-      transition: transitionLeave,
+      transition: async (ctx, row, status) => {
+        await transitionLeave(ctx, row, status);
+        await transitionCorrection(ctx, row, status);
+      },
     }),
   );
   app.route(
@@ -178,5 +184,6 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, 
     }),
   );
   app.route("/workspaces/:workspaceId/hr", leaveRoutes(core));
+  app.route("/workspaces/:workspaceId/hr", attendanceRoutes(core));
   return app;
 }

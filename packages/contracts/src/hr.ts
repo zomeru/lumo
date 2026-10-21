@@ -334,3 +334,44 @@ export const whoOutSchema = z.object({
     }),
   ),
 });
+
+export const attendanceMonthSchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  userId: z.uuid().optional(),
+  team: z.enum(["true", "false"]).default("false"),
+  departmentId: z.uuid().optional(),
+  status: z.string().max(30).optional(),
+});
+export const punchInputSchema = z.strictObject({
+  action: z.enum(["clock_in", "start_break", "end_break", "clock_out"]),
+  idempotencyKey: z.uuid(),
+});
+export const attendanceDaySchema = z.object({
+  userId: z.uuid(),
+  date: z.string(),
+  scheduled: z.string(),
+  clockIn: z.string().nullable(),
+  clockOut: z.string().nullable(),
+  breakMinutes: z.number(),
+  workedMinutes: z.number(),
+  lateMinutes: z.number(),
+  late: z.boolean(),
+  undertimeMinutes: z.number(),
+  overtimeMinutes: z.number(),
+  approvedOvertimeMinutes: z.number(),
+  status: z.string(),
+  correctionId: z.uuid().nullable(),
+});
+export const attendanceSchema = z.object({
+  days: z.array(attendanceDaySchema),
+  state: z.enum(["out", "working", "break"]),
+  serverTime: z.string(),
+  timezone: z.string(),
+  metrics: z.object({
+    daysPresent: z.number(),
+    lateArrivals: z.number(),
+    workedMinutes: z.number(),
+    absences: z.number(),
+  }),
+});
+export const csvResultSchema = z.object({ filename: z.string(), content: z.string() });

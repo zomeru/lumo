@@ -348,3 +348,57 @@ test("Leave shares approval state, charges schedules and holidays, and reverses 
   const balance = await (await req("/leave/balances?year=2026", employee)).json();
   expect(balance.balances[0].balanceHalfDays).toBe(32);
 });
+
+test("Attendance clocks are authoritative, idempotent and scoped; reviewed corrections preserve punches", async () => {
+  const punch = async (action: string, key = randomUUID()) =>
+    req("/attendance/punch", employee, "POST", { action, idempotencyKey: key });
+  expect((await punch("end_break")).status).toBe(409);
+  const key = randomUUID();
+  expect((await punch("clock_in", key)).status).toBe(200);
+  expect((await punch("clock_in", key)).status).toBe(200);
+  expect((await punch("clock_in")).status).toBe(409);
+  expect((await punch("start_break", key)).status).toBe(409);
+  expect((await punch("start_break")).status).toBe(200);
+  expect((await punch("clock_out")).status).toBe(409);
+  expect((await punch("end_break")).status).toBe(200);
+  expect((await punch("start_break")).status).toBe(200);
+  expect((await punch("end_break")).status).toBe(200);
+  expect((await punch("clock_out")).status).toBe(200);
+  const month = new Date().toISOString().slice(0, 7);
+  const response = await req(`/attendance?month=${month}`, employee);
+  expect(response.status).toBe(200);
+  const attendance = await response.json();
+  expect(attendance.days.length).toBeGreaterThanOrEqual(28);
+  expect(attendance.state).toBe("out");
+  expect((await req(`/attendance?month=${month}&userId=${employee.id}`, admin)).status).toBe(403);
+  expect((await req(`/attendance?month=${month}&userId=${employee.id}`, manager)).status).toBe(200);
+  expect((await req(`/attendance/export?month=${month}&userId=${employee.id}`, admin)).status).toBe(
+    403,
+  );
+  const exported = await (await req(`/attendance/export?month=${month}`, employee)).json();
+  expect(exported.filename).toContain(owner.workspaceId);
+  expect(exported.content.split("\r\n")).toHaveLength(attendance.days.length + 1);
+  const correction = await req("/requests", employee, "POST", {
+    subject: "Missed punch",
+    description: "Clock correction",
+    details: {
+      type: "attendance_correction",
+      date: "2026-10-21",
+      clockIn: "2026-10-21T08:00:00Z",
+      clockOut: "2026-10-21T17:00:00Z",
+      breakMinutes: 60,
+    },
+  });
+  expect(correction.status).toBe(201);
+  const id = (await correction.json()).id as string;
+  expect((await req(`/requests/${id}/action`, manager, "POST", { action: "approve" })).status).toBe(
+    200,
+  );
+  const corrected = await (await req("/attendance?month=2026-10", employee)).json();
+  const day = corrected.days.find((d: { date: string }) => d.date === "2026-10-21");
+  expect(day.workedMinutes).toBe(480);
+  expect(day.correctionId).toBe(id);
+  expect((await req(`/requests/${id}/action`, employee, "POST", { action: "cancel" })).status).toBe(
+    409,
+  );
+});

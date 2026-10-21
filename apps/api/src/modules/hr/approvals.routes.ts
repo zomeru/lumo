@@ -76,7 +76,7 @@ export function approvalsRoutes(core: HrCore, hooks: RequestHooks) {
           await hooks.validate(ctx, input.details, row.id);
           await submitRequest(ctx, row.id);
         }
-        return { id: row.id };
+        return { ok: true, id: row.id };
       }),
       201,
     );

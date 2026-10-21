@@ -58,3 +58,14 @@ export async function employeeCalendar(c: HrContext, userId: string) {
     holidays: holidays.map((h) => h.date),
   };
 }
+// Resolve a local calendar wall time without depending on the server's time zone.
+export function wallInstant(date: string, minute: number, timezone: string) {
+  const desired = new Date(`${date}T00:00:00Z`).getTime() + minute * 60000;
+  let candidate = desired;
+  for (let i = 0; i < 3; i++) {
+    const local = localParts(new Date(candidate), timezone);
+    const actual = new Date(`${local.date}T00:00:00Z`).getTime() + local.minute * 60000;
+    candidate += desired - actual;
+  }
+  return new Date(candidate);
+}
