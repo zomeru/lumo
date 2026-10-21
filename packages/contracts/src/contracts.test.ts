@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import { meetingInputSchema, meetingSchema } from "./collaboration";
 import {
   workspaceInputSchema,
   workspaceUpdateSchema,
@@ -69,4 +70,27 @@ describe("role policy", () => {
     expect(canChangeRole("owner", "member", "owner")).toBe(false);
     expect(canChangeRole("moderator", "member", "moderator")).toBe(false);
   });
+});
+
+test("meeting timezones preserve IANA aliases and reject numeric offsets", () => {
+  for (const timezone of ["UTC", "GMT", "CET", "America/New_York", "Asia/Shanghai"]) {
+    expect(meetingInputSchema.safeParse({ title: "Meeting", timezone }).success).toBe(true);
+  }
+  for (const timezone of ["+08:00", "-05:00", "Mars/City", ""]) {
+    expect(meetingInputSchema.safeParse({ title: "Meeting", timezone }).success).toBe(false);
+  }
+});
+
+test("existing fixed-offset meeting records remain readable while new schedules require IANA zones", () => {
+  expect(
+    meetingSchema.parse({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      hostId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      title: "Legacy meeting",
+      status: "scheduled",
+      startsAt: "2030-01-01T12:00:00Z",
+      timezone: "+08:00",
+      createdAt: "2026-10-21T12:00:00Z",
+    }).timezone,
+  ).toBe("+08:00");
 });

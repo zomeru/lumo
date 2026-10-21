@@ -1,6 +1,12 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { idSchema, okSchema, paginationSchema, errorSchema } from "@lumo/contracts";
 import {
+  calendarMeetingDetailSchema,
+  calendarQuerySchema,
+  calendarMeetingsSchema,
+  scheduledMeetingInputSchema,
+  meetingAvailabilityInputSchema,
+  meetingAvailabilitySchema,
   chatCredentialsSchema,
   conversationInputSchema,
   conversationSchema,
@@ -174,6 +180,103 @@ export function collaborationRoutes(
         ),
         201,
       );
+    },
+  );
+  const scopedMeetingParams = workspaceParams.extend({ meetingId: idSchema });
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/workspaces/{workspaceId}/meetings/calendar",
+      tags: ["Meetings"],
+      security,
+      request: { params: workspaceParams, query: calendarQuerySchema },
+      responses: { 200: json(calendarMeetingsSchema), ...errors },
+    }),
+    async (c) =>
+      c.json(
+        await meetings.calendar(
+          c.req.valid("param").workspaceId,
+          c.get("user").id,
+          c.req.valid("query"),
+        ),
+        200,
+      ),
+  );
+  app.openapi(
+    createRoute({
+      method: "post",
+      path: "/workspaces/{workspaceId}/meetings/availability",
+      tags: ["Meetings"],
+      security,
+      request: {
+        params: workspaceParams,
+        body: {
+          content: { "application/json": { schema: meetingAvailabilityInputSchema } },
+          required: true,
+        },
+      },
+      responses: { 200: json(meetingAvailabilitySchema), ...errors },
+    }),
+    async (c) =>
+      c.json(
+        await meetings.availability(
+          c.req.valid("param").workspaceId,
+          c.get("user").id,
+          c.req.valid("json"),
+        ),
+        200,
+      ),
+  );
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/workspaces/{workspaceId}/meetings/{meetingId}",
+      tags: ["Meetings"],
+      security,
+      request: { params: scopedMeetingParams },
+      responses: { 200: json(calendarMeetingDetailSchema), ...errors },
+    }),
+    async (c) => {
+      const { workspaceId, meetingId } = c.req.valid("param");
+      return c.json(await meetings.calendarDetail(workspaceId, c.get("user").id, meetingId), 200);
+    },
+  );
+  app.openapi(
+    createRoute({
+      method: "patch",
+      path: "/workspaces/{workspaceId}/meetings/{meetingId}",
+      tags: ["Meetings"],
+      security,
+      request: {
+        params: scopedMeetingParams,
+        body: {
+          content: { "application/json": { schema: scheduledMeetingInputSchema } },
+          required: true,
+        },
+      },
+      responses: { 200: json(meetingSchema), ...errors },
+    }),
+    async (c) => {
+      const { workspaceId, meetingId } = c.req.valid("param");
+      return c.json(
+        await meetings.update(workspaceId, c.get("user").id, meetingId, c.req.valid("json")),
+        200,
+      );
+    },
+  );
+  app.openapi(
+    createRoute({
+      method: "post",
+      path: "/workspaces/{workspaceId}/meetings/{meetingId}/cancel",
+      tags: ["Meetings"],
+      security,
+      request: { params: scopedMeetingParams },
+      responses: { 200: json(okSchema), ...errors },
+    }),
+    async (c) => {
+      const { workspaceId, meetingId } = c.req.valid("param");
+      await meetings.cancel(workspaceId, c.get("user").id, meetingId);
+      return c.json({ ok: true as const }, 200);
     },
   );
   app.openapi(

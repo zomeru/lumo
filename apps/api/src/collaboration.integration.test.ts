@@ -304,6 +304,255 @@ describe("meeting authorization", () => {
     expect((await req(`/meetings/${meetingId}/token`, bob, "POST", {})).status).toBe(409);
   });
 });
+describe("workspace Calendar uses the Meetings lifecycle", () => {
+  let scheduledId: string;
+  const start = new Date(Date.now() + 86400000).toISOString();
+  const end = new Date(Date.now() + 90000000).toISOString();
+  const range = `from=${encodeURIComponent(start)}&to=${encodeURIComponent(end)}`;
+  const input = {
+    title: "Calendar review",
+    startsAt: start,
+    durationMinutes: 60,
+    timezone: "Asia/Shanghai",
+    participantIds: [] as string[],
+  };
+  // Initialize actor-dependent fields after beforeAll.
+  test("creates from the existing endpoint and shares range results with all workspace members", async () => {
+    input.participantIds = [bob.id];
+    const response = await req(`/workspaces/${alice.workspaceId}/meetings`, alice, "POST", input);
+    expect(response.status).toBe(201);
+    scheduledId = (await response.json()).id;
+    const list = await req(`/workspaces/${alice.workspaceId}/meetings/calendar?${range}`, bob);
+    expect(list.status).toBe(200);
+    expect((await list.json()).meetings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: scheduledId,
+          hostId: alice.id,
+          hostName: "Alice",
+          timezone: "Asia/Shanghai",
+        }),
+      ]),
+    );
+    const meetings = await (await req(`/workspaces/${alice.workspaceId}/meetings`, bob)).json();
+    expect(meetings.meetings.some((item: { id: string }) => item.id === scheduledId)).toBe(true);
+    const page = await (
+      await req(`/workspaces/${alice.workspaceId}/meetings/calendar?${range}&limit=1`)
+    ).json();
+    expect(page.meetings).toHaveLength(1);
+    expect(
+      (await req(`/workspaces/${alice.workspaceId}/meetings/calendar?from=${end}&to=${start}`))
+        .status,
+    ).toBe(400);
+    expect(
+      (
+        await req(
+          `/workspaces/${alice.workspaceId}/meetings/calendar?from=${start}&to=2035-01-01T00:00:00Z`,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await req(`/workspaces/${alice.workspaceId}/meetings/calendar?${range}&limit=1000`)).status,
+    ).toBe(400);
+  });
+  test("isolates listing, availability, details and mutations independently from public links", async () => {
+    for (const actor of [outsider, { ...alice, cookie: "" }]) {
+      const expected = actor.cookie ? 404 : 401;
+      expect(
+        (await req(`/workspaces/${alice.workspaceId}/meetings/calendar?${range}`, actor)).status,
+      ).toBe(expected);
+      expect(
+        (await req(`/workspaces/${alice.workspaceId}/meetings/${scheduledId}`, actor)).status,
+      ).toBe(expected);
+      expect(
+        (
+          await req(`/workspaces/${alice.workspaceId}/meetings/availability`, actor, "POST", {
+            from: start,
+            to: end,
+          })
+        ).status,
+      ).toBe(expected);
+      expect(
+        (
+          await req(
+            `/workspaces/${alice.workspaceId}/meetings/${scheduledId}`,
+            actor,
+            "PATCH",
+            input,
+          )
+        ).status,
+      ).toBe(expected);
+      expect(
+        (
+          await req(
+            `/workspaces/${alice.workspaceId}/meetings/${scheduledId}/cancel`,
+            actor,
+            "POST",
+            {},
+          )
+        ).status,
+      ).toBe(expected);
+    }
+    expect((await req(`/workspaces/${bob.workspaceId}/meetings/${scheduledId}`, bob)).status).toBe(
+      404,
+    );
+    expect(
+      (await req(`/workspaces/${bob.workspaceId}/meetings/${scheduledId}`, bob, "PATCH", input))
+        .status,
+    ).toBe(404);
+    expect(
+      (await req(`/workspaces/${bob.workspaceId}/meetings/${scheduledId}/cancel`, bob, "POST", {}))
+        .status,
+    ).toBe(404);
+    expect(
+      (await req(`/workspaces/${alice.workspaceId}/meetings/${scheduledId}`, bob, "PATCH", input))
+        .status,
+    ).toBe(403);
+    expect(
+      (
+        await req(
+          `/workspaces/${alice.workspaceId}/meetings/${scheduledId}/cancel`,
+          bob,
+          "POST",
+          {},
+        )
+      ).status,
+    ).toBe(403);
+  });
+  test("reports organizer and invitee overlaps softly and permits simultaneous meetings", async () => {
+    const availability = async (actor: typeof alice, extra = {}) =>
+      req(`/workspaces/${alice.workspaceId}/meetings/availability`, actor, "POST", {
+        from: start,
+        to: end,
+        ...extra,
+      });
+    const conflicts = await (await availability(alice)).json();
+    expect(conflicts.conflicts).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: scheduledId, userIds: [alice.id] })]),
+    );
+    expect(
+      (await (await availability(bob)).json()).conflicts.some(
+        (item: { id: string }) => item.id === scheduledId,
+      ),
+    ).toBe(true);
+    expect(
+      (await (await availability(alice, { excludeMeetingId: scheduledId })).json()).conflicts,
+    ).toHaveLength(0);
+    expect((await availability(alice, { participantIds: [outsider.id] })).status).toBe(404);
+    const parallel = await Promise.all(
+      [alice, bob].map((actor) =>
+        req(`/workspaces/${alice.workspaceId}/meetings`, actor, "POST", {
+          ...input,
+          participantIds: [],
+          title: "Concurrent",
+        }),
+      ),
+    );
+    expect(parallel.map((response) => response.status)).toEqual([201, 201]);
+    const bobMeeting = (await parallel[1]!.json()).id;
+    const aliceConflicts = (await (await availability(alice)).json()).conflicts;
+    expect(aliceConflicts.some((item: { id: string }) => item.id === bobMeeting)).toBe(false);
+    expect(
+      (await (await availability(alice, { participantIds: [bob.id] })).json()).conflicts.some(
+        (item: { id: string }) => item.id === bobMeeting,
+      ),
+    ).toBe(true);
+    expect(
+      (
+        await req(`/workspaces/${alice.workspaceId}/meetings/availability`, alice, "POST", {
+          from: end,
+          to: start,
+        })
+      ).status,
+    ).toBe(400);
+  });
+  test("reschedules atomically with timezone, participants and state enforcement", async () => {
+    const path = `/workspaces/${alice.workspaceId}/meetings/${scheduledId}`;
+    expect((await req(path, alice, "PATCH", { ...input, hostId: bob.id })).status).toBe(400);
+    expect(
+      (await req(path, alice, "PATCH", { ...input, startsAt: "2020-01-01T00:00:00Z" })).status,
+    ).toBe(400);
+    expect((await req(path, alice, "PATCH", { ...input, timezone: "Unknown/Place" })).status).toBe(
+      400,
+    );
+    expect((await req(path, alice, "PATCH", { ...input, durationMinutes: 0 })).status).toBe(400);
+    expect(
+      (await req(path, alice, "PATCH", { ...input, participantIds: [outsider.id] })).status,
+    ).toBe(404);
+    const later = new Date(Date.parse(start) + 86400000).toISOString();
+    const update = await req(path, alice, "PATCH", {
+      ...input,
+      startsAt: later,
+      participantIds: [],
+      timezone: "America/New_York",
+      title: "Rescheduled",
+    });
+    expect(update.status).toBe(200);
+    expect(await update.json()).toMatchObject({
+      startsAt: later,
+      title: "Rescheduled",
+      timezone: "America/New_York",
+    });
+    expect((await (await req(path, bob)).json()).participants).toHaveLength(0);
+    const oldRange = await (
+      await req(`/workspaces/${alice.workspaceId}/meetings/calendar?${range}`)
+    ).json();
+    expect(oldRange.meetings.some((item: { id: string }) => item.id === scheduledId)).toBe(false);
+    expect((await req(path + "/cancel", alice, "POST", {})).status).toBe(200);
+    expect((await req(`/meetings/${scheduledId}/token`, bob, "POST", {})).status).toBe(409);
+    expect((await req(path, alice, "PATCH", input)).status).toBe(409);
+    expect((await req(path + "/cancel", alice, "POST", {})).status).toBe(409);
+    expect((await req(`/meetings/${scheduledId}/end`, alice, "POST", {})).status).toBe(409);
+    expect(
+      (await req(`/workspaces/${alice.workspaceId}/meetings/${meetingId}`, alice, "PATCH", input))
+        .status,
+    ).toBe(409);
+    expect(
+      (
+        await req(
+          `/workspaces/${alice.workspaceId}/meetings/${meetingId}/cancel`,
+          alice,
+          "POST",
+          {},
+        )
+      ).status,
+    ).toBe(409);
+  });
+  test("includes meetings crossing range boundaries and rejects expired scheduled joins", async () => {
+    const [past] = await database.db
+      .insert(meeting)
+      .values({
+        workspaceId: alice.workspaceId,
+        hostId: alice.id,
+        title: "Overnight",
+        startsAt: new Date(Date.parse(start) - 1800000),
+        status: "scheduled",
+        durationMinutes: 60,
+      })
+      .returning();
+    const list = await (
+      await req(`/workspaces/${alice.workspaceId}/meetings/calendar?${range}`)
+    ).json();
+    expect(list.meetings.some((item: { id: string }) => item.id === past!.id)).toBe(true);
+    await database.db
+      .update(meeting)
+      .set({ startsAt: new Date(Date.now() - 86400000) })
+      .where(eq(meeting.id, past!.id));
+    expect((await req(`/meetings/${past!.id}/token`, alice, "POST", {})).status).toBe(409);
+    // Removal also invalidates all Calendar reads and edits for the revoked member.
+    const viewer = await signup("CalendarViewer");
+    await database.db
+      .insert(membership)
+      .values({ workspaceId: alice.workspaceId, userId: viewer.id });
+    expect(
+      (await req(`/workspaces/${alice.workspaceId}/meetings/calendar?${range}`, viewer)).status,
+    ).toBe(200);
+    await database.db.delete(membership).where(eq(membership.userId, viewer.id));
+    expect(
+      (await req(`/workspaces/${alice.workspaceId}/meetings/calendar?${range}`, viewer)).status,
+    ).toBe(404);
+  });
+});
 describe("revocation and security boundaries", () => {
   test("denies provider access before removing membership and cascades conversation participants", async () => {
     const response = await req(

@@ -1,4 +1,9 @@
-import type { meetingInputSchema } from "@lumo/contracts/collaboration";
+import type {
+  meetingInputSchema,
+  calendarQuerySchema,
+  meetingAvailabilityInputSchema,
+  scheduledMeetingInputSchema,
+} from "@lumo/contracts/collaboration";
 import type { Database } from "@lumo/database";
 import {
   meeting,
@@ -9,7 +14,7 @@ import {
   workspace,
 } from "@lumo/database/schema";
 import { rtcIdentity } from "@lumo/shared";
-import { and, eq, desc, inArray } from "drizzle-orm";
+import { and, eq, desc, inArray, asc, lt, gt, ne, sql, or, exists } from "drizzle-orm";
 import type { z } from "zod";
 
 import type { CollaborationProvider } from "../../integrations/agora";
@@ -21,7 +26,7 @@ const dto = (item: typeof meeting.$inferSelect) => ({
   title: item.title,
   description: item.description,
   access: item.access as "open" | "workspace",
-  status: item.status as "active" | "scheduled" | "ended",
+  status: item.status as "active" | "scheduled" | "ended" | "canceled",
   startsAt: item.startsAt?.toISOString() ?? null,
   timezone: item.timezone,
   durationMinutes: item.durationMinutes,
@@ -52,6 +57,187 @@ export function createMeetingService(
         meetings: rows.slice(0, limit).map(dto),
         nextOffset: rows.length > limit ? offset + limit : null,
       };
+    },
+    async calendar(
+      workspaceId: string,
+      userId: string,
+      range: z.infer<typeof calendarQuerySchema>,
+    ) {
+      await workspaces.requireAccess(workspaceId, userId);
+      const rows = await db
+        .select({ item: meeting, hostName: user.name })
+        .from(meeting)
+        .innerJoin(user, eq(user.id, meeting.hostId))
+        .where(
+          and(
+            eq(meeting.workspaceId, workspaceId),
+            lt(meeting.startsAt, new Date(range.to)),
+            gt(
+              sql`${meeting.startsAt} + ${meeting.durationMinutes} * interval '1 minute'`,
+              new Date(range.from),
+            ),
+          ),
+        )
+        .orderBy(asc(meeting.startsAt), asc(meeting.id))
+        .offset(range.offset)
+        .limit(range.limit + 1);
+      return {
+        meetings: rows
+          .slice(0, range.limit)
+          .map(({ item, hostName }) => ({ ...dto(item), hostName })),
+        nextOffset: rows.length > range.limit ? range.offset + range.limit : null,
+      };
+    },
+    async calendarDetail(workspaceId: string, userId: string, id: string) {
+      await workspaces.requireAccess(workspaceId, userId);
+      const [item] = await db
+        .select()
+        .from(meeting)
+        .where(and(eq(meeting.id, id), eq(meeting.workspaceId, workspaceId)));
+      if (!item) missing();
+      const [host] = await db
+        .select({ name: user.name })
+        .from(user)
+        .where(eq(user.id, item.hostId));
+      return { ...(await this.detail(id, userId)), hostName: host!.name };
+    },
+    async availability(
+      workspaceId: string,
+      userId: string,
+      input: z.infer<typeof meetingAvailabilityInputSchema>,
+    ) {
+      await workspaces.requireAccess(workspaceId, userId);
+      const ids = [...new Set([userId, ...input.participantIds])];
+      const eligible = await db
+        .select({ id: membership.userId })
+        .from(membership)
+        .where(and(eq(membership.workspaceId, workspaceId), inArray(membership.userId, ids)));
+      if (eligible.length !== ids.length) missing();
+      const attendees = db
+        .select({ id: meetingParticipant.userId })
+        .from(meetingParticipant)
+        .where(
+          and(
+            eq(meetingParticipant.meetingId, meeting.id),
+            inArray(meetingParticipant.userId, ids),
+          ),
+        );
+      const rows = await db
+        .select()
+        .from(meeting)
+        .where(
+          and(
+            eq(meeting.workspaceId, workspaceId),
+            inArray(meeting.status, ["scheduled", "active"]),
+            input.excludeMeetingId ? ne(meeting.id, input.excludeMeetingId) : undefined,
+            lt(meeting.startsAt, new Date(input.to)),
+            gt(
+              sql`${meeting.startsAt} + ${meeting.durationMinutes} * interval '1 minute'`,
+              new Date(input.from),
+            ),
+            or(inArray(meeting.hostId, ids), exists(attendees)),
+          ),
+        )
+        .orderBy(asc(meeting.startsAt), asc(meeting.id));
+      const participants = rows.length
+        ? await db
+            .select()
+            .from(meetingParticipant)
+            .where(
+              and(
+                inArray(
+                  meetingParticipant.meetingId,
+                  rows.map((item) => item.id),
+                ),
+                inArray(meetingParticipant.userId, ids),
+              ),
+            )
+        : [];
+      return {
+        conflicts: rows.map((item) => ({
+          id: item.id,
+          title: item.title,
+          startsAt: item.startsAt!.toISOString(),
+          endsAt: new Date(item.startsAt!.getTime() + item.durationMinutes * 60000).toISOString(),
+          userIds: [
+            ...new Set([
+              ...(ids.includes(item.hostId) ? [item.hostId] : []),
+              ...participants.filter((p) => p.meetingId === item.id).map((p) => p.userId),
+            ]),
+          ],
+        })),
+      };
+    },
+    async update(
+      workspaceId: string,
+      userId: string,
+      id: string,
+      input: z.infer<typeof scheduledMeetingInputSchema>,
+    ) {
+      return workspaces.withAccess(workspaceId, userId, async (tx) => {
+        const [item] = await tx
+          .select()
+          .from(meeting)
+          .where(and(eq(meeting.id, id), eq(meeting.workspaceId, workspaceId)))
+          .for("update");
+        if (!item) missing();
+        if (item.hostId !== userId) denied();
+        if (
+          item.status !== "scheduled" ||
+          !item.startsAt ||
+          item.startsAt.getTime() + item.durationMinutes * 60000 <= Date.now()
+        )
+          throw new AppError(
+            409,
+            "INVALID_STATE",
+            "Only upcoming scheduled meetings can be edited.",
+          );
+        if (new Date(input.startsAt) <= new Date())
+          throw new AppError(400, "INVALID_TIME", "Schedule a future start time.");
+        const ids = [...new Set(input.participantIds)];
+        if (ids.length) {
+          const eligible = await tx
+            .select()
+            .from(membership)
+            .where(and(eq(membership.workspaceId, workspaceId), inArray(membership.userId, ids)));
+          if (eligible.length !== ids.length) missing();
+        }
+        const { participantIds: _ids, startsAt, ...rest } = input;
+        const [updated] = await tx
+          .update(meeting)
+          .set({ ...rest, startsAt: new Date(startsAt) })
+          .where(eq(meeting.id, id))
+          .returning();
+        await tx.delete(meetingParticipant).where(eq(meetingParticipant.meetingId, id));
+        if (ids.length)
+          await tx
+            .insert(meetingParticipant)
+            .values(ids.map((person) => ({ meetingId: id, userId: person, invited: true })));
+        await tx
+          .insert(auditEvent)
+          .values({ workspaceId, actorId: userId, action: "meeting.updated", targetId: id });
+        return dto(updated!);
+      });
+    },
+    async cancel(workspaceId: string, userId: string, id: string) {
+      return workspaces.withAccess(workspaceId, userId, async (tx) => {
+        const [item] = await tx
+          .select()
+          .from(meeting)
+          .where(and(eq(meeting.id, id), eq(meeting.workspaceId, workspaceId)))
+          .for("update");
+        if (!item) missing();
+        if (item.hostId !== userId) denied();
+        if (item.status !== "scheduled")
+          throw new AppError(409, "INVALID_STATE", "Only scheduled meetings can be canceled.");
+        await tx
+          .update(meeting)
+          .set({ status: "canceled", endedAt: new Date() })
+          .where(eq(meeting.id, id));
+        await tx
+          .insert(auditEvent)
+          .values({ workspaceId, actorId: userId, action: "meeting.canceled", targetId: id });
+      });
     },
     async create(workspaceId: string, userId: string, input: z.infer<typeof meetingInputSchema>) {
       return workspaces.withAccess(workspaceId, userId, async (tx) => {
@@ -122,8 +308,15 @@ export function createMeetingService(
           .from(meeting)
           .where(eq(meeting.id, found.id))
           .for("update");
-        if (!item || item.status === "ended")
-          throw new AppError(409, "MEETING_ENDED", "This meeting has ended.");
+        if (
+          !item ||
+          item.status === "ended" ||
+          item.status === "canceled" ||
+          (item.status === "scheduled" &&
+            item.startsAt &&
+            item.startsAt.getTime() + item.durationMinutes * 60000 <= Date.now())
+        )
+          throw new AppError(409, "MEETING_ENDED", "This meeting has ended or was canceled.");
         if (item.access === "workspace") {
           const [member] = await tx
             .select({ id: membership.userId })
@@ -182,6 +375,13 @@ export function createMeetingService(
             );
           if (!current) missing();
         }
+        const [currentMeeting] = await tx
+          .select()
+          .from(meeting)
+          .where(eq(meeting.id, id))
+          .for("update");
+        if (currentMeeting?.status === "canceled")
+          throw new AppError(409, "INVALID_STATE", "This meeting was canceled.");
         await tx
           .update(meeting)
           .set({ status: "ended", endedAt: new Date() })

@@ -258,8 +258,9 @@ export const meeting = pgTable(
   },
   (t) => [
     index("meeting_workspace_time_idx").on(t.workspaceId, t.createdAt),
+    index("meeting_workspace_schedule_idx").on(t.workspaceId, t.startsAt),
     check("meeting_access", sql`${t.access} in ('open','workspace')`),
-    check("meeting_status", sql`${t.status} in ('scheduled','active','ended')`),
+    check("meeting_status", sql`${t.status} in ('scheduled','active','ended','canceled')`),
     check("meeting_duration", sql`${t.durationMinutes} between 5 and 1440`),
   ],
 );
