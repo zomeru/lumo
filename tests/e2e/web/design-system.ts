@@ -80,6 +80,7 @@ export async function verifyDesignSystem(page: Page, testInfo: TestInfo) {
     .poll(() => page.evaluate(() => document.documentElement.clientWidth))
     .toBe(widthBeforeDialog);
   await page.goto(`/w/${workspace}/meetings`);
+  await page.getByRole("link", { name: "Schedule meeting", exact: true }).click();
   await page.getByRole("button", { name: "Invite workspace members (optional)" }).click();
   await page.getByRole("searchbox").fill("Alice");
   await page.getByRole("checkbox", { name: "Alice Chen" }).check();
@@ -92,6 +93,7 @@ export async function verifyDesignSystem(page: Page, testInfo: TestInfo) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await page.getByRole("button", { name: "Change appearance" }).click();
   await page.getByRole("menuitemcheckbox", { name: "Light" }).click();
   await page.goto(`/w/${workspace}`);
