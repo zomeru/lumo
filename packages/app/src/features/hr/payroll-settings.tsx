@@ -5,12 +5,13 @@ import {
   payrollSettingsSchema,
   type HrAccess,
 } from "@lumo/contracts/hr";
-import { Badge, Button, Card, ErrorMessage, Field, SelectField } from "@lumo/ui";
+import { Button, Card, ErrorMessage, Field, SelectField } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { hrQuery, allPeopleQuery, useHrAction } from "./hr-api";
 import { HrForm, formString } from "./hr-ui";
+import { StatutorySettingsPanel } from "./statutory-settings";
 export function PayrollSettingsPanel({
   workspaceId,
   access,
@@ -165,27 +166,7 @@ export function PayrollSettingsPanel({
               </p>
             ))}
           </Card>
-          <Card>
-            <h2>Philippine statutory configuration</h2>
-            <Badge>Independent review required</Badge>
-            <p className="my-3">
-              {settings.data?.rules.version} · {settings.data?.rules.effectiveFrom} through{" "}
-              {settings.data?.rules.effectiveTo}. Every employee calculation needs a separate
-              reviewer’s recorded verification before approval and finalization.
-            </p>
-            {settings.data?.rules.sources.map((source) => (
-              <p key={source.url}>
-                <a
-                  className="text-primary underline"
-                  href={source.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {source.title}
-                </a>
-              </p>
-            ))}
-          </Card>
+          <StatutorySettingsPanel workspaceId={workspaceId} />
         </>
       )}
       {canGrants && (

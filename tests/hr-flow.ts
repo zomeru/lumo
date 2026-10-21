@@ -156,10 +156,31 @@ export async function verifyHr(owner: Page, colleague: Page, screenshot: (name: 
     payoutDay: 30,
     reason: "E2E fixture business settings",
   });
+  await navigate(owner, "Payroll");
+  await owner.getByRole("button", { name: "Settings", exact: true }).click();
+  await owner.getByRole("button", { name: "Configure statutory contributions" }).click();
+  await owner
+    .getByLabel("Configuration name", { exact: true })
+    .fill("E2E reviewed statutory configuration");
+  await owner.getByLabel("Statutory effective date", { exact: true }).fill("2026-01-01");
+  await owner
+    .getByLabel("Statutory change reason", { exact: true })
+    .fill("Accounting verified official sources and applicable contribution rules");
+  await owner.getByLabel("SSS employee rate (%)", { exact: true }).fill("4.75");
+  await owner.getByLabel("SSS MPF employee rate (%)", { exact: true }).fill("4.75");
+  await owner.getByRole("checkbox", { name: /I reviewed the official sources/ }).check();
+  expect(
+    await owner.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+  ).toBe(true);
+  await owner.screenshot({ path: screenshot("statutory-settings"), fullPage: true });
+  await owner.getByRole("button", { name: "Save statutory configuration" }).click();
+  await expect(
+    owner.getByText("2026-01-01 · E2E reviewed statutory configuration", { exact: true }),
+  ).toBeVisible();
   const statutory = (
     await api(owner, `/workspaces/${workspaceId}/hr/payroll/statutory-configurations`)
-  ).body as { template: unknown };
-  await configure("/payroll/statutory-configurations", statutory.template);
+  ).body as { configurations: { sss: { employeeBps: number } }[] };
+  expect(statutory.configurations[0]?.sss.employeeBps).toBe(475);
   await configure("/payroll/compensation", {
     userId: teammate.user.id,
     effectiveFrom: "2026-01-01",
@@ -187,7 +208,7 @@ export async function verifyHr(owner: Page, colleague: Page, screenshot: (name: 
   await navigate(owner, "Payroll");
   await owner.getByRole("button", { name: "Pay Runs", exact: true }).click();
   await owner.getByRole("button", { name: "Review run", exact: true }).click();
-  await owner.getByLabel("Independently checked net amount (centavos)").fill("2261120");
+  await owner.getByLabel("Independently checked net amount (centavos)").fill("2266432");
   await owner
     .getByLabel("Reviewer evidence and statutory/source references")
     .fill("E2E test fixture confirmation, not production accounting sign-off");

@@ -71,10 +71,10 @@ attendance and payroll provide authorized CSV exports.
 | `hr-approvals` | Canonical typed requests, ordered approvers/current step, immutable events, routing policies, private files |
 | `hr-leave` | Effective schedule assignments, workspace holidays, versioned leave types, immutable half-day ledger |
 | `hr-attendance` | Append-only raw punches, normalized shifts/breaks, approved correction overlays |
-| `hr-payroll` | Effective compensation/settings, revisioned runs, employee calculation/source snapshots and verification, classified adjustments |
+| `hr-payroll` | Effective compensation/business/statutory settings, revisioned runs, employee calculation/source snapshots and verification, classified adjustments |
 | `hr-onboarding` | Versioned templates, assignment snapshots, individual tasks and append-only task events |
 
-There are 50 tables after all migrations. Every HR record carries a workspace. Current employee,
+There are 51 tables after all migrations. Every HR record carries a workspace. Current employee,
 department-manager and grant relations use composite workspace/member keys. Historical payroll,
 request and audit identifiers intentionally survive membership removal. Removal clears live manager
 references and archives the employment profile in protected audit before deleting that extension;
@@ -127,7 +127,7 @@ has own/direct-report attendance and balances, never salary access through that 
 | `hr.payroll.compensation.manage` | Effective compensation changes, excluding own salary |
 | `hr.payroll.runs.manage` | Calculate/manage runs and controlled corrections |
 | `hr.payroll.runs.approve` | Independent verification and run approval; requires run read access for UI review |
-| `hr.payroll.settings.manage` | Effective business settings and statutory source reference |
+| `hr.payroll.settings.manage` | Effective business policies and statutory rates/tables |
 | `hr.payroll.mark_paid` | Confirm payment recorded outside Lumo |
 | `hr.permissions.manage` | Grant/revoke capabilities for other members; cannot self-grant |
 
@@ -165,7 +165,7 @@ no-store middleware. Directory DTOs omit private email, compensation and documen
    configured route, requests use the reporting manager. Missing/removed/self approvers block the
    request visibly; an approval administrator must reassign. Comments and private files remain
    limited to the requester, assigned approvers and explicitly authorized request administrators.
-6. Set effective PHP monthly/semimonthly payroll business policies and compensation history.
+6. Set effective PHP monthly/semimonthly payroll business policies, reviewed statutory rules and compensation history. Payroll → Settings provides SSS/MPF/EC tables, Pag-IBIG thresholds and caps, PhilHealth premiums/shares and BIR brackets. Templates stay inactive until explicitly saved; new runs require saved coverage. Configuration history is immutable and new versions return affected open calculations to draft. See [configuration details](ui-consistency-and-payroll-configuration.md).
    Terminated employment requires an end date; payroll uses employment dates rather than deleting history. New
    runs suggest current period/cutoff/payout dates from those settings; short months clamp payout
    days, and payout days before period end move to the following month. Dates remain editable and
@@ -205,7 +205,7 @@ are required; membership/operation checks apply to every path, including exports
 | Leave | `GET/POST /leave/policies`, `PUT /leave/policies/:id`, `GET /leave/balances?year=&team=&userId=`, `POST /leave/adjustments`, `GET /leave/out?startDate=&endDate=` |
 | Calendar | `GET/POST /schedules`, `GET/POST /holidays` |
 | Attendance | `GET /attendance?month=&team=&userId=&departmentId=&status=`, `POST /attendance/punch`, `GET /attendance/export` with identical filters |
-| Payroll | `GET /payroll/me?periodStart=`, `GET /payroll/me/:runId/export`, `GET/POST /payroll/compensation`, `GET/POST /payroll/settings`, `GET /payroll/schedule`, `GET/POST /payroll/runs`, `GET /payroll/runs/:id` |
+| Payroll | `GET /payroll/me?periodStart=`, `GET /payroll/me/:runId/export`, `GET/POST /payroll/compensation`, `GET/POST /payroll/settings`, `GET/POST /payroll/statutory-configurations`, `GET /payroll/schedule`, `GET/POST /payroll/runs`, `GET /payroll/runs/:id` |
 | Run lifecycle | `POST /payroll/runs/:id/{calculate,adjustments,action}`, `POST /payroll/runs/:id/employees/:userId/verify`, `GET /payroll/runs/:id/export` |
 | Onboarding | `GET/POST /onboarding/templates`, `PUT /onboarding/templates/:id`, `GET /onboarding/invitations`, `GET /onboarding?team=`, `POST /onboarding/instances`, `GET /onboarding/instances/:id`, `POST /onboarding/tasks/:id/action` |
 
@@ -244,7 +244,7 @@ create it through the existing owner setup and follow the configuration guide; n
 salaries, government IDs or illustrative statutory entitlements are automatically seeded.
 
 The schema move in commit `e69967f` generated **no SQL changes**. Additive HR migrations are `0008`
-through `0013`; their journal/snapshots are committed. `hr-migrations.integration.test.ts` exercises
+through `0014`; their journal/snapshots are committed. `hr-migrations.integration.test.ts` exercises
 an existing pre-HR schema with real user/personal-workspace/membership records, applies all remaining
 migrations twice, and verifies preservation plus new HR inserts. Other integration tests create
 fresh random schemas and apply every migration.

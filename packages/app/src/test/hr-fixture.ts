@@ -7,12 +7,71 @@ import {
   personSchema,
   type HrAccess,
 } from "@lumo/contracts/hr";
+import type { StatutoryConfiguration, StatutoryConfigurationInput } from "@lumo/contracts/payroll";
 
 import { mockApi, teamId, bobId } from "./mock-api";
 export const hrId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   hrSecond = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const hrThird = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const createdAt = "2026-10-21T08:00:00.000Z";
+function statutoryFixture(): StatutoryConfigurationInput {
+  const policy = {
+    enabled: true,
+    exemptionReason: "",
+    rounding: "nearest_centavo",
+    collection: "split",
+    salaryBasis: "monthly_basic",
+  } as const;
+  return {
+    label: "Reviewed Philippine rules",
+    effectiveFrom: "2026-01-01",
+    validThrough: "2026-12-31",
+    reason: "Reviewed official circulars",
+    confirmed: true,
+    sources: [{ title: "Official sources", url: "https://www.sss.gov.ph/pay-contribution/" }],
+    sss: {
+      ...policy,
+      employeeBps: 500,
+      employerBps: 1000,
+      mpfEmployeeBps: 500,
+      mpfEmployerBps: 1000,
+      minimumCreditMinor: 500000,
+      maximumCreditMinor: 3500000,
+      regularCreditCapMinor: 2000000,
+      ecEnabled: true,
+      brackets: [
+        { fromMinor: 0, toMinor: 1000000, salaryCreditMinor: 500000, ecMinor: 1000 },
+        { fromMinor: 1000000, toMinor: null, salaryCreditMinor: 3500000, ecMinor: 3000 },
+      ],
+    },
+    pagibig: {
+      ...policy,
+      compensationCapMinor: 1000000,
+      employeeCapMinor: null,
+      employerCapMinor: null,
+      brackets: [{ fromMinor: 0, toMinor: null, employeeBps: 200, employerBps: 200 }],
+    },
+    philhealth: {
+      ...policy,
+      totalBps: 500,
+      employeeShareBps: 5000,
+      employerShareBps: 5000,
+      floorMinor: 1000000,
+      ceilingMinor: 10000000,
+      premiumCapMinor: null,
+    },
+    bir: {
+      enabled: true,
+      exemptionReason: "",
+      rounding: "nearest_centavo",
+      monthly: [
+        { thresholdMinor: 0, fixedMinor: 0, bps: 0 },
+        { thresholdMinor: 2083300, fixedMinor: 0, bps: 1500 },
+      ],
+      semimonthly: [{ thresholdMinor: 0, fixedMinor: 0, bps: 0 }],
+    },
+  };
+}
 export function hrFixture() {
   const server = mockApi(),
     base = `/api/v1/workspaces/${teamId}/hr`,
@@ -84,6 +143,7 @@ export function hrFixture() {
     replacesRunId: null,
   };
   const state = {
+    statutoryConfigurations: [] as StatutoryConfiguration[],
     access: {
       userId: actor,
       owner: true,
@@ -401,6 +461,18 @@ export function hrFixture() {
   get(`/payroll/runs/${hrId}/export`, csv);
   get("/payroll/compensation", () => server.json({ compensations: state.compensations }));
   post("/payroll/compensation");
+  get("/payroll/statutory-configurations", () =>
+    server.json({ configurations: state.statutoryConfigurations, template: statutoryFixture() }),
+  );
+  post("/payroll/statutory-configurations", (body) => {
+    state.statutoryConfigurations.unshift({
+      ...(body as StatutoryConfigurationInput),
+      id: hrId,
+      actorId: actor,
+      createdAt,
+    });
+    return server.json({ ok: true });
+  });
   get("/payroll/settings", () =>
     server.json({
       settings: [],

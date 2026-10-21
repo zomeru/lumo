@@ -548,7 +548,9 @@ test("an access administrator can manage grants without fetching confidential pa
   expect(screen.queryByText("Philippine statutory configuration")).not.toBeInTheDocument();
   expect(
     fixture.server.fetch.mock.calls.some(
-      ([url]) => typeof url === "string" && url.endsWith("/payroll/settings"),
+      ([url]) =>
+        typeof url === "string" &&
+        (url.endsWith("/payroll/settings") || url.endsWith("/payroll/statutory-configurations")),
     ),
   ).toBe(false);
 });
@@ -880,3 +882,140 @@ test.each([
     expect(await screen.findByText(`Bob Rivera · ${text}`)).toBeVisible();
   },
 );
+
+async function openStatutory() {
+  const result = await show("payroll", "?tab=Settings");
+  await result.user.click(
+    await screen.findByRole("button", { name: "Configure statutory contributions" }),
+  );
+  change("Statutory effective date", "2026-11-01");
+  change("Statutory change reason", "Accounting reviewed official contribution tables");
+  await result.user.click(
+    screen.getByRole("checkbox", { name: /I reviewed the official sources/ }),
+  );
+  return result;
+}
+test("statutory editor persists rates, peso limits, brackets and rounding as a reviewed effective version", async () => {
+  const { user } = await openStatutory();
+  change("Configuration name", "November Accounting review");
+  change("SSS employee rate (%)", "4.75");
+  change("SSS MPF employer rate (%)", "9.5");
+  change("SSS maximum monthly salary credit (PHP)", "40000");
+  change("Pag-IBIG employee contribution cap (PHP)", "199.99");
+  change("PhilHealth total premium rate (%)", "4.5");
+  change("PhilHealth total premium cap (PHP)", "4500");
+  await selectOption(user, "SSS rounding", "Round down to centavo");
+  await user.click(screen.getByText("SSS brackets (2 rows)"));
+  change("SSS brackets row 1 Employer EC (PHP)", "12.50");
+  await user.click(screen.getByText("Pag-IBIG brackets (1 rows)"));
+  change("Pag-IBIG brackets row 1 Employee rate (%)", "1.75");
+  await user.click(screen.getByText("BIR monthly (2 rows)"));
+  change("BIR monthly row 2 Marginal rate (%)", "12.5");
+  await user.click(screen.getByRole("button", { name: "Save statutory configuration" }));
+  await waitFor(() => expect(calls("/payroll/statutory-configurations")).toHaveLength(1));
+  expect(body("/payroll/statutory-configurations")).toMatchObject({
+    effectiveFrom: "2026-11-01",
+    confirmed: true,
+    sss: {
+      employeeBps: 475,
+      mpfEmployerBps: 950,
+      maximumCreditMinor: 4000000,
+      rounding: "down_centavo",
+      brackets: [{ ecMinor: 1250 }, {}],
+    },
+    pagibig: { employeeCapMinor: 19999, brackets: [{ employeeBps: 175 }] },
+    philhealth: { totalBps: 450, premiumCapMinor: 450000 },
+    bir: { monthly: [{}, { bps: 1250 }] },
+  });
+  await user.click(await screen.findByText("2026-11-01 · November Accounting review"));
+  expect(screen.getByText("Immutable version")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Use as new configuration draft" }));
+  expect(screen.getByLabelText("SSS employee rate (%)")).toHaveValue(4.75);
+  expect(screen.getByLabelText("Statutory effective date")).toHaveValue("");
+  expect(
+    screen.getByRole("checkbox", { name: /I reviewed the official sources/ }),
+  ).not.toBeChecked();
+  await user.click(screen.getByRole("button", { name: "Cancel configuration" }));
+  expect(
+    await screen.findByRole("button", { name: "Configure statutory contributions" }),
+  ).toBeVisible();
+});
+test("statutory editor validates shares, bracket continuity and evidence before sending a configuration", async () => {
+  const { user } = await openStatutory();
+  change("PhilHealth employee share (%)", "40");
+  await user.click(screen.getByRole("button", { name: "Save statutory configuration" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Employee and employer shares must total 100%",
+  );
+  expect(calls("/payroll/statutory-configurations")).toHaveLength(0);
+  change("PhilHealth employer share (%)", "60");
+  await user.click(screen.getByText("SSS brackets (2 rows)"));
+  change("SSS brackets row 2 Salary from (PHP)", "9999");
+  await user.click(screen.getByRole("button", { name: "Save statutory configuration" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("without gaps or overlaps");
+  change("SSS brackets row 2 Salary from (PHP)", "10000");
+  fixture.post("/payroll/statutory-configurations", () =>
+    fixture.server.error(409, "This affects a finalized payroll period"),
+  );
+  await user.click(screen.getByRole("button", { name: "Save statutory configuration" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("finalized payroll period");
+});
+test("statutory editors add and remove salary, tax and source rows without losing entered values", async () => {
+  const { user } = await openStatutory();
+  for (const name of [
+    "SSS brackets (2 rows)",
+    "Pag-IBIG brackets (1 rows)",
+    "BIR monthly (2 rows)",
+    "BIR semimonthly (1 rows)",
+  ])
+    await user.click(screen.getByText(name));
+  change("SSS brackets row 2 Employer EC (PHP)", "35.25");
+  await user.click(screen.getByRole("button", { name: "Add SSS brackets row" }));
+  await user.click(screen.getByRole("button", { name: "Remove SSS brackets row 1" }));
+  expect(screen.getByLabelText("SSS brackets row 1 Employer EC (PHP)")).toHaveValue(35.25);
+  for (const group of ["Pag-IBIG brackets", "BIR monthly", "BIR semimonthly"]) {
+    await user.click(screen.getByRole("button", { name: `Add ${group} row` }));
+    await user.click(
+      screen.getByRole("button", {
+        name: `Remove ${group} row ${group === "BIR monthly" ? 3 : 2}`,
+      }),
+    );
+  }
+  await user.click(screen.getByRole("button", { name: "Add source" }));
+  change("Source 2 title", "PhilHealth source");
+  change("Source 2 HTTPS URL", "https://www.philhealth.gov.ph/");
+  await user.click(screen.getByRole("button", { name: "Remove source 1" }));
+  expect(screen.getByLabelText("Source 1 title")).toHaveValue("PhilHealth source");
+});
+test("statutory legal exemptions, collection timing, bases, EC and tax rounding remain explicit", async () => {
+  const { user } = await openStatutory();
+  await selectOption(user, "SSS salary basis", "Actual remuneration for the month");
+  await selectOption(user, "SSS semimonthly collection", "Collect at month-end / final cutoff");
+  await selectOption(user, "Employer Employees’ Compensation", "No EC component");
+  await selectOption(user, "BIR rounding", "Round up to centavo");
+  for (const label of ["SSS", "Pag-IBIG", "PhilHealth", "BIR"]) {
+    await selectOption(user, `${label} calculation`, "Disabled with documented legal basis");
+    change(`${label} legal exemption reason`, "Reviewed employee statutory exemption eligibility");
+  }
+  await user.click(screen.getByRole("button", { name: "Save statutory configuration" }));
+  await waitFor(() => expect(calls("/payroll/statutory-configurations")).toHaveLength(1));
+  const saved = body("/payroll/statutory-configurations");
+  expect(saved.sss).toMatchObject({
+    enabled: false,
+    ecEnabled: false,
+    salaryBasis: "period_remuneration",
+    collection: "second_cutoff",
+  });
+  expect(saved.bir).toMatchObject({ enabled: false, rounding: "up_centavo" });
+  await user.click(await screen.findByText("2026-11-01 · Reviewed Philippine rules"));
+  expect(screen.getAllByText("Reviewed employee statutory exemption eligibility")).toHaveLength(4);
+});
+test("statutory settings errors remain visible and grants-only administrators never fetch statutory data", async () => {
+  fixture.get("/payroll/statutory-configurations", () =>
+    fixture.server.error(403, "Statutory configuration access denied"),
+  );
+  await show("payroll", "?tab=Settings");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Statutory configuration access denied",
+  );
+});

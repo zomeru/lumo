@@ -204,8 +204,8 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
                 <PayBreakdown result={own.data.estimate} />
               ) : (
                 <p>
-                  Your estimate becomes available once effective compensation and payroll settings
-                  are configured.
+                  {own.data?.estimateUnavailableReason ??
+                    "Your estimate becomes available once effective compensation, payroll policies and statutory settings are configured."}
                 </p>
               )}
             </Card>
