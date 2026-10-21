@@ -152,7 +152,7 @@ test("all views support slot selection, event details, editing and cancellation"
   await user.click(screen.getByRole("button", { name: "Previous date range" }));
   await user.click(screen.getByRole("button", { name: "Today" }));
   await selectOption(user, "Calendar view", "Day");
-  const slot = screen.getAllByRole("button", { name: /^Schedule .* 10:00$/ })[0]!;
+  const slot = screen.getAllByRole("button", { name: /^Schedule .* 10 AM$/ })[0]!;
   await user.click(slot);
   expect((screen.getByLabelText("Start date and time") as HTMLInputElement).value).toContain(
     "T10:00",
@@ -345,4 +345,22 @@ test("calendar date boundaries, months, DST and overnight meetings are stable", 
   );
   expect(nextMeetingSlot(date).getTime()).toBeGreaterThan(Date.now());
   expect(nextMeetingSlot(new Date(2035, 0, 1)).getHours()).toBe(9);
+});
+
+test("Calendar composer follows direct URLs and browser history without creating a meeting on Meetings", async () => {
+  const { router, user } = await show(`/w/${teamId}/meetings`);
+  expect(screen.queryByRole("button", { name: "Create meeting" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("link", { name: "Schedule meeting" }));
+  await screen.findByRole("dialog", { name: "Schedule meeting" });
+  await router.navigate({
+    to: "/w/$workspaceId/calendar",
+    params: { workspaceId: teamId },
+    search: {},
+  });
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  router.history.back();
+  await screen.findByRole("dialog", { name: "Schedule meeting" });
+  router.history.forward();
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(posted).toBeNull();
 });

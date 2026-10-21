@@ -4,6 +4,7 @@ import {
   scheduledMeetingInputSchema,
   type Meeting,
 } from "@lumo/contracts/collaboration";
+import { formatDateTime } from "@lumo/shared/date-time";
 import { localMeetingInstant, zonedDateTime } from "@lumo/shared/meeting-time";
 import {
   Button,
@@ -182,7 +183,7 @@ export function ScheduleComposer({
         </div>
         {to && (
           <p className="text-sm">
-            Ends {new Date(to).toLocaleString(undefined, { timeZone: timezone })} ({timezone})
+            Ends {formatDateTime(to, timezone)} ({timezone})
           </p>
         )}
         <SelectField
@@ -229,9 +230,8 @@ export function ScheduleComposer({
               <ul className="mt-2 list-disc pl-5">
                 {availability.data.conflicts.map((item) => (
                   <li key={item.id}>
-                    {item.title} ·{" "}
-                    {new Date(item.startsAt).toLocaleString(undefined, { timeZone: timezone })} –{" "}
-                    {new Date(item.endsAt).toLocaleString(undefined, { timeZone: timezone })}
+                    {item.title} · {formatDateTime(item.startsAt, timezone)} –{" "}
+                    {formatDateTime(item.endsAt, timezone)}
                   </li>
                 ))}
               </ul>

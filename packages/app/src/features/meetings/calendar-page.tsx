@@ -1,4 +1,5 @@
 import { type Meeting } from "@lumo/contracts/collaboration";
+import { formatDate, formatTime, formatDateTime } from "@lumo/shared/date-time";
 import { meetingState } from "@lumo/shared/meeting-time";
 import {
   Badge,
@@ -39,22 +40,16 @@ type Composer =
   | { kind: "create"; initial: Date }
   | { kind: "detail"; id: string }
   | { kind: "edit"; meeting: Meeting; participantIds: string[] };
-const dateLabel = (date: Date) =>
-  date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+const dateLabel = (date: Date) => formatDate(date);
 const meetingLink = (id: string) =>
   `${getPlatform()?.webOrigin ?? window.location.origin}/meetings/${id}`;
 const timeRange = (item: Meeting) =>
-  `${new Date(item.startsAt!).toLocaleString()} – ${new Date(Date.parse(item.startsAt!) + item.durationMinutes * 60000).toLocaleString()}`;
+  `${formatDateTime(item.startsAt!)} – ${formatDateTime(Date.parse(item.startsAt!) + item.durationMinutes * 60000)}`;
 
 const eventTimeRange = (item: Meeting) => {
   const start = new Date(item.startsAt!);
   const end = new Date(start.getTime() + item.durationMinutes * 60000);
-  const format: Intl.DateTimeFormatOptions = {
-    hour: "numeric",
-    minute: "2-digit",
-    ...(start.toDateString() === end.toDateString() ? {} : { month: "short", day: "numeric" }),
-  };
-  return `${start.toLocaleString(undefined, format)} – ${end.toLocaleString(undefined, format)}`;
+  return `${formatTime(start)} – ${start.toDateString() === end.toDateString() ? formatTime(end) : formatDateTime(end)}`;
 };
 
 function MeetingLinks({ meeting }: { meeting: Meeting }) {
@@ -185,7 +180,7 @@ function CalendarHour({
   return (
     <>
       <div className="h-28 border-r border-b bg-muted/10 px-2 pt-2 text-right text-[10px] tabular-nums text-muted-foreground">
-        {String(hour).padStart(2, "0")}:00
+        {hour % 12 || 12} {hour < 12 ? "AM" : "PM"}
       </div>
       {columns.map(({ day, meetings }) => (
         <div
@@ -195,7 +190,7 @@ function CalendarHour({
           <button
             type="button"
             className="absolute inset-0 size-full transition-colors hover:bg-accent/40 focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-            aria-label={`Schedule ${dateLabel(day)} ${String(hour).padStart(2, "0")}:00`}
+            aria-label={`Schedule ${dateLabel(day)} ${hour % 12 || 12} ${hour < 12 ? "AM" : "PM"}`}
             onClick={() => openSlot(day, hour)}
           />
           <div className="pointer-events-none relative z-10 px-1 [&_button]:pointer-events-auto">
@@ -227,6 +222,17 @@ export function CalendarPage({
   const [composer, setComposer] = useState<Composer | null>(() =>
     compose ? { kind: "create", initial: nextMeetingSlot() } : null,
   );
+  const [previousCompose, setPreviousCompose] = useState(compose);
+  if (compose !== previousCompose) {
+    setPreviousCompose(compose);
+    setComposer((current) =>
+      compose
+        ? { kind: "create", initial: nextMeetingSlot() }
+        : current?.kind === "create"
+          ? null
+          : current,
+    );
+  }
   const [saved, setSaved] = useState<Meeting | null>(null);
   const days = calendarDays(date, view);
   const from = days[0]!.toISOString();

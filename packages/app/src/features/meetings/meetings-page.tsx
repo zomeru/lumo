@@ -1,5 +1,6 @@
-import { meetingSchema, meetingsSchema, meetingDetailSchema } from "@lumo/contracts/collaboration";
+import { meetingsSchema, meetingDetailSchema } from "@lumo/contracts/collaboration";
 import { parseLumoLink } from "@lumo/shared";
+import { formatDateTime } from "@lumo/shared/date-time";
 import { meetingState } from "@lumo/shared/meeting-time";
 import {
   Badge,
@@ -9,7 +10,6 @@ import {
   ErrorMessage,
   Field,
   Loading,
-  MultiSelectField,
   PageHeading,
   SelectField,
 } from "@lumo/ui";
@@ -28,112 +28,32 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
-import { api, command, sessionQuery, membersQuery } from "../../lib/api";
+import { api, command, sessionQuery } from "../../lib/api";
 import { getPlatform } from "../../platform";
 import { useMeetingClock } from "./meeting-clock";
-import { refreshMeetings } from "./meeting-queries";
 import { createMeetingConnection } from "./rtc";
 export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
   const navigate = useNavigate();
   const now = useMeetingClock();
   const [joinError, setJoinError] = useState<unknown>(null);
   const [offset, setOffset] = useState(0);
-  const client = useQueryClient();
-  const members = useQuery(membersQuery(workspaceId));
   const meetings = useQuery({
     queryKey: ["workspace", workspaceId, "meetings", offset],
     queryFn: ({ signal }) =>
       api(`/workspaces/${workspaceId}/meetings?offset=${offset}`, meetingsSchema, { signal }),
     refetchInterval: 15000,
   });
-  const create = useMutation({
-    mutationFn: (body: unknown) =>
-      api(`/workspaces/${workspaceId}/meetings`, meetingSchema, { method: "POST", body }),
-    onSuccess: () => refreshMeetings(client, workspaceId),
-  });
   return (
     <>
       <PageHeading eyebrow="Face to face" title="Meetings">
-        Meet now or make time to connect later.
+        View your meetings or schedule time with your team in Calendar.
       </PageHeading>
-      <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
-        <section>
-          <div className="mb-4 flex flex-wrap gap-2">
-            <Button asChild>
-              <Link
-                to="/w/$workspaceId/calendar"
-                params={{ workspaceId }}
-                search={{ compose: true }}
-              >
-                <CalendarDays aria-hidden="true" />
-                Schedule meeting
-              </Link>
-            </Button>
-          </div>
-          <h2 className="flex items-center gap-2">
-            <CalendarDays className="size-4 text-primary" aria-hidden="true" />
-            Start a meeting now
-          </h2>
-          <form
-            className="grid gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const values = new FormData(event.currentTarget);
-              create.mutate({
-                title: values.get("title"),
-                access: values.get("access"),
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                durationMinutes: Number(values.get("durationMinutes")),
-                participantIds: values.getAll("participantIds") as string[],
-              });
-            }}
-          >
-            <div className="grid items-start gap-4 sm:grid-cols-2">
-              <Field label="Meeting title" name="title" required maxLength={100} />
-              <SelectField
-                label="Who can join"
-                name="access"
-                options={[
-                  { value: "workspace", label: "Workspace members" },
-                  { value: "open", label: "Anyone with a Lumo account and link" },
-                ]}
-              />
-              <Field
-                label="Duration in minutes"
-                name="durationMinutes"
-                type="number"
-                min={5}
-                max={1440}
-                defaultValue={60}
-                required
-              />
-            </div>
-            <MultiSelectField
-              label="Invite workspace members (optional)"
-              name="participantIds"
-              options={
-                members.data?.members.map((member) => ({
-                  value: member.userId,
-                  label: member.name,
-                })) ?? []
-              }
-            />
-            <ErrorMessage error={create.error ?? members.error} />
-            <Button variant="primary" type="submit" disabled={create.isPending}>
-              <Video aria-hidden="true" />
-              Create meeting
-            </Button>
-          </form>
-          {create.data && !meetings.isError && (
-            <p className="my-3 block rounded-md border border-primary/15 bg-accent px-3 py-2.5 text-sm text-accent-foreground">
-              Meeting created.{" "}
-              <Link to="/meetings/$meetingId" params={{ meetingId: create.data.id }}>
-                Open {create.data.title}
-              </Link>
-            </p>
-          )}
-        </section>
-      </Card>
+      <Button asChild variant="primary">
+        <Link to="/w/$workspaceId/calendar" params={{ workspaceId }} search={{ compose: true }}>
+          <CalendarDays aria-hidden="true" />
+          Schedule meeting
+        </Link>
+      </Button>
       <Card asChild>
         <form
           className="grid gap-3"
@@ -172,7 +92,7 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
                 </Badge>
                 <h2>{item.title}</h2>
                 <p>
-                  {item.startsAt ? new Date(item.startsAt).toLocaleString() : "Meet now"} ·{" "}
+                  {item.startsAt ? formatDateTime(item.startsAt) : "Meet now"} ·{" "}
                   {item.durationMinutes} minutes
                 </p>
                 <Button asChild>
@@ -290,7 +210,7 @@ export function MeetingPage({ meetingId }: { meetingId: string }) {
         title={item.title}
       >
         {item.startsAt
-          ? `Starts ${new Date(item.startsAt).toLocaleString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone}); scheduled in ${item.timezone}`
+          ? `Starts ${formatDateTime(item.startsAt)} (${Intl.DateTimeFormat().resolvedOptions().timeZone}); scheduled in ${item.timezone}`
           : "Connect with your team."}
       </PageHeading>
       {item.description && <p className="whitespace-pre-wrap text-sm">{item.description}</p>}
