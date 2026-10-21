@@ -6,7 +6,7 @@ import { Hono, type Context } from "hono";
 import { z } from "zod";
 
 import type { ApiContext } from "../../lib/context";
-import { denied, parse, missing } from "../../lib/errors";
+import { denied, parse } from "../../lib/errors";
 import type { Storage } from "../../storage/storage";
 import type { createWorkspaceService } from "../workspaces/workspace.service";
 import { approvalsRoutes } from "./approvals.routes";
@@ -16,6 +16,8 @@ import { auditHr, createHrCore, requireHrMember } from "./core";
 import { hrFilesRoutes } from "./files.routes";
 import { validateLeave, transitionLeave } from "./leave";
 import { leaveRoutes } from "./leave.routes";
+import { onboardingTaskAccess } from "./onboarding";
+import { onboardingRoutes } from "./onboarding.routes";
 import { guardPayrollRequestChange } from "./payroll";
 import { payrollRoutes } from "./payroll.routes";
 import { peopleRoutes } from "./people.routes";
@@ -180,14 +182,10 @@ export function hrRoutes(workspaces: ReturnType<typeof createWorkspaceService>, 
       },
     }),
   );
-  app.route(
-    "/workspaces/:workspaceId/hr",
-    hrFilesRoutes(core, storage, async () => {
-      missing();
-    }),
-  );
+  app.route("/workspaces/:workspaceId/hr", hrFilesRoutes(core, storage, onboardingTaskAccess));
   app.route("/workspaces/:workspaceId/hr", leaveRoutes(core));
   app.route("/workspaces/:workspaceId/hr", attendanceRoutes(core));
   app.route("/workspaces/:workspaceId/hr", payrollRoutes(core));
+  app.route("/workspaces/:workspaceId/hr", onboardingRoutes(core));
   return app;
 }

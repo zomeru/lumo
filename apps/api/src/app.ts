@@ -28,6 +28,7 @@ import { collaborationRoutes } from "./modules/collaboration.routes";
 import { driveRoutes } from "./modules/drive/drive.routes";
 import { createDriveService } from "./modules/drive/drive.service";
 import { hrRoutes } from "./modules/hr/hr.routes";
+import { activateOnboarding } from "./modules/hr/onboarding";
 import { officeRoutes, officeMachineRoutes } from "./modules/office/office.routes";
 import { createOfficeService } from "./modules/office/office.service";
 import { createOfficeProvider, officeKey, type OfficeProvider } from "./modules/office/provider";
@@ -129,6 +130,7 @@ export function createApp({
       for (const group of groups) if (group.id) await provider.removeMember(group.id, identity);
     },
     disconnectOffice,
+    activateOnboarding,
   );
   const drive = createDriveService(db, workspaces, storage, env, disconnectOffice);
   const office = createOfficeService(db, workspaces, drive, storage, env, officeProvider);

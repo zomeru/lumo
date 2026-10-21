@@ -523,3 +523,82 @@ export const payrollVerifySchema = z.strictObject({
   reference: z.string().trim().min(20).max(2000),
   confirmed: z.literal(true),
 });
+
+export const onboardingStepSchema = z.strictObject({
+  title: z.string().trim().min(1).max(160),
+  instructions: z.string().max(4000).default(""),
+  group: z.string().max(100).default("First week"),
+  assigneeRole: z.enum(["employee", "manager", "hr", "it"]),
+  dueOffsetDays: z.number().int().min(-90).max(365),
+  required: z.boolean().default(true),
+  requiresVerification: z.boolean().default(false),
+  requiresAttachment: z.boolean().default(false),
+  link: z
+    .url()
+    .refine((value) => value.startsWith("https://"))
+    .nullable()
+    .default(null),
+});
+export const onboardingTemplateInputSchema = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+  active: z.boolean().default(true),
+  steps: z.array(onboardingStepSchema).min(1).max(60),
+});
+export const onboardingTemplatesSchema = z.object({
+  templates: z.array(onboardingTemplateInputSchema.extend({ id: z.uuid(), version: z.number() })),
+});
+export const onboardingAssignSchema = z
+  .strictObject({
+    templateId: z.uuid(),
+    userId: z.uuid().nullable().default(null),
+    invitationId: z.uuid().nullable().default(null),
+    startDate: calendarDateSchema,
+    hrAssigneeId: z.uuid(),
+    itAssigneeId: z.uuid().nullable().default(null),
+  })
+  .refine(
+    (v) => Boolean(v.userId) !== Boolean(v.invitationId),
+    "Choose a member or pending invitation",
+  );
+export const onboardingTaskSchema = z.object({
+  id: z.uuid(),
+  instanceId: z.uuid(),
+  assigneeId: z.uuid().nullable(),
+  step: onboardingStepSchema,
+  dueDate: z.string(),
+  status: z.enum(["todo", "submitted", "completed", "verified"]),
+});
+export const onboardingInstancesSchema = z.object({
+  instances: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+      userId: z.uuid().nullable(),
+      invitationId: z.uuid().nullable(),
+      startDate: z.string(),
+      ownerId: z.uuid(),
+      version: z.number(),
+      completed: z.number(),
+      total: z.number(),
+      status: z.enum(["in_progress", "completed"]),
+    }),
+  ),
+  tasks: z.array(onboardingTaskSchema),
+});
+export const onboardingDetailSchema = z.object({
+  tasks: z.array(onboardingTaskSchema),
+  events: z.array(
+    z.object({
+      id: z.uuid(),
+      taskId: z.uuid(),
+      actorId: z.uuid(),
+      action: z.string(),
+      comment: z.string(),
+      createdAt: z.string(),
+    }),
+  ),
+  files: z.array(z.object({ id: z.uuid(), targetId: z.uuid(), name: z.string() })),
+});
+export const onboardingInvitationsSchema = z.object({
+  invitations: z.array(z.object({ id: z.uuid(), email: z.string(), expiresAt: z.string() })),
+});

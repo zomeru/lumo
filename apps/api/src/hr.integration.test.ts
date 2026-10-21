@@ -3,8 +3,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 
 import { createAuth } from "@lumo/auth";
-import { membership } from "@lumo/database/schema";
+import { membership, user } from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
+import { eq } from "drizzle-orm";
 import { beforeAll, afterAll, expect, test } from "vitest";
 
 import { createApp } from "./app";
@@ -561,4 +562,117 @@ test("Payroll runs require explicit grants, independent statutory review, immuta
   expect((await (await req(`/payroll/runs/${id}`)).json()).employees[0].result.netMinor).toBe(
     2261120,
   );
+});
+
+test("Onboarding snapshots templates, protects submissions and activates pending invitations atomically", async () => {
+  const template = {
+    name: "New hire",
+    active: true,
+    steps: [
+      {
+        title: "Policy acknowledgment",
+        instructions: "Read and acknowledge the policy",
+        group: "Before day one",
+        assigneeRole: "employee",
+        dueOffsetDays: -1,
+        required: true,
+        requiresVerification: true,
+        requiresAttachment: true,
+      },
+    ],
+  };
+  const created = await req("/onboarding/templates", owner, "POST", template);
+  expect(created.status).toBe(201);
+  const templateId = (await created.json()).id as string;
+  const assigned = await req("/onboarding/instances", owner, "POST", {
+    templateId,
+    userId: employee.id,
+    startDate: "2026-10-22",
+    hrAssigneeId: owner.id,
+  });
+  expect(assigned.status).toBe(201);
+  const instanceId = (await assigned.json()).id as string;
+  const mine = await (await req("/onboarding?view=mine", employee)).json();
+  const task = mine.tasks.find((t: { instanceId: string }) => t.instanceId === instanceId);
+  expect(task.step.title).toBe("Policy acknowledgment");
+  expect(task.dueDate).toBe("2026-10-21");
+  expect(
+    (
+      await req(`/onboarding/templates/${templateId}`, owner, "PUT", {
+        ...template,
+        steps: [{ ...template.steps[0], title: "Updated policy" }],
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (await (await req("/onboarding?view=mine", employee)).json()).tasks.find(
+      (t: { id: string }) => t.id === task.id,
+    ).step.title,
+  ).toBe("Policy acknowledgment");
+  expect(
+    (await req(`/onboarding/tasks/${task.id}/action`, employee, "POST", { action: "complete" }))
+      .status,
+  ).toBe(409);
+  const data = Buffer.from("Private acknowledgment");
+  const file = await req(`/files/task/${task.id}/uploads`, employee, "POST", {
+    name: "acknowledgment.txt",
+    mimeType: "text/plain",
+    size: data.length,
+    checksum: memory.sha(data),
+  });
+  expect(file.status).toBe(201);
+  const fileId = (await file.json()).id as string;
+  memory.put(`hr/${owner.workspaceId}/${fileId}/staging`, data, "text/plain");
+  expect((await req(`/files/${fileId}/complete`, employee, "POST", {})).status).toBe(200);
+  expect((await req(`/files/${fileId}/download`, admin, "POST", {})).status).toBe(404);
+  expect((await req(`/onboarding/instances/${instanceId}`, admin)).status).toBe(404);
+  expect(
+    (await req(`/onboarding/tasks/${task.id}/action`, employee, "POST", { action: "complete" }))
+      .status,
+  ).toBe(200);
+  expect(
+    (await req(`/onboarding/tasks/${task.id}/action`, employee, "POST", { action: "verify" }))
+      .status,
+  ).toBe(403);
+  expect(
+    (await req(`/onboarding/tasks/${task.id}/action`, owner, "POST", { action: "verify" })).status,
+  ).toBe(200);
+  const checklists = await (await req("/onboarding?view=checklists")).json();
+  expect(checklists.instances.find((i: { id: string }) => i.id === instanceId).status).toBe(
+    "completed",
+  );
+  await database.db.update(user).set({ emailVerified: true }).where(eq(user.id, outsider.id));
+  const [prehire] = await database.db.select().from(user).where(eq(user.id, outsider.id));
+  const invited = await app.request(`/api/v1/workspaces/${owner.workspaceId}/invitations`, {
+    method: "POST",
+    headers: { origin: env.WEB_ORIGIN, "content-type": "application/json", cookie: owner.cookie },
+    body: JSON.stringify({ email: prehire!.email, role: "member" }),
+  });
+  expect(invited.status).toBe(201);
+  const invite = (await invited.json()) as { id: string; token: string };
+  expect(
+    (
+      await req("/onboarding/instances", owner, "POST", {
+        templateId,
+        invitationId: invite.id,
+        startDate: "2026-11-01",
+        hrAssigneeId: owner.id,
+      })
+    ).status,
+  ).toBe(201);
+  expect((await req("/onboarding?view=mine", outsider)).status).toBe(404);
+  const accepted = await app.request("/api/v1/invitations/accept", {
+    method: "POST",
+    headers: {
+      origin: env.WEB_ORIGIN,
+      "content-type": "application/json",
+      cookie: outsider.cookie,
+    },
+    body: JSON.stringify({ token: invite.token }),
+  });
+  expect(accepted.status).toBe(200);
+  const joined = await (await req("/onboarding?view=mine", outsider)).json();
+  expect(joined.tasks).toHaveLength(1);
+  expect(joined.tasks[0].assigneeId).toBe(outsider.id);
+  expect(joined.tasks[0].step.title).toBe("Updated policy");
 });
