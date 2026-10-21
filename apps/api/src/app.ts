@@ -27,6 +27,7 @@ import { enforceRateLimit } from "./middleware/rate-limit.ts";
 import { collaborationRoutes } from "./modules/collaboration.routes";
 import { driveRoutes } from "./modules/drive/drive.routes";
 import { createDriveService } from "./modules/drive/drive.service";
+import { hrRoutes } from "./modules/hr/hr.routes";
 import { officeRoutes, officeMachineRoutes } from "./modules/office/office.routes";
 import { createOfficeService } from "./modules/office/office.service";
 import { createOfficeProvider, officeKey, type OfficeProvider } from "./modules/office/provider";
@@ -244,6 +245,7 @@ export function createApp({
   });
   app.route("/api/v1", userRoutes(db, workspaces));
   app.route("/api/v1", workspaceRoutes(workspaces));
+  app.route("/api/v1", hrRoutes(workspaces));
   app.route("/api/v1", collaborationRoutes(db, workspaces, provider));
   app.route("/api/v1", driveRoutes(db, workspaces, storage, env, drive));
   app.route(

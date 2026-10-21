@@ -57,6 +57,13 @@
       "when": 1792541400219,
       "tag": "0007_neat_phantom_reporter",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792546454459,
+      "tag": "0008_slim_mathemanic",
+      "breakpoints": true
     }
   ]
 }

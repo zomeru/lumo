@@ -9,7 +9,8 @@
     "./collaboration": "./src/collaboration.ts",
     "./drive": "./src/drive.ts",
     "./office": "./src/office.ts",
-    "./files": "./src/files.ts"
+    "./files": "./src/files.ts",
+    "./hr": "./src/hr.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"
