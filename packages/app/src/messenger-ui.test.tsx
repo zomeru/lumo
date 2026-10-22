@@ -380,3 +380,21 @@ test("profile hover respects device capability while explicit activation works o
   await user.hover(profile);
   expect(await screen.findByRole("dialog")).toBeVisible();
 });
+
+test("member cards expose Message to the keyboard and let Tab leave without stealing focus", async () => {
+  const user = await show(true);
+  await screen.findByText("Launch decision");
+  const author = screen.getAllByRole("button", { name: /View Bob's profile/ })[0]!;
+  author.focus();
+  await user.keyboard("{ArrowDown}");
+  const card = await screen.findByRole("dialog", { name: "Bob profile" });
+  expect(within(card).getByRole("button", { name: "Message" })).toHaveFocus();
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(author).toHaveFocus());
+  await user.keyboard("{Enter}");
+  const reopened = await screen.findByRole("dialog");
+  expect(within(reopened).getByRole("button", { name: "Message" })).toHaveFocus();
+  await user.keyboard("{Tab}");
+  await waitFor(() => expect(reopened).not.toBeInTheDocument());
+  expect(author).not.toHaveFocus();
+});

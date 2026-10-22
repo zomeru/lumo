@@ -461,7 +461,13 @@ export function MessageStream({
                 onReply={() => onReply(message.id)}
                 onEdit={() => {
                   setEditing({ message, deleting: false });
-                  setEditDraft(decodeMentionBody(message.body));
+                  const draft = decodeMentionBody(message.body);
+                  setEditDraft({
+                    ...draft,
+                    mentions: draft.mentions.filter((mention) =>
+                      message.mentionIds.includes(mention.userId),
+                    ),
+                  });
                 }}
                 onDelete={() => setEditing({ message, deleting: true })}
                 onAction={(action, body) => mutation.mutate({ id: message.id, action, body })}

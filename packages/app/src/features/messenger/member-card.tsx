@@ -54,15 +54,19 @@ export function MemberCard({
   useEffect(() => () => clearTimeout(timer.current), []);
   const direct = useStartDirectMessage(workspaceId),
     status = usePresence(userId);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null),
+    content = useRef<HTMLDivElement>(null),
+    keyboardFocus = useRef(false);
   const enter = () => {
     clearTimeout(timer.current);
+    if (!open) returnFocus.current = false;
     setOpen(true);
   };
   const leave = () => {
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      if (!trigger.current?.matches(":focus")) setOpen(false);
+      if (!trigger.current?.matches(":focus") && !content.current?.contains(document.activeElement))
+        setOpen(false);
     }, 200);
   };
   return (
@@ -85,19 +89,70 @@ export function MemberCard({
           onFocus={() => {
             if (!suppressFocus.current && trigger.current?.matches(":focus-visible")) enter();
           }}
+          onKeyDown={(event) => {
+            if (["Enter", " ", "ArrowDown"].includes(event.key)) {
+              event.preventDefault();
+              enter();
+              if (content.current)
+                (
+                  content.current.querySelector<HTMLButtonElement>("button") ?? content.current
+                ).focus();
+              else keyboardFocus.current = true;
+            }
+          }}
           onClick={(event) => {
             event.preventDefault();
-            setOpen(true);
+            enter();
           }}
         >
           {children}
         </button>
       </PopoverTrigger>
       <PopoverContent
+        ref={content}
+        tabIndex={-1}
+        aria-label={`${name} profile`}
         side="bottom"
-        onOpenAutoFocus={(e) => {
+        onInteractOutside={() => {
           returnFocus.current = false;
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Tab") return;
+          const buttons =
+            content.current?.querySelectorAll<HTMLButtonElement>("button:not([disabled])");
+          const boundary = event.shiftKey ? buttons?.[0] : buttons?.[buttons.length - 1];
+          if (buttons?.length && document.activeElement !== boundary) return;
+          event.preventDefault();
+          returnFocus.current = false;
+          setOpen(false);
+          const controls = [
+            ...document.querySelectorAll<HTMLElement>(
+              'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex="0"]',
+            ),
+          ].filter(
+            (node) =>
+              !content.current?.contains(node) &&
+              !node.hasAttribute("data-radix-focus-guard") &&
+              (node.checkVisibility?.() ?? true),
+          );
+          const index = trigger.current ? controls.indexOf(trigger.current) : -1;
+          const target = event.shiftKey
+            ? trigger.current
+            : (controls[index + 1] ?? trigger.current);
+          if (target === trigger.current) {
+            suppressFocus.current = true;
+            requestAnimationFrame(() => {
+              suppressFocus.current = false;
+            });
+          }
+          target?.focus();
+        }}
+        onOpenAutoFocus={(e) => {
           e.preventDefault();
+          if (keyboardFocus.current && content.current) {
+            keyboardFocus.current = false;
+            (content.current.querySelector<HTMLButtonElement>("button") ?? content.current).focus();
+          }
         }}
         onFocusCapture={() => {
           returnFocus.current = true;
