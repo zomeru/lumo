@@ -133,7 +133,7 @@ pnpm --filter @lumo/web preview
 
 Root Vitest discovers package projects. React tests use Testing Library and jsdom; API tests exercise real PostgreSQL. Playwright runs desktop and mobile Chromium flows. CI provides PostgreSQL and runs the complete gate and browser tests on Linux, with tooling, types, unit/UI tests, and builds on Windows.
 
-The web and desktop renderers share dependency handling in `packages/app/vite.config.ts`. RTC uses Agora's modular `/esm` entry and separate dependency chunks; Wiki syntax highlighting also has its own chunks. The RTC core still exceeds Vite's default 500 kB warning threshold as individual vendor modules. They load on demand; the warning remains enabled because chunk settings cannot split an individual module.
+The web and desktop renderers share dependency handling in `packages/app/vite.config.ts`. RTC uses Agora's modular `/esm` entry and separate dependency chunks; Wiki syntax highlighting also has its own chunks. The RTC core still exceeds Vite's default 500 kB warning threshold as an individual vendor module. It loads on demand; the warning remains enabled because chunk settings cannot split an individual module.
 
 ## Production configuration
 
@@ -193,9 +193,9 @@ pnpm test:desktop
 # Headless Linux/WSL: xvfb-run -a pnpm test:desktop
 # Managed Linux display: also exercise native maximize/restore/fullscreen and minimize.
 LUMO_NATIVE_WINDOW_TESTS=1 pnpm test:desktop
-# Explicit live provider smoke (creates and cleans temporary provider records):
+# Explicit RTC signing smoke (prints no credentials):
 LUMO_LIVE_AGORA=1 pnpm --filter @lumo/api exec tsx --env-file=.env src/test/live-provider.ts
-# Explicit browser/Electron live messaging integration:
+# Explicit browser/Electron live Meetings integration:
 LUMO_LIVE_AGORA=1 xvfb-run -a pnpm test:desktop
 # Native screen capture: a supported graphical host must expose capture sources.
 LUMO_LIVE_AGORA=1 LUMO_LIVE_SCREEN_CAPTURE=1 xvfb-run -a --server-args="-screen 0 1280x1024x24 +extension RANDR +extension RENDER" pnpm test:desktop

@@ -20,8 +20,8 @@
 - [x] 4: Full-space shared responsive layout and reusable conversation UI.
 - [x] 5: Channel discovery, creation, membership and settings UI.
 - [x] 6: DM/group UI, search navigation, attachments, mentions and preferences.
-- [ ] 7: Authorization/integration/UI/web/Electron QA and complete checks.
-- [ ] 8: Rollout/recovery documentation, cleanup and final review.
+- [x] 7: Authorization/integration/UI/web/Electron QA and complete checks.
+- [x] 8: Rollout/recovery documentation, cleanup and final review.
 
 ## Verification and rollout
 
@@ -37,7 +37,7 @@ Phases 4–6: shared full-space split layout, mobile back navigation, channel br
 
 ## Storage, delivery and API operations
 
-- Migrations `0016_left_golden_guardian`, `0017_messenger_revocation`, `0018_conscious_kitty_pryde`, and `0019_majestic_the_professor` extend existing conversations, add durable messages/reactions/attachments, publish membership revocations, and add private activity records. Migrations 0016–0018 were applied to local development; 0019 retains the provisioned conversation as retired history and clears its DM key. Populated upgrade tests preserve IDs, provider references and membership and rerun migrations safely.
+- Migrations `0016_left_golden_guardian`, `0017_messenger_revocation`, `0018_conscious_kitty_pryde`, and `0019_majestic_the_professor` extend existing conversations, add durable messages/reactions/attachments, publish membership revocations, and add private activity records. Migrations 0016–0019 were applied to local development; 0019 retains the provisioned conversation as retired history and clears its DM key. Populated upgrade tests preserve IDs, provider references and membership and rerun migrations safely.
 - The conversation list defaults to DMs/groups for older clients. Updated clients request `includeChannels=true`. Retired records are excluded from all active access, search and notifications. The old credential and timestamp-read endpoints return 404. Updated clients use durable message cursors. Archival provider references are never returned in public DTOs.
 - Database messages use increasing server sequences for stable cursors. A unique conversation/sender/nonce constraint and the existing workspace lock make retries and simultaneous DM creation safe. Unread calculations use actual message cursors; notification totals include all authorized conversations and honor all/mentions/muted preferences.
 - The shared workspace shell owns one Messenger socket for web/Electron. Tickets bind workspace, actor, session and expiry. Every delivery rechecks session/workspace permissions; typing additionally checks conversation visibility/posting permissions. Workspace removal invalidates all API instances through Postgres. Idle sockets are checked every 15 seconds and renew their two-minute tickets by reconnecting. Clients reconcile persisted state on connection, coalesce invalidations, and never receive private message content in push payloads.
@@ -60,3 +60,51 @@ Phases 4–6: shared full-space split layout, mobile back navigation, channel br
 The user requested complete removal of legacy Messenger. Migration 0019 adds `retired_at`, marks provider-backed conversations retired/archived and clears their unique DM key without deleting records. Tests verify populated upgrade preservation, repeated migration, denial of retired direct links, omission from lists/search/notifications and fresh DM identities. The Chat client, API credentials, provider REST calls, codecs, build shim, dependencies and configuration have been removed. Agora RTC Meetings remains supported.
 
 The old externally stored message bodies have not been imported or deleted. Retired records are archival database references and are unavailable in the product. New conversations start fresh. This retirement is deliberate and does not represent a completed history import.
+
+## Final plan review and operations
+
+The sidebar includes bounded participant avatar previews, message previews and last activity. The conversation header includes member counts, pinned messages and a shared-files view. Shared files include attachments in replies; deleted messages are excluded. Filtered files/pins views do not advance read cursors. Consecutive messages retain date/unread/thread boundaries while grouping repeated senders. The composer supports emoji insertion at the current selection and restores input focus. These details use existing avatars, date helpers, controls and indexed message/attachment queries.
+
+| Resource/action | Workspace member outside conversation | Joined member | Owner/manager |
+| --- | --- | --- | --- |
+| Public channel history/files/search | Read | Read/post | Read/post/manage |
+| Private channel or DM content | No access, including administrators | Read/post | Channel management only for explicit roles |
+| Edit/delete a message | No access | Sender only | Sender only |
+| Archive/settings/membership | No access | No management | Channel owner/manager; owner alone assigns managers/transfers ownership |
+| Retired provider conversation | No access | No access | No access |
+
+Posting and message mutations require an unarchived conversation. Group participant changes start a fresh conversation.
+
+Troubleshooting:
+
+- If Messenger reports disconnected, check the API WebSocket upgrade, session cookie, allowed origin and workspace membership. The HTTP server must attach `app.messenger` and keep the shared Postgres listener running. Every API instance must listen to `lumo_messenger`; missed ephemeral invalidations are reconciled from persisted state on reconnect.
+- If uploads fail, verify private S3 configuration and bucket CORS for the actual renderer origin. Do not widen allowed origins to fix a test. Inspect API error codes for MIME, checksum, size, signature or expired completion errors. Retry with a new upload after the one-hour completion window.
+- Attachment URLs expire after 120 seconds. Request a new download through the authorized API. Removal or message deletion denies new URLs; previously issued URLs expire shortly.
+- Apply migrations before starting the new API. Keep database backups and external historical exports. Recovery should roll forward or use a Messenger-capable build; never revive the removed Chat writer over a persisted Messenger destination.
+
+## Final verification
+
+- `VITEST_MAX_WORKERS=2 pnpm check:all` passed after the final UI changes: formatting, type-aware Oxlint, workspace boundaries, Syncpack, unused dependency analysis, fresh route generation/types, and all 62 test files / 580 tests. Coverage: statements 95.10%, branches 90.34%, functions 93.60%, lines 96.49%. Thresholds are unchanged.
+- `pnpm build` passed all four tasks, including web and Electron production bundles. No legacy Chat chunk, SDK or generated codec remains.
+- `pnpm exec playwright test tests/e2e/web/messenger.spec.ts --project chromium --project mobile-chromium` passed both persisted two-account journeys. The optional live-storage case is intentionally gated in this command and was executed separately.
+- `xvfb-run -a pnpm test:desktop -g 'shared Messenger'` passed against the rebuilt Electron app, including web/Electron delivery, the shared-files control and narrow-window layout. The screenshot was visually inspected; dimensions also assert that Messenger fills the available main content with no horizontal overflow.
+- Live S3 browser upload and download passed with `LUMO_LIVE_MESSENGER_STORAGE=1`, API port 3001 and the already-allowed web origin on port 3000. Private staging/completion, signatures/checksums, immutable copy, signed download and cleanup were verified. No bucket policy was broadened.
+- Migration 0019 applied to the local development database. Populated upgrade tests retain IDs, membership and provider references, clear old DM keys, and rerun migrations safely. Retired API records, message history, search and notification access are denied. New same-pair DMs receive a fresh identity.
+- Focused API/UI checks passed throughout each implementation milestone. Commits passed the repository lint/format and Conventional Commits hooks.
+
+The complete browser suite was also attempted. Unrelated failures were recorded: shared loopback registrations exceeded the existing five-signups-per-minute policy; the public-page scrollbar resize fixture assumed a document height that no longer holds. A later isolated foundation run passed the updated Messenger dialog/focus checks and then timed out in onboarding while waiting for the Job title step after the form reset to company details. These failures do not occur in the standalone Messenger journeys. Production authentication limits and unrelated onboarding/scrollbar behavior were not changed to make the suite pass.
+
+Remaining limits: files are explicitly unscanned (the existing safe-upload gating policy is enforced); old external provider bodies are retained outside the product and have not been imported; native Windows/macOS-specific testing was not available on this Linux host. No E2EE claim is made.
+
+## Commit history
+
+- `f0cf76e` — architecture audit and rollout decisions.
+- `af79d9a` — durable schema and workspace constraints.
+- `a5c5c05` — authorization and persisted messaging APIs.
+- `66e3915` — authorized realtime and revocation.
+- `04b7aa7` — full-space shared UI.
+- `6c8281b` — scoped notifications and shared flow tests.
+- `c4ae552` — private audit and attachment lifecycle.
+- `892ce36` — safe retirement of provider conversations.
+- `da5f14d` — complete legacy Chat runtime removal.
+- `3e4f7fc` — avatar/activity previews, shared files, message grouping and emoji composer.
