@@ -384,6 +384,9 @@ importers:
       agora-rtc-sdk-ng:
         specifier: 4.24.9
         version: 4.24.9(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+      emoji-picker-react:
+        specifier: 5.1.0
+        version: 5.1.0(react@19.3.1)
       lucide-react:
         specifier: 1.59.0
         version: 1.59.0(@types/react@19.3.0)(react@19.3.1)
@@ -4554,6 +4557,12 @@ packages:
     engines: {node: '>= 22.12.0'}
     hasBin: true
 
+  emoji-picker-react@5.1.0:
+    resolution: {integrity: sha512-yw4D7tarPZpqaygpS1tNyoJ2ymJzBx5koXqYpifY2waovnoRQlL5xIxzNRudJNWKrHbjk8Ky+xFE1nkHHWCyew==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: '>=16.8'
+
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
 
@@ -6023,6 +6032,9 @@ packages:
   shebang-regex@3.0.0:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
+
+  shipstyles@1.0.0:
+    resolution: {integrity: sha512-1AcihfXo/mSxqeOdoKqq/5TNv+vSH0dBYPFq88PUX5FBkK5pRmY5TP9SuMNio85PQ+euUI67+KpSVk1cUVDCgA==}
 
   signal-exit@3.0.7:
     resolution: {integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==}
@@ -10425,6 +10437,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  emoji-picker-react@5.1.0(react@19.3.1):
+    dependencies:
+      react: 19.3.1
+      shipstyles: 1.0.0
+
   emoji-regex@10.6.0: {}
 
   emoji-regex@8.0.0: {}
@@ -12301,6 +12318,8 @@ snapshots:
       shebang-regex: 3.0.0
 
   shebang-regex@3.0.0: {}
+
+  shipstyles@1.0.0: {}
 
   signal-exit@3.0.7: {}
 

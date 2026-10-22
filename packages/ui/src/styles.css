@@ -98,3 +98,25 @@
     min-height: 40px;
   }
 }
+
+/* Keep overflow reachable on touch; reveal compact actions on hover and keyboard focus. */
+@media (hover: hover) and (pointer: fine) {
+  .message-toolbar {
+    opacity: 0;
+  }
+  .group:hover > .message-toolbar,
+  .group:focus-within > .message-toolbar {
+    opacity: 1;
+  }
+}
+.lumo-emoji-picker {
+  --epr-bg-color: var(--elevated);
+  --epr-category-label-bg-color: var(--elevated);
+  --epr-search-input-bg-color: var(--muted);
+  --epr-search-input-bg-color-active: var(--surface);
+  --epr-picker-border-color: var(--border);
+  --epr-text-color: var(--foreground);
+  --epr-highlight-color: var(--ring);
+  --epr-hover-bg-color: var(--muted);
+  --epr-focus-bg-color: var(--accent);
+}
