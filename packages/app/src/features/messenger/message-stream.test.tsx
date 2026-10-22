@@ -1,4 +1,5 @@
 import { messengerMessageSchema, type MessengerMessage } from "@lumo/contracts/messenger";
+import { TooltipProvider } from "@lumo/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -117,14 +118,16 @@ function show(
 ) {
   render(
     <QueryClientProvider client={client}>
-      <MessageStream
-        workspaceId={teamId}
-        conversationId={conversationId}
-        canPost
-        {...props}
-        onReply={() => {}}
-        onTyping={() => {}}
-      />
+      <TooltipProvider>
+        <MessageStream
+          workspaceId={teamId}
+          conversationId={conversationId}
+          canPost
+          {...props}
+          onReply={() => {}}
+          onTyping={() => {}}
+        />
+      </TooltipProvider>
     </QueryClientProvider>,
   );
   return userEvent.setup();
@@ -319,7 +322,7 @@ test("attachment selection, removal, download errors, deleted messages and exist
   await user.click(screen.getByRole("button", { name: "Unpin" }));
   await waitFor(() => expect(commands).toContainEqual({ emoji: "👍", active: false }));
   await user.upload(
-    screen.getByLabelText("Attach file"),
+    screen.getByLabelText("Choose attachment"),
     new File(["file"], "notes.txt", { type: "text/plain" }),
   );
   await user.click(await screen.findByRole("button", { name: "Remove notes.txt" }));
@@ -413,4 +416,31 @@ test("threads keep original context separate from replies and show aggregated pa
     within(screen.getByRole("list", { name: "Thread messages" })).queryByText("Original decision"),
   ).not.toBeInTheDocument();
   expect(screen.getAllByText("A reply")).toHaveLength(1);
+  expect(screen.getByPlaceholderText("Reply...")).toBeVisible();
+  expect(screen.queryByPlaceholderText("Message your team · @ to mention")).not.toBeInTheDocument();
+  const attach = screen.getByRole("button", { name: "Attach file", exact: true });
+  expect(attach).toHaveTextContent("");
+  expect(attach).toHaveAttribute("type", "button");
+});
+
+test("reply summary avatars omit presence while author avatars retain availability", async () => {
+  server.state.overrides.set(`GET ${path}/messages`, () =>
+    server.json({
+      messages: [
+        {
+          ...fixture(),
+          replies: 1,
+          replyParticipants: [{ userId: bobId, name: "Bob", image: null }],
+        },
+      ],
+      nextBefore: null,
+    }),
+  );
+  show();
+  const summary = await screen.findByRole("button", { name: /1 reply/ });
+  expect(summary.querySelector('[title="Bob"]')).toBeInTheDocument();
+  expect(
+    within(summary).queryByText(/Offline|Online|Availability unavailable|Do Not Disturb/),
+  ).not.toBeInTheDocument();
+  expect(screen.getByPlaceholderText("Message your team · @ to mention")).toBeVisible();
 });

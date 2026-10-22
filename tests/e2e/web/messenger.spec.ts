@@ -81,7 +81,7 @@ test("live private S3 attachments send and download through Messenger", async ({
   const dialog = page.getByRole("dialog", { name: "Create channel", exact: true });
   await dialog.getByLabel("Channel name").fill("Attachment validation");
   await dialog.getByRole("button", { name: "Create channel", exact: true }).click();
-  await page.getByLabel("Attach file", { exact: true }).setInputFiles({
+  await page.getByLabel("Choose attachment", { exact: true }).setInputFiles({
     name: "messenger-validation.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("Lumo Messenger attachment validation"),

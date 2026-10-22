@@ -14,6 +14,7 @@ import { useMutation } from "@tanstack/react-query";
 import { MessageSquare, MoreHorizontal, Pin } from "lucide-react";
 import { Fragment } from "react";
 
+import { AppAvatar as ReplyAvatar } from "../../components/app-avatar";
 import { EmojiPopover } from "./emoji-popover";
 import { MemberCard } from "./member-card";
 import { decodeMentionBody } from "./mention-text";
@@ -148,9 +149,8 @@ export function MessageItem({
               <Button size="sm" variant="ghost" onClick={onReply} className="gap-2 text-primary">
                 <span className="flex -space-x-1.5" aria-hidden="true">
                   {message.replyParticipants.map((p) => (
-                    <AppAvatar
+                    <ReplyAvatar
                       key={p.userId}
-                      userId={p.userId}
                       name={p.name}
                       src={p.image ?? undefined}
                       size="sm"

@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
+  Tooltip,
 } from "@lumo/ui";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, Paperclip, Send, X } from "lucide-react";
@@ -43,12 +44,14 @@ function MessageComposer({
   onSend,
   onTyping,
   disabled = false,
+  reply = false,
 }: {
   workspaceId: string;
   conversationId: string;
   onSend: (draft: Omit<Draft, "failed">) => void;
   onTyping: () => void;
   disabled?: boolean;
+  reply?: boolean;
 }) {
   const inputId = useId();
   const [draft, setDraft] = useState<MentionDraft>({ text: "", mentions: [] });
@@ -110,7 +113,7 @@ function MessageComposer({
         id={inputId}
         disabled={disabled}
         maxLength={4000}
-        placeholder="Message your team · @ to mention"
+        placeholder={reply ? "Reply..." : "Message your team · @ to mention"}
         className="max-h-40 min-h-16 resize-y border-0 shadow-none"
       />
       <ErrorMessage error={validation} />
@@ -146,19 +149,22 @@ function MessageComposer({
             onTyping();
           }}
         />
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={disabled || upload.isPending || files.length >= 5}
-          onClick={() => attachmentInput.current?.click()}
-        >
-          <Paperclip aria-hidden="true" />
-          {upload.isPending ? "Uploading…" : "Attach file"}
-        </Button>
+        <Tooltip content="Attach file">
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Attach file"
+            disabled={disabled || upload.isPending || files.length >= 5}
+            onClick={() => attachmentInput.current?.click()}
+          >
+            <Paperclip aria-hidden="true" />
+          </Button>
+        </Tooltip>
+        {upload.isPending && <output className="text-xs text-muted-foreground">Uploading…</output>}
         <input
           ref={attachmentInput}
           type="file"
-          aria-label="Attach file"
+          aria-label="Choose attachment"
           className="sr-only"
           tabIndex={-1}
           accept="image/png,image/jpeg,image/webp,application/pdf,text/plain"
@@ -515,6 +521,7 @@ export function MessageStream({
         <MessageComposer
           workspaceId={workspaceId}
           conversationId={conversationId}
+          reply={!!parentId}
           onTyping={onTyping}
           onSend={(value) => {
             const draft = { ...value, failed: false };
