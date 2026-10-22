@@ -130,7 +130,17 @@ export function PresencePreference() {
       >
         {preference.data?.dnd ? "Do Not Disturb · Change" : "Set Do Not Disturb"}
       </Button>
-      <ErrorMessage error={save.error} />
+      <ErrorMessage error={preference.error ?? save.error} />
+      {preference.isError && (
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={preference.isFetching}
+          onClick={() => void preference.refetch()}
+        >
+          Retry availability preference
+        </Button>
+      )}
     </div>
   );
 }
