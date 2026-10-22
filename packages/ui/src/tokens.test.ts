@@ -25,11 +25,31 @@ test("both themes define the same semantic roles with readable text and input bo
       [theme["accent-foreground"], theme.accent],
       [theme.destructive, theme["destructive-subtle"]],
       [theme.success, theme["success-subtle"]],
+      [theme.warning, theme["warning-subtle"]],
+      [theme.info, theme["info-subtle"]],
+      [theme["primary-foreground"], theme["primary-hover"]],
+      [theme["primary-foreground"], theme["primary-pressed"]],
     ])
       expect(
         contrast(foreground!, background!),
         `${name}: ${foreground} on ${background}`,
       ).toBeGreaterThanOrEqual(4.5);
+    for (const surface of [
+      theme.surface,
+      theme.background,
+      theme.muted,
+      theme.accent,
+      theme.elevated,
+      theme.sidebar,
+    ]) {
+      expect(
+        contrast(theme["muted-foreground"], surface),
+        `${name} metadata on ${surface}`,
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.ring, surface), `${name} focus on ${surface}`).toBeGreaterThanOrEqual(
+        3,
+      );
+    }
     expect(contrast(theme.input, theme.surface), `${name} input boundary`).toBeGreaterThanOrEqual(
       3,
     );
