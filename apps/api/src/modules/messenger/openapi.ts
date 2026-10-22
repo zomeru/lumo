@@ -3,10 +3,40 @@ import { z } from "@hono/zod-openapi";
 import { errorSchema, idSchema, okSchema, paginationSchema } from "@lumo/contracts";
 import { conversationSchema, conversationsSchema } from "@lumo/contracts/collaboration";
 import * as messenger from "@lumo/contracts/messenger";
+import {
+  presenceQuerySchema,
+  presenceResultSchema,
+  presencePreferenceSchema,
+} from "@lumo/contracts/presence";
 
 import type { ApiContext } from "../../lib/context";
 
 export function documentMessenger(app: OpenAPIHono<ApiContext>) {
+  for (const method of ["get", "put"] as const)
+    app.openAPIRegistry.registerPath({
+      method,
+      path: "/api/v1/me/presence",
+      tags: ["Messenger"],
+      security: [{ cookieAuth: [] }],
+      description:
+        "Explicit DND preference. Offline takes precedence; notification suppression is separate.",
+      ...(method === "put"
+        ? {
+            request: {
+              body: {
+                required: true,
+                content: { "application/json": { schema: presencePreferenceSchema } },
+              },
+            },
+          }
+        : {}),
+      responses: {
+        200: {
+          description: "Availability preference",
+          content: { "application/json": { schema: presencePreferenceSchema } },
+        },
+      },
+    });
   const endpoints: {
     method: "get" | "post" | "patch" | "delete";
     path: string;
@@ -15,6 +45,12 @@ export function documentMessenger(app: OpenAPIHono<ApiContext>) {
     query?: z.ZodObject;
     status?: number;
   }[] = [
+    {
+      method: "post",
+      path: "/presence",
+      input: presenceQuerySchema,
+      response: presenceResultSchema,
+    },
     {
       method: "get",
       path: "/channels",

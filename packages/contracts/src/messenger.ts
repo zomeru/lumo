@@ -146,7 +146,7 @@ export const messengerMembersSchema = z.object({
 export const messengerSessionSchema = z.object({ url: z.url(), token: z.string() });
 export const messengerEventSchema = z.object({
   conversationId: idSchema.nullable(),
-  type: z.enum(["changed", "typing", "revoked"]),
+  type: z.enum(["changed", "typing", "revoked", "presence"]),
   actorId: idSchema.optional(),
 });
 export type MessengerMessage = z.infer<typeof messengerMessageSchema>;

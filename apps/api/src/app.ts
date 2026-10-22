@@ -38,6 +38,8 @@ import { createMessengerHub } from "./modules/messenger/messenger-hub";
 import { messengerRoutes } from "./modules/messenger/messenger.routes";
 import { createMessengerService } from "./modules/messenger/messenger.service";
 import { documentMessenger } from "./modules/messenger/openapi";
+import { presenceRoutes } from "./modules/messenger/presence.routes";
+import { createPresenceService } from "./modules/messenger/presence.service";
 import { officeRoutes, officeMachineRoutes } from "./modules/office/office.routes";
 import { createOfficeService } from "./modules/office/office.service";
 import { createOfficeProvider, officeKey, type OfficeProvider } from "./modules/office/provider";
@@ -327,9 +329,11 @@ export function createApp({
   app.route("/api/v1", hrRoutes(workspaces, storage));
   app.route("/api/v1", collaborationRoutes(db, workspaces, provider));
   const messenger = createMessengerService(db, workspaces);
+  const presence = createPresenceService(db, workspaces);
+  app.route("/api/v1", presenceRoutes(presence));
   app.route("/api/v1", messengerRoutes(db, messenger));
   app.route("/api/v1", messengerFileRoutes(db, messenger, storage));
-  const messengerHub = createMessengerHub(db, auth, workspaces, messenger, env);
+  const messengerHub = createMessengerHub(db, auth, workspaces, messenger, env, presence);
   app.post("/api/v1/workspaces/:workspaceId/messenger/session", async (c) =>
     c.json(
       await messengerHub.issue(c.req.param("workspaceId"), c.get("user").id, c.req.raw.headers),

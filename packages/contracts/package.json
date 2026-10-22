@@ -14,7 +14,8 @@
     "./files": "./src/files.ts",
     "./hr": "./src/hr.ts",
     "./payroll": "./src/payroll.ts",
-    "./avatar": "./src/avatar.ts"
+    "./avatar": "./src/avatar.ts",
+    "./presence": "./src/presence.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"

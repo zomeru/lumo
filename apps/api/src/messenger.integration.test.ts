@@ -11,6 +11,8 @@ import { legalVersions } from "@lumo/contracts/legal";
 import { messengerMessageSchema, type MessengerMessage } from "@lumo/contracts/messenger";
 import {
   membership,
+  presenceLease,
+  session,
   messengerMessage,
   conversationMember,
   storageCleanup,
@@ -18,12 +20,14 @@ import {
   user,
 } from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { beforeAll, afterAll, test, expect } from "vitest";
 import { WebSocket, type RawData } from "ws";
 
 import { createApp } from "./app";
+import { createPresenceService } from "./modules/messenger/presence.service";
 import { listenForWiki } from "./modules/office/wiki-notifications";
+import { createWorkspaceService } from "./modules/workspaces/workspace.service";
 import { cleanupStorage } from "./storage/cleanup";
 import { createTestDatabase } from "./test/database";
 import { memoryStorage } from "./test/storage";
@@ -827,8 +831,17 @@ test("realtime tickets bind sessions, durable commits invalidate two clients and
   try {
     const a = await connect(alice),
       b = await connect(bob);
-    const eventA = once(a, "message"),
-      eventB = once(b, "message");
+    const changed = (socket: WebSocket) =>
+      new Promise<[RawData]>((resolve) => {
+        const receive = (data: RawData) => {
+          if (JSON.parse(data.toString()).type !== "changed") return;
+          socket.off("message", receive);
+          resolve([data]);
+        };
+        socket.on("message", receive);
+      });
+    const eventA = changed(a),
+      eventB = changed(b);
     const sent = await send(publicChannel.id, "Durable realtime");
     const [ra, rb] = await Promise.all([eventA, eventB]);
     expect(JSON.parse(ra[0].toString())).toEqual({ type: "changed", conversationId: null });
@@ -983,4 +996,62 @@ test("retired conversations are inaccessible and a fresh DM does not reuse their
   expect(fresh.participants).toEqual([{ userId: bob.id, name: "Bob", image: null }]);
   expect(fresh.lastActivityAt).toBe(fresh.createdAt);
   expect(fresh).not.toHaveProperty("directKey");
+});
+
+test("presence coordinates sessions with durable expiry, DND and workspace authorization", async () => {
+  const presence = createPresenceService(database.db, createWorkspaceService(database.db));
+  await database.db.update(presenceLease).set({ expiresAt: sql`now() - interval '1 second'` });
+  await presence.expire();
+  const first = randomUUID(),
+    second = randomUUID(),
+    expiredSession = randomUUID();
+  const [active] = await database.db.select().from(session).where(eq(session.userId, alice.id));
+  await database.db.insert(session).values({
+    id: expiredSession,
+    token: randomUUID(),
+    userId: alice.id,
+    expiresAt: new Date(Date.now() - 1000),
+  });
+  const query = async () =>
+    (
+      await (
+        await req(`${base()}/presence`, alice, "POST", { userIds: [alice.id, outsider.id] })
+      ).json()
+    ).members;
+  expect(await query()).toEqual([{ userId: alice.id, status: "offline" }]);
+  expect((await req(`${base()}/presence`, outsider, "POST", { userIds: [alice.id] })).status).toBe(
+    404,
+  );
+  expect(
+    (await req(`${base()}/presence`, alice, "POST", { userIds: Array(101).fill(alice.id) })).status,
+  ).toBe(400);
+  expect(await (await req("/me/presence")).json()).toEqual({ dnd: false });
+  await presence.renew(first, alice.workspaceId, alice.id, active!.id);
+  await presence.renew(second, alice.workspaceId, alice.id, active!.id);
+  await presence.renew(first, alice.workspaceId, alice.id, active!.id);
+  expect(await query()).toEqual([{ userId: alice.id, status: "online" }]);
+  expect((await req("/me/presence", alice, "PUT", { dnd: true })).status).toBe(200);
+  expect(await query()).toEqual([{ userId: alice.id, status: "dnd" }]);
+  await presence.release(first);
+  await database.db
+    .update(presenceLease)
+    .set({ expiresAt: sql`now() - interval '1 second'` })
+    .where(eq(presenceLease.id, first));
+  await presence.expire();
+  expect(await query()).toEqual([{ userId: alice.id, status: "dnd" }]);
+  await database.db
+    .update(presenceLease)
+    .set({ expiresAt: sql`now() - interval '1 second'` })
+    .where(eq(presenceLease.id, second));
+  await presence.expire();
+  expect(await query()).toEqual([{ userId: alice.id, status: "offline" }]);
+  await presence.renew(first, alice.workspaceId, alice.id, expiredSession);
+  expect(await query()).toEqual([{ userId: alice.id, status: "offline" }]);
+  await database.db.delete(session).where(eq(session.id, expiredSession));
+  expect(
+    await database.db.select().from(presenceLease).where(eq(presenceLease.id, first)),
+  ).toHaveLength(0);
+  await presence.setPreference(alice.id, false);
+  expect(await presence.preference(alice.id)).toEqual({ dnd: false });
+  expect(await presence.query(alice.workspaceId, alice.id, [])).toEqual({ members: [] });
 });

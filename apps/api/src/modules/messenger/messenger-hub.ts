@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
 
 import type { Auth } from "@lumo/auth";
@@ -12,6 +13,7 @@ import { z } from "zod";
 import { missing } from "../../lib/errors";
 import type { createWorkspaceService } from "../workspaces/workspace.service";
 import type { MessengerService } from "./messenger.service";
+import { createPresenceService } from "./presence.service";
 
 const ticketSchema = z.object({
   purpose: z.literal("messenger-sync"),
@@ -27,8 +29,12 @@ export function createMessengerHub(
   workspaces: ReturnType<typeof createWorkspaceService>,
   chat: MessengerService,
   env: ServerEnv,
+  presence = createPresenceService(db, workspaces),
 ) {
-  const clients = new Map<WebSocket, { ticket: Ticket; lastTyping: number; alive: boolean }>();
+  const clients = new Map<
+    WebSocket,
+    { ticket: Ticket; lastTyping: number; alive: boolean; leaseId: string }
+  >();
   let sockets: WebSocketServer | undefined, timer: ReturnType<typeof setInterval> | undefined;
   async function authorized(ticket: Ticket) {
     const [active] = await db
@@ -93,6 +99,14 @@ export function createMessengerHub(
   }
   return {
     refresh,
+    async presence(workspaceId: string) {
+      if (!z.uuid().safeParse(workspaceId).success) return;
+      await Promise.all(
+        [...clients]
+          .filter(([, c]) => c.ticket.workspaceId === workspaceId)
+          .map(([ws]) => deliver(ws, { type: "presence", conversationId: null })),
+      );
+    },
     typing(payload: string) {
       void typing(payload).catch(() => {});
     },
@@ -134,9 +148,20 @@ export function createMessengerHub(
           );
           await authorized(ticket);
           sockets!.handleUpgrade(request, socket, head, (ws) => {
-            clients.set(ws, { ticket, lastTyping: 0, alive: true });
+            const leaseId = randomUUID();
+            clients.set(ws, { ticket, lastTyping: 0, alive: true, leaseId });
+            const joined = presence.renew(
+              leaseId,
+              ticket.workspaceId,
+              ticket.actor,
+              ticket.sessionId,
+            );
+            void joined.catch(() => ws.close(1008));
             ws.on("error", () => ws.terminate());
-            ws.on("close", () => clients.delete(ws));
+            ws.on("close", () => {
+              clients.delete(ws);
+              void joined.then(() => presence.release(leaseId)).catch(() => {});
+            });
             ws.on("pong", () => {
               const client = clients.get(ws);
               if (client) client.alive = true;
@@ -178,6 +203,7 @@ export function createMessengerHub(
         })().catch(() => socket.destroy());
       });
       timer = setInterval(() => {
+        void presence.expire().catch(() => {});
         for (const [ws, client] of clients) {
           if (!client.alive) {
             ws.terminate();
@@ -190,7 +216,17 @@ export function createMessengerHub(
           }
           void authorized(client.ticket).then(
             () => {
-              if (ws.readyState === WebSocket.OPEN) ws.ping();
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.ping();
+                void presence
+                  .renew(
+                    client.leaseId,
+                    client.ticket.workspaceId,
+                    client.ticket.actor,
+                    client.ticket.sessionId,
+                  )
+                  .catch(() => ws.close(1008));
+              }
             },
             () => ws.close(1008),
           );

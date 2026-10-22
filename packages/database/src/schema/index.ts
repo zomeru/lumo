@@ -9,3 +9,4 @@ export * from "./hr-leave.ts";
 export * from "./hr-attendance.ts";
 export * from "./hr-payroll.ts";
 export * from "./hr-onboarding.ts";
+export * from "./presence.ts";
