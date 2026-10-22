@@ -105,3 +105,22 @@ test("rejects oversized image dimensions and corrupt source pixels", async () =>
   );
   expect(await screen.findByRole("alert")).toHaveTextContent("Image decoding failed");
 });
+
+test("uses one visible picker and immediately updates the session avatar after save", async () => {
+  client.setQueryDefaults(["session"], { gcTime: Infinity });
+  client.setQueryData(["session"], {
+    user: { name: "Alice", image: null },
+    activeWorkspaceId: null,
+  });
+  server.state.overrides.set("PUT /api/v1/me/avatar", () => server.json({ image: "avatar:new" }));
+  const user = await show();
+  expect(screen.getByRole("button", { name: "Choose photo" })).toBeVisible();
+  expect(screen.getByLabelText("Choose profile photo")).toHaveClass("sr-only");
+  await user.upload(
+    screen.getByLabelText("Choose profile photo"),
+    new File(["pixels"], "photo.png", { type: "image/png" }),
+  );
+  await user.click(await screen.findByRole("button", { name: "Save photo" }));
+  await screen.findByText("Profile photo updated.");
+  expect(client.getQueryData(["session"])).toMatchObject({ user: { image: "avatar:new" } });
+});

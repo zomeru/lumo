@@ -1,3 +1,4 @@
+import type { meSchema } from "@lumo/contracts";
 import {
   avatarConfigSchema,
   avatarResultSchema,
@@ -6,7 +7,8 @@ import {
 } from "@lumo/contracts/avatar";
 import { Button, ErrorMessage, Field } from "@lumo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import type { z } from "zod";
 
 import { AppAvatar } from "../../components/app-avatar";
 import { api } from "../../lib/api";
@@ -14,6 +16,7 @@ import { avatarCrop } from "./avatar-crop";
 type Photo = { src: string; width: number; height: number; image: ImageBitmap };
 export function AvatarEditor({ name, image }: { name: string; image: string | null }) {
   const client = useQueryClient();
+  const pickerId = useId();
   const config = useQuery({
     queryKey: ["avatar-config"],
     queryFn: ({ signal }) => api("/me/avatar/config", avatarConfigSchema, { signal }),
@@ -62,7 +65,10 @@ export function AvatarEditor({ name, image }: { name: string; image: string | nu
         body: { mimeType, data: data.split(",")[1] },
       });
     },
-    onSuccess: async () => {
+    onSuccess: async ({ image: savedImage }) => {
+      client.setQueryData<z.infer<typeof meSchema>>(["session"], (current) =>
+        current ? { ...current, user: { ...current.user, image: savedImage } } : current,
+      );
       clear();
       await Promise.all([
         client.invalidateQueries({ queryKey: ["session"] }),
@@ -84,75 +90,91 @@ export function AvatarEditor({ name, image }: { name: string; image: string | nu
           </p>
         </div>
       </div>
-      <Field
-        ref={fileInput}
-        label={photo ? "Choose a different photo" : "Choose profile photo"}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        disabled={save.isPending || decoding || !config.data}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (!file) return;
-          setError(null);
-          save.reset();
-          if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-            setError(new Error("Choose a JPEG, PNG or WebP image."));
-            event.target.value = "";
-            return;
-          }
-          if (!file.size || file.size > config.data!.maxBytes) {
-            setError(new Error("The selected image exceeds the upload limit or is empty."));
-            event.target.value = "";
-            return;
-          }
-          const request = ++generation.current;
-          setDecoding(true);
-          void Promise.resolve()
-            .then(() => createImageBitmap(file, { imageOrientation: "from-image" }))
-            .then((bitmap) => {
-              if (request !== generation.current) {
-                bitmap.close();
-                return;
-              }
-              if (
-                bitmap.width > AVATAR_MAX_DIMENSION ||
-                bitmap.height > AVATAR_MAX_DIMENSION ||
-                bitmap.width * bitmap.height > AVATAR_MAX_PIXELS
-              ) {
-                bitmap.close();
-                throw new Error("Choose an image up to 8192 pixels per side and 16 megapixels.");
-              }
-              const canvas = document.createElement("canvas");
-              const ratio = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
-              canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
-              canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
-              const context = canvas.getContext("2d");
-              if (!context) {
-                bitmap.close();
-                throw new Error("Unable to preview this image.");
-              }
-              context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-              // The bitmap is oriented; preview and saved crop therefore use identical coordinates.
-              const src = canvas.toDataURL("image/webp", 0.9);
-              setPhoto({ src, width: bitmap.width, height: bitmap.height, image: bitmap });
-              setZoom(1);
-              setX(50);
-              setY(50);
-            })
-            .catch((cause: unknown) => {
-              if (request === generation.current)
-                setError(
-                  cause instanceof Error ? cause : new Error("Unable to decode this image."),
-                );
-            })
-            .finally(() => {
-              if (request === generation.current) setDecoding(false);
-            });
-        }}
-      />
+      <div className="grid gap-2">
+        <Button
+          className="justify-self-start"
+          disabled={save.isPending || decoding || !config.data}
+          onClick={() => fileInput.current?.click()}
+          aria-controls={pickerId}
+        >
+          {photo ? "Change selected photo" : image ? "Change photo" : "Choose photo"}
+        </Button>
+        <p className="text-xs">
+          Photo changes are saved separately. Choose, adjust, then select Save photo.
+        </p>
+        <input
+          id={pickerId}
+          className="sr-only"
+          ref={fileInput}
+          aria-label={photo ? "Choose a different photo" : "Choose profile photo"}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          disabled={save.isPending || decoding || !config.data}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            setError(null);
+            save.reset();
+            if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+              setError(new Error("Choose a JPEG, PNG or WebP image."));
+              event.target.value = "";
+              return;
+            }
+            if (!file.size || file.size > config.data!.maxBytes) {
+              setError(new Error("The selected image exceeds the upload limit or is empty."));
+              event.target.value = "";
+              return;
+            }
+            const request = ++generation.current;
+            setDecoding(true);
+            void Promise.resolve()
+              .then(() => createImageBitmap(file, { imageOrientation: "from-image" }))
+              .then((bitmap) => {
+                if (request !== generation.current) {
+                  bitmap.close();
+                  return;
+                }
+                if (
+                  bitmap.width > AVATAR_MAX_DIMENSION ||
+                  bitmap.height > AVATAR_MAX_DIMENSION ||
+                  bitmap.width * bitmap.height > AVATAR_MAX_PIXELS
+                ) {
+                  bitmap.close();
+                  throw new Error("Choose an image up to 8192 pixels per side and 16 megapixels.");
+                }
+                const canvas = document.createElement("canvas");
+                const ratio = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
+                canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
+                canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
+                const context = canvas.getContext("2d");
+                if (!context) {
+                  bitmap.close();
+                  throw new Error("Unable to preview this image.");
+                }
+                context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                // The bitmap is oriented; preview and saved crop therefore use identical coordinates.
+                const src = canvas.toDataURL("image/webp", 0.9);
+                setPhoto({ src, width: bitmap.width, height: bitmap.height, image: bitmap });
+                setZoom(1);
+                setX(50);
+                setY(50);
+              })
+              .catch((cause: unknown) => {
+                if (request === generation.current)
+                  setError(
+                    cause instanceof Error ? cause : new Error("Unable to decode this image."),
+                  );
+              })
+              .finally(() => {
+                if (request === generation.current) setDecoding(false);
+              });
+          }}
+        />
+      </div>
       {decoding && <output>Preparing preview…</output>}
       {photo && crop && (
-        <>
+        <fieldset disabled={save.isPending} className="grid gap-3">
+          <legend className="text-sm font-medium">Adjust your new photo</legend>
           <p className="text-xs text-muted-foreground">
             Drag to reposition, or use the sliders. The circular preview matches your saved avatar.
           </p>
@@ -250,7 +272,7 @@ export function AvatarEditor({ name, image }: { name: string; image: string | nu
               Cancel photo
             </Button>
           </div>
-        </>
+        </fieldset>
       )}
       {image && !photo && (
         <Button variant="ghost" disabled={save.isPending} onClick={() => save.mutate(true)}>
