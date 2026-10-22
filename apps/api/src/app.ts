@@ -15,7 +15,7 @@ import {
 import type { ServerEnv } from "@lumo/env/server";
 import { chatIdentity } from "@lumo/shared";
 import { Scalar } from "@scalar/hono-api-reference";
-import { and, eq, sql, inArray } from "drizzle-orm";
+import { and, eq, sql, inArray, ne, asc } from "drizzle-orm";
 import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
@@ -37,6 +37,7 @@ import { messengerFileRoutes } from "./modules/messenger/messenger-files";
 import { createMessengerHub } from "./modules/messenger/messenger-hub";
 import { messengerRoutes } from "./modules/messenger/messenger.routes";
 import { createMessengerService } from "./modules/messenger/messenger.service";
+import { documentMessenger } from "./modules/messenger/openapi";
 import { officeRoutes, officeMachineRoutes } from "./modules/office/office.routes";
 import { createOfficeService } from "./modules/office/office.service";
 import { createOfficeProvider, officeKey, type OfficeProvider } from "./modules/office/provider";
@@ -137,6 +138,47 @@ export function createApp({
           targetId: userId,
           data: { before: employment[0] },
         });
+      // Preserve an explicit channel owner before membership cascades remove the actor.
+      const owned = await tx
+        .select({ id: conversation.id })
+        .from(conversation)
+        .innerJoin(conversationMember, eq(conversationMember.conversationId, conversation.id))
+        .where(
+          and(
+            eq(conversation.workspaceId, workspaceId),
+            eq(conversation.kind, "channel"),
+            eq(conversationMember.userId, userId),
+            eq(conversationMember.role, "owner"),
+          ),
+        );
+      for (const channel of owned) {
+        const [successor] = await tx
+          .select({ userId: conversationMember.userId })
+          .from(conversationMember)
+          .where(
+            and(
+              eq(conversationMember.conversationId, channel.id),
+              ne(conversationMember.userId, userId),
+            ),
+          )
+          .orderBy(asc(conversationMember.joinedAt), asc(conversationMember.userId))
+          .limit(1);
+        if (successor)
+          await tx
+            .update(conversationMember)
+            .set({ role: "owner" })
+            .where(
+              and(
+                eq(conversationMember.conversationId, channel.id),
+                eq(conversationMember.userId, successor.userId),
+              ),
+            );
+        else
+          await tx
+            .update(conversation)
+            .set({ archivedAt: new Date() })
+            .where(eq(conversation.id, channel.id));
+      }
       const groups = await tx
         .select({
           id: conversation.providerGroupId,
@@ -310,6 +352,7 @@ export function createApp({
   });
   documentFoundation(app);
   documentHr(app);
+  documentMessenger(app);
   app.doc31("/api/openapi.json", {
     openapi: "3.1.0",
     info: { title: "Lumo API", version: "1.0.0" },

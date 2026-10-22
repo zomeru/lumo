@@ -417,6 +417,48 @@ test("private attachments validate metadata, immutable content and current downl
     ).toBe(400);
 });
 
+test("notification aggregates apply preferences and never reveal private conversations", async () => {
+  const channel = await createChannel("Unread channel", "public", [bob.id]);
+  const first = await send(channel.id, "Unread mention", alice, { mentionIds: [bob.id] });
+  await send(channel.id, "Unread ordinary");
+  const secret = await createChannel("Hidden notices", "private");
+  await send(secret.id, "Secret notification");
+  let notifications = await (await req(`${base()}/messenger/notifications`, bob)).json();
+  expect(
+    notifications.conversations.find((c: { id: string }) => c.id === channel.id),
+  ).toMatchObject({ unread: 2, mentions: 1 });
+  expect(
+    (
+      await req(`${base()}/conversations/${channel.id}/preferences`, bob, "POST", {
+        notifications: "mentions",
+      })
+    ).status,
+  ).toBe(200);
+  notifications = await (await req(`${base()}/messenger/notifications?limit=1`, bob)).json();
+  expect(notifications.totalUnread).toBeGreaterThanOrEqual(1);
+  expect(
+    (
+      await req(`${base()}/conversations/${channel.id}/preferences`, bob, "POST", {
+        notifications: "muted",
+      })
+    ).status,
+  ).toBe(200);
+  notifications = await (await req(`${base()}/messenger/notifications`, bob)).json();
+  expect(notifications.conversations.some((c: { id: string }) => c.id === channel.id)).toBe(false);
+  const restricted = await (await req(`${base()}/messenger/notifications`, admin)).json();
+  expect(JSON.stringify(restricted)).not.toContain(privateChannel.id);
+  expect(
+    (
+      await req(`${base()}/conversations/${channel.id}/cursor`, bob, "POST", {
+        messageId: first.id,
+      })
+    ).status,
+  ).toBe(200);
+  expect((await req(`${base()}/messenger/notifications`, outsider)).status).toBe(404);
+  const docs = await (await app.request("/api/openapi.json")).json();
+  expect(docs.paths["/api/v1/workspaces/{workspaceId}/channels"]).toBeDefined();
+});
+
 test("realtime tickets bind sessions, durable commits invalidate two clients and revocation closes live sockets", async () => {
   const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 });
   if (!(server instanceof Server)) throw new Error("Expected HTTP server");

@@ -130,3 +130,11 @@ export const messengerEventSchema = z.object({
   actorId: idSchema.optional(),
 });
 export type MessengerMessage = z.infer<typeof messengerMessageSchema>;
+
+export const messengerNotificationsSchema = z.object({
+  conversations: z.array(
+    z.object({ id: idSchema, name: z.string(), unread: z.number(), mentions: z.number() }),
+  ),
+  totalUnread: z.number(),
+  nextOffset: z.number().nullable(),
+});

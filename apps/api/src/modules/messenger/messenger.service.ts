@@ -28,6 +28,7 @@ import {
   isNotNull,
   gte,
   lte,
+  ne,
 } from "drizzle-orm";
 import type { z } from "zod";
 
@@ -93,10 +94,28 @@ export function createMessengerService(
   async function dtos(tx: Transaction, items: Conversation[], actor: string) {
     if (!items.length) return [];
     const ids = items.map((v) => v.id);
+    const directIds = items.filter((item) => item.kind !== "channel").map((item) => item.id);
     const members = await tx
       .select()
       .from(conversationMember)
-      .where(inArray(conversationMember.conversationId, ids));
+      .where(
+        and(
+          inArray(conversationMember.conversationId, ids),
+          or(
+            eq(conversationMember.userId, actor),
+            directIds.length ? inArray(conversationMember.conversationId, directIds) : undefined,
+          ),
+        ),
+      );
+    const counts = await tx
+      .select({
+        conversationId: conversationMember.conversationId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(conversationMember)
+      .where(inArray(conversationMember.conversationId, ids))
+      .groupBy(conversationMember.conversationId);
+
     const stats = await tx
       .select({
         conversationId: message.conversationId,
@@ -123,7 +142,7 @@ export function createMessengerService(
       .orderBy(message.conversationId, desc(message.sequence));
     return items.map((item) => {
       const own = members.find((m) => m.conversationId === item.id && m.userId === actor),
-        counts = stats.find((m) => m.conversationId === item.id);
+        unreadStats = stats.find((m) => m.conversationId === item.id);
       return {
         ...item,
         kind: item.kind as "direct" | "group" | "channel",
@@ -134,9 +153,9 @@ export function createMessengerService(
         role: own?.role ?? null,
         notifications: own?.notifications ?? "all",
         lastReadSequence: own?.lastReadSequence ?? 0,
-        memberCount: members.filter((m) => m.conversationId === item.id).length,
-        unread: own ? (counts?.unread ?? 0) : 0,
-        mentions: own ? (counts?.mentions ?? 0) : 0,
+        memberCount: counts.find((m) => m.conversationId === item.id)?.count ?? 0,
+        unread: own ? (unreadStats?.unread ?? 0) : 0,
+        mentions: own ? (unreadStats?.mentions ?? 0) : 0,
         lastMessage: latest.find((m) => m.conversationId === item.id)?.body.slice(0, 150) ?? null,
       };
     });
@@ -644,6 +663,7 @@ export function createMessengerService(
                 eq(attachment.conversationId, id),
                 eq(attachment.ownerId, actor),
                 eq(attachment.state, "ready"),
+                gt(attachment.createdAt, new Date(Date.now() - 86400000)),
                 isNull(attachment.messageId),
                 inArray(attachment.id, attachmentIds),
               ),
@@ -737,6 +757,53 @@ export function createMessengerService(
             .where(eq(message.id, messageId));
         if (action === "delete") await tx.delete(reaction).where(eq(reaction.messageId, messageId));
         await audit(tx, workspaceId, actor, `message.${action}`, messageId);
+      });
+    },
+    async notifications(workspaceId: string, actor: string, offset: number, limit: number) {
+      return workspaces.withAccess(workspaceId, actor, async (tx) => {
+        const mentions = sql<number>`count(*) filter (where ${actor}::uuid = any(${message.mentionIds}))::int`;
+        const unread = sql<number>`case when ${conversationMember.notifications} = 'mentions' then ${mentions} else count(*)::int end`;
+        const rows = await tx
+          .select({
+            id: conversation.id,
+            name: conversation.name,
+            unread,
+            mentions,
+            totalUnread: sql<number>`sum(${unread}) over ()::int`,
+          })
+          .from(conversation)
+          .innerJoin(
+            conversationMember,
+            and(
+              eq(conversationMember.conversationId, conversation.id),
+              eq(conversationMember.userId, actor),
+            ),
+          )
+          .innerJoin(
+            message,
+            and(
+              eq(message.conversationId, conversation.id),
+              gt(message.sequence, conversationMember.lastReadSequence),
+            ),
+          )
+          .where(
+            and(
+              eq(conversation.workspaceId, workspaceId),
+              ne(conversationMember.notifications, "muted"),
+              ne(message.senderId, actor),
+              isNull(message.deletedAt),
+            ),
+          )
+          .groupBy(conversation.id, conversation.name, conversationMember.notifications)
+          .having(sql`${unread} > 0`)
+          .orderBy(desc(sql`max(${message.sequence})`))
+          .offset(offset)
+          .limit(limit + 1);
+        return {
+          conversations: rows.slice(0, limit).map(({ totalUnread: _total, ...row }) => row),
+          totalUnread: rows[0]?.totalUnread ?? 0,
+          nextOffset: rows.length > limit ? offset + limit : null,
+        };
       });
     },
     async search(

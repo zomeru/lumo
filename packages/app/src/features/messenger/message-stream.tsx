@@ -36,6 +36,7 @@ type Draft = {
 function MessageItem({
   message,
   canPost,
+  highlighted,
   own,
   onReply,
   onEdit,
@@ -44,6 +45,7 @@ function MessageItem({
 }: {
   message: MessengerMessage;
   canPost: boolean;
+  highlighted?: boolean;
   own: boolean;
   onReply: () => void;
   onEdit: () => void;
@@ -54,7 +56,9 @@ function MessageItem({
     <li
       id={`message-${message.id}`}
       data-message-id={message.id}
-      className="group flex min-w-0 gap-3 border-b border-border/30 px-4 py-3 hover:bg-muted/30"
+      data-highlighted={highlighted || undefined}
+      tabIndex={-1}
+      className="group data-[highlighted=true]:bg-accent/70 flex min-w-0 gap-3 border-b border-border/30 px-4 py-3 hover:bg-muted/30"
     >
       <AppAvatar name={message.senderName} src={message.senderImage ?? undefined} />
       <div className="min-w-0 flex-1">
@@ -172,7 +176,7 @@ function AttachmentDownload({
   );
 }
 import { downloadAttachment, uploadAttachment } from "./messenger-files";
-export function MessageComposer({
+function MessageComposer({
   workspaceId,
   conversationId,
   onSend,
@@ -523,6 +527,7 @@ export function MessageStream({
               )}
               <MessageItem
                 message={message}
+                highlighted={message.id === around}
                 own={message.senderId === session.data?.user.id}
                 canPost={canPost}
                 onReply={() => onReply(message.id)}

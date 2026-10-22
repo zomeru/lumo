@@ -63,13 +63,23 @@ export function collaborationRoutes(
       path: "/workspaces/{workspaceId}/conversations",
       tags: ["Messenger"],
       security,
-      request: { params: workspaceParams, query: paginationSchema },
+      request: {
+        params: workspaceParams,
+        query: paginationSchema.extend({ q: z.string().max(100).default("") }),
+      },
       responses: { 200: json(conversationsSchema), ...errors },
     }),
     async (c) => {
-      const { offset, limit } = c.req.valid("query");
+      const { offset, limit, q } = c.req.valid("query");
       return c.json(
-        await chat.list(c.req.valid("param").workspaceId, c.get("user").id, offset, limit),
+        await chat.list(
+          c.req.valid("param").workspaceId,
+          c.get("user").id,
+          offset,
+          limit,
+          false,
+          q,
+        ),
         200,
       );
     },

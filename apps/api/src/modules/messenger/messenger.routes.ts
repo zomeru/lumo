@@ -162,6 +162,12 @@ export function messengerRoutes(db: Database, chat: MessengerService) {
       );
       return c.json({ ok: true });
     });
+  app.get("/workspaces/:workspaceId/messenger/notifications", async (c) => {
+    const { offset, limit } = parse(paginationSchema, c.req.query());
+    return c.json(
+      await chat.notifications(c.req.param("workspaceId"), c.get("user").id, offset, limit),
+    );
+  });
   app.get("/workspaces/:workspaceId/messenger/search", async (c) => {
     await enforceRateLimit(db, `message-search:${c.get("user").id}`, 60);
     return c.json(

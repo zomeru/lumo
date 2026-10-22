@@ -66,12 +66,12 @@ function MemberPicker({
       <div className="flex gap-2">
         {offset > 0 && (
           <Button size="sm" onClick={() => setOffset(Math.max(0, offset - 50))}>
-            Previous members
+            Previous workspace members
           </Button>
         )}
         {people.data?.nextOffset != null && (
           <Button size="sm" onClick={() => setOffset(people.data!.nextOffset!)}>
-            More members
+            More workspace members
           </Button>
         )}
       </div>

@@ -40,6 +40,7 @@ import { clearWorkspaceCache, sessionQuery, workspaceQuery, workspacesQuery } fr
 import { ProfileButton } from "../auth/profile-dialog";
 import { hrIcons } from "../hr/hr-icons";
 import { HrInbox } from "../hr/hr-inbox";
+import { MessengerInbox, MessengerRealtimeProvider } from "../messenger/messenger-notifications";
 import { moduleRoutes, moduleIcons } from "../office/file-modules";
 
 const navigationLink =
@@ -300,81 +301,84 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
     </>
   );
   return (
-    <div className="min-h-dvh">
-      <aside
-        data-app-sidebar=""
-        hidden={menuOpen}
-        className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-sidebar lg:flex"
-      >
-        {navigation}
-      </aside>
-      <div
-        className={cn(
-          "flex min-w-0 flex-col lg:ml-60",
-          fullLayout ? "h-dvh overflow-hidden" : "min-h-dvh",
-        )}
-      >
-        <AppHeader className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b bg-surface px-4 sm:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden"
-                  aria-label={menuOpen ? "Close navigation" : "Open navigation"}
-                  disabled={switching}
-                >
-                  <Menu aria-hidden="true" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="inset-y-0 left-0 h-dvh max-h-dvh w-72 max-w-[90vw] overflow-hidden translate-x-0 translate-y-0 gap-0 rounded-none border-y-0 border-l-0 bg-sidebar p-0 sm:p-0">
-                <DialogTitle className="sr-only">Workspace navigation</DialogTitle>
-                <DialogDescription className="sr-only">
-                  Switch workspaces and open your team’s tools.
-                </DialogDescription>
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{navigation}</div>
-              </DialogContent>
-            </Dialog>
-            <LayoutGrid
-              className="hidden size-4 text-muted-foreground sm:block"
-              aria-hidden="true"
-            />
-            <strong className="truncate text-sm">{workspace.name}</strong>
-            <Badge className="hidden capitalize sm:inline-flex">{workspace.role}</Badge>
-          </div>
-          <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-            <HrInbox workspaceId={workspaceId} />
-            <ThemeMenu />
-            <Button asChild size="sm">
-              <Link to="/onboarding">
-                <Plus aria-hidden="true" />
-                New workspace
-              </Link>
-            </Button>
-          </div>
-        </AppHeader>
-        <main
-          id="main-content"
-          className={
-            fullLayout
-              ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden"
-              : "mx-auto w-full max-w-7xl flex-1 space-y-5 px-4 py-5 sm:px-8 sm:py-6 xl:px-10"
-          }
+    <MessengerRealtimeProvider workspaceId={workspaceId}>
+      <div className="min-h-dvh">
+        <aside
+          data-app-sidebar=""
+          hidden={menuOpen}
+          className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-sidebar lg:flex"
         >
-          <ErrorMessage error={error} />
-          {switching ? <Loading label="Switching workspace…" /> : <Outlet key={workspaceId} />}
-        </main>
-        {!fullLayout && (
-          <footer className="flex items-center justify-between gap-3 border-t px-5 py-4 text-[10px] text-muted-foreground sm:px-8">
-            <span>Lumo · Everything, connected.</span>
-            <span className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-              Your team’s space
-            </span>
-          </footer>
-        )}
+          {navigation}
+        </aside>
+        <div
+          className={cn(
+            "flex min-w-0 flex-col lg:ml-60",
+            fullLayout ? "h-dvh overflow-hidden" : "min-h-dvh",
+          )}
+        >
+          <AppHeader className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b bg-surface px-4 sm:px-8">
+            <div className="flex min-w-0 items-center gap-3">
+              <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="lg:hidden"
+                    aria-label={menuOpen ? "Close navigation" : "Open navigation"}
+                    disabled={switching}
+                  >
+                    <Menu aria-hidden="true" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="inset-y-0 left-0 h-dvh max-h-dvh w-72 max-w-[90vw] overflow-hidden translate-x-0 translate-y-0 gap-0 rounded-none border-y-0 border-l-0 bg-sidebar p-0 sm:p-0">
+                  <DialogTitle className="sr-only">Workspace navigation</DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Switch workspaces and open your team’s tools.
+                  </DialogDescription>
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{navigation}</div>
+                </DialogContent>
+              </Dialog>
+              <LayoutGrid
+                className="hidden size-4 text-muted-foreground sm:block"
+                aria-hidden="true"
+              />
+              <strong className="truncate text-sm">{workspace.name}</strong>
+              <Badge className="hidden capitalize sm:inline-flex">{workspace.role}</Badge>
+            </div>
+            <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+              <MessengerInbox workspaceId={workspaceId} />
+              <HrInbox workspaceId={workspaceId} />
+              <ThemeMenu />
+              <Button asChild size="sm">
+                <Link to="/onboarding">
+                  <Plus aria-hidden="true" />
+                  New workspace
+                </Link>
+              </Button>
+            </div>
+          </AppHeader>
+          <main
+            id="main-content"
+            className={
+              fullLayout
+                ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+                : "mx-auto w-full max-w-7xl flex-1 space-y-5 px-4 py-5 sm:px-8 sm:py-6 xl:px-10"
+            }
+          >
+            <ErrorMessage error={error} />
+            {switching ? <Loading label="Switching workspace…" /> : <Outlet key={workspaceId} />}
+          </main>
+          {!fullLayout && (
+            <footer className="flex items-center justify-between gap-3 border-t px-5 py-4 text-[10px] text-muted-foreground sm:px-8">
+              <span>Lumo · Everything, connected.</span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+                Your team’s space
+              </span>
+            </footer>
+          )}
+        </div>
       </div>
-    </div>
+    </MessengerRealtimeProvider>
   );
 }

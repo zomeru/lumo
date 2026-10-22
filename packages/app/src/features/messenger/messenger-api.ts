@@ -12,11 +12,15 @@ export const messengerPath = (workspaceId: string, id?: string) =>
   `/workspaces/${workspaceId}/conversations${id ? `/${id}` : ""}`;
 export const messengerKey = (workspaceId: string) =>
   ["workspace", workspaceId, "messenger"] as const;
-export const conversationsQuery = (workspaceId: string, offset = 0) =>
+export const conversationsQuery = (workspaceId: string, offset = 0, q = "") =>
   queryOptions({
-    queryKey: [...messengerKey(workspaceId), "conversations", offset],
+    queryKey: [...messengerKey(workspaceId), "conversations", offset, q],
     queryFn: ({ signal }) =>
-      api(`${messengerPath(workspaceId)}?offset=${offset}`, conversationsSchema, { signal }),
+      api(
+        `${messengerPath(workspaceId)}?offset=${offset}&q=${encodeURIComponent(q)}`,
+        conversationsSchema,
+        { signal },
+      ),
     refetchInterval: 30000,
   });
 export const conversationQuery = (workspaceId: string, id: string) =>
@@ -53,6 +57,14 @@ export function connectMessenger(
     socket: WebSocket | undefined,
     retry: ReturnType<typeof setTimeout> | undefined,
     attempt = 0;
+  let invalidation: ReturnType<typeof setTimeout> | undefined;
+  const invalidate = () => {
+    if (invalidation || disposed) return;
+    invalidation = setTimeout(() => {
+      invalidation = undefined;
+      if (!disposed) void client.invalidateQueries({ queryKey: messengerKey(workspaceId) });
+    }, 500);
+  };
   const controller = new AbortController();
   const reconnect = () => {
     if (disposed) return;
@@ -83,7 +95,7 @@ export function connectMessenger(
           const value = messengerEventSchema.parse(JSON.parse(String(event.data)));
           if (value.type === "typing" && value.conversationId && value.actorId)
             onTyping(value.conversationId, value.actorId);
-          else void client.invalidateQueries({ queryKey: messengerKey(workspaceId) });
+          else invalidate();
         } catch {
           /* Invalid frames never enter query state. */
         }
@@ -91,7 +103,7 @@ export function connectMessenger(
       socket.onclose = (event) => {
         if (disposed) return;
         if (event.code === 1008) {
-          client.removeQueries({ queryKey: messengerKey(workspaceId) });
+          void client.resetQueries({ queryKey: messengerKey(workspaceId) });
           onState("Access changed. Reopen Messenger.");
           return;
         }
@@ -101,7 +113,7 @@ export function connectMessenger(
     } catch (error) {
       if (disposed) return;
       if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
-        client.removeQueries({ queryKey: messengerKey(workspaceId) });
+        void client.resetQueries({ queryKey: messengerKey(workspaceId) });
         onState("Messenger access unavailable");
         return;
       }
@@ -118,6 +130,7 @@ export function connectMessenger(
       disposed = true;
       controller.abort();
       clearTimeout(retry);
+      clearTimeout(invalidation);
       socket?.close();
     },
   };

@@ -4,13 +4,11 @@ import { Badge, Button, EmptyState, ErrorMessage, Field, Loading, cn } from "@lu
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, Hash, Lock, MessageSquare, Plus, Search, Settings, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 
 import { api, command } from "../../lib/api";
-import { LegacyConversationView } from "./legacy-conversation";
 import { MessageStream } from "./message-stream";
 import {
-  connectMessenger,
   conversationQuery,
   conversationsQuery,
   messengerKey,
@@ -21,7 +19,11 @@ import {
   ConversationSettings,
   CreateConversationDialog,
 } from "./messenger-dialogs";
+import { useMessengerRealtime } from "./messenger-notifications";
 
+const LegacyConversationView = lazy(async () => ({
+  default: (await import("./legacy-conversation")).LegacyConversationView,
+}));
 export function MessengerPage({
   workspaceId,
   conversationId,
@@ -29,36 +31,15 @@ export function MessengerPage({
   workspaceId: string;
   conversationId?: string;
 }) {
-  const client = useQueryClient(),
-    [creating, setCreating] = useState<"channel" | "dm" | null>(null),
+  const [creating, setCreating] = useState<"channel" | "dm" | null>(null),
     [browse, setBrowse] = useState(false),
     [members, setMembers] = useState<string[]>([]),
     [offset, setOffset] = useState(0),
     [filter, setFilter] = useState(""),
-    [state, setState] = useState("Connecting…"),
-    [typing, setTyping] = useState<{ id: string; until: number } | null>(null),
     [unread, setUnread] = useState<Record<string, number>>({});
-  const connection = useRef<ReturnType<typeof connectMessenger> | null>(null);
-  const conversations = useQuery(conversationsQuery(workspaceId, offset));
-  useEffect(() => {
-    const current = connectMessenger(workspaceId, client, setState, (id) =>
-      setTyping({ id, until: Date.now() + 4000 }),
-    );
-    connection.current = current;
-    return () => {
-      current.close();
-      connection.current = null;
-    };
-  }, [workspaceId, client]);
-  useEffect(() => {
-    if (!typing) return;
-    const timer = setTimeout(() => setTyping(null), Math.max(0, typing.until - Date.now()));
-    return () => clearTimeout(timer);
-  }, [typing]);
-  const items =
-    conversations.data?.conversations.filter((item) =>
-      item.name.toLowerCase().includes(filter.toLowerCase()),
-    ) ?? [];
+  const { status: state, typing, sendTyping } = useMessengerRealtime();
+  const conversations = useQuery(conversationsQuery(workspaceId, offset, filter));
+  const items = conversations.data?.conversations ?? [];
   return (
     <section
       className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-surface"
@@ -90,7 +71,10 @@ export function MessengerPage({
           <Field
             label="Find conversations"
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setOffset(0);
+            }}
             maxLength={100}
           />
           <Button className="mt-2 w-full" size="sm" variant="ghost" onClick={() => setBrowse(true)}>
@@ -178,7 +162,7 @@ export function MessengerPage({
           key={conversationId}
           workspaceId={workspaceId}
           conversationId={conversationId}
-          onTyping={() => connection.current?.typing(conversationId)}
+          onTyping={() => sendTyping(conversationId)}
           typing={typing?.id === conversationId}
           onNewGroup={(ids) => {
             setMembers(ids);
@@ -377,11 +361,13 @@ function ActiveConversation({
       )}
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {conversation.providerGroupId ? (
-          <LegacyConversationView
-            workspaceId={workspaceId}
-            conversationId={conversationId}
-            onUnread={onUnread}
-          />
+          <Suspense fallback={<Loading />}>
+            <LegacyConversationView
+              workspaceId={workspaceId}
+              conversationId={conversationId}
+              onUnread={onUnread}
+            />
+          </Suspense>
         ) : (
           <>
             <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", thread && "hidden xl:flex")}>

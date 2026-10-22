@@ -1,0 +1,184 @@
+import { messengerMessageSchema, type MessengerMessage } from "@lumo/contracts/messenger";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, afterEach, expect, test, vi } from "vitest";
+
+import { mockApi, teamId, bobId } from "../../test/mock-api";
+import { MessageStream } from "./message-stream";
+
+const conversationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  messageId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  nonce = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+let restoreFocus = () => {};
+let server: ReturnType<typeof mockApi>,
+  client: QueryClient,
+  rows: MessengerMessage[],
+  reads: string[];
+const path = `/api/v1/workspaces/${teamId}/conversations/${conversationId}`;
+function fixture() {
+  return messengerMessageSchema.parse({
+    id: messageId,
+    nonce,
+    sequence: 1,
+    workspaceId: teamId,
+    conversationId,
+    senderId: server.state.user.id,
+    senderName: "Alice",
+    senderImage: null,
+    body: "Existing message",
+    parentId: null,
+    mentionIds: [],
+    createdAt: "2026-10-22T08:00:00.000Z",
+    editedAt: null,
+    deletedAt: null,
+    pinnedAt: null,
+    replies: 0,
+    reactions: [],
+    attachments: [],
+  });
+}
+beforeEach(() => {
+  server = mockApi();
+  rows = [fixture()];
+  reads = [];
+  client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  server.state.overrides.set(`GET ${path}/messages`, () =>
+    server.json({ messages: rows, nextBefore: null }),
+  );
+  server.state.overrides.set(`POST ${path}/cursor`, (body) => {
+    reads.push(String(body.messageId));
+    return server.json({ ok: true });
+  });
+  server.state.overrides.set(`GET ${path}/members`, () =>
+    server.json({
+      members: [{ userId: bobId, name: "Bob", image: null, role: "member" }],
+      nextOffset: null,
+    }),
+  );
+});
+afterEach(async () => {
+  await client.cancelQueries();
+  client.clear();
+  vi.unstubAllGlobals();
+  restoreFocus();
+  restoreFocus = () => {};
+});
+function show(
+  props: { canPost?: boolean; parentId?: string; around?: string; pinned?: boolean } = {},
+) {
+  render(
+    <QueryClientProvider client={client}>
+      <MessageStream
+        workspaceId={teamId}
+        conversationId={conversationId}
+        canPost
+        {...props}
+        onReply={() => {}}
+        onTyping={() => {}}
+      />
+    </QueryClientProvider>,
+  );
+  return userEvent.setup();
+}
+test("failed optimistic sends retry the same nonce and mentions are persisted", async () => {
+  const sent: Record<string, unknown>[] = [];
+  let failed = false;
+  server.state.overrides.set(`POST ${path}/messages`, (body) => {
+    sent.push(body);
+    if (!failed) {
+      failed = true;
+      return server.error(503, "Offline");
+    }
+    const row = {
+      ...fixture(),
+      id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      nonce: String(body.nonce),
+      body: String(body.body),
+      mentionIds: body.mentionIds as string[],
+      sequence: 2,
+    };
+    rows = [...rows, row];
+    return server.json(row, 201);
+  });
+  const user = show();
+  await screen.findByText("Existing message");
+  await user.click(screen.getByRole("button", { name: "Mention" }));
+  await user.click(await screen.findByRole("checkbox", { name: "Bob" }));
+  await user.type(screen.getByLabelText("Message"), "Retried message");
+  await user.click(screen.getByRole("button", { name: "Send message" }));
+  await screen.findByText("Offline");
+  await user.click(screen.getByRole("button", { name: "Retry message" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Retry message" })).not.toBeInTheDocument(),
+  );
+  expect(sent).toHaveLength(2);
+  expect(sent[0]?.nonce).toBe(sent[1]?.nonce);
+  expect(sent[1]?.mentionIds).toEqual([bobId]);
+  expect(screen.getAllByText("Retried message")).toHaveLength(1);
+});
+test("read cursors wait for visibility and focus and are never sent for pinned or search views", async () => {
+  let focused = false;
+  const focusMock = vi.spyOn(document, "hasFocus").mockImplementation(() => focused);
+  restoreFocus = () => focusMock.mockRestore();
+  show();
+  await screen.findByText("Existing message");
+  expect(reads).toEqual([]);
+  focused = true;
+  window.dispatchEvent(new Event("focus"));
+  await waitFor(() => expect(reads).toEqual([messageId]));
+  window.dispatchEvent(new Event("focus"));
+  expect(reads).toHaveLength(1);
+});
+test("public non-members can read without composer or mutation controls", async () => {
+  show({ canPost: false });
+  await screen.findByText("Existing message");
+  expect(screen.queryByLabelText("Message")).not.toBeInTheDocument();
+  expect(screen.queryByText("Message actions")).not.toBeInTheDocument();
+});
+test("sender edits, reactions, pins and deletes use real API command shapes", async () => {
+  const calls: unknown[] = [];
+  for (const [method, suffix] of [
+    ["PATCH", ""],
+    ["DELETE", ""],
+    ["POST", "/reaction"],
+    ["POST", "/pin"],
+  ])
+    server.state.overrides.set(
+      `${method} /api/v1/workspaces/${teamId}/messages/${messageId}${suffix}`,
+      (body) => {
+        calls.push({ method, suffix, body });
+        if (method === "PATCH")
+          rows = [{ ...rows[0]!, body: String(body.body), editedAt: new Date().toISOString() }];
+        return server.json({ ok: true });
+      },
+    );
+  const user = show();
+  await screen.findByText("Existing message");
+  await user.click(screen.getByText("Message actions"));
+  await user.click(screen.getByRole("button", { name: "React 👍" }));
+  await user.click(screen.getByRole("button", { name: "Pin" }));
+  await user.click(screen.getByRole("button", { name: "Edit message" }));
+  let dialog = screen.getByRole("dialog");
+  await user.clear(within(dialog).getByLabelText("Edit message body"));
+  await user.type(within(dialog).getByLabelText("Edit message body"), "Edited body");
+  await user.click(within(dialog).getByRole("button", { name: "Save message" }));
+  await screen.findByText("Edited body");
+  await user.click(screen.getByRole("button", { name: "Delete message" }));
+  dialog = screen.getByRole("dialog");
+  await user.click(within(dialog).getByRole("button", { name: "Delete message" }));
+  await waitFor(() => expect(calls).toHaveLength(4));
+  expect(calls).toContainEqual({ method: "PATCH", suffix: "", body: { body: "Edited body" } });
+});
+
+test.each([{ pinned: true }, { around: messageId }])(
+  "reading a filtered history does not advance the durable cursor: %j",
+  async (props) => {
+    const focusMock = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    restoreFocus = () => focusMock.mockRestore();
+    show(props);
+    await screen.findByText("Existing message");
+    window.dispatchEvent(new Event("focus"));
+    expect(reads).toEqual([]);
+  },
+);
