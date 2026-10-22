@@ -88,14 +88,6 @@ beforeEach(() => {
       nextOffset: url.searchParams.get("offset") === "50" ? null : 50,
     }),
   );
-  server.state.overrides.set(`GET ${base}/channels`, (_body, url) =>
-    server.json({
-      conversations: items.filter((v) =>
-        v.name.toLowerCase().includes((url.searchParams.get("q") ?? "").toLowerCase()),
-      ),
-      nextOffset: url.searchParams.get("offset") === "50" ? null : 50,
-    }),
-  );
   for (const currentId of [id, otherId]) {
     server.state.overrides.set(`GET ${base}/conversations/${currentId}`, () =>
       server.json(items.find((v) => v.id === currentId)),
@@ -103,11 +95,6 @@ beforeEach(() => {
     server.state.overrides.set(`GET ${base}/conversations/${currentId}/messages`, () =>
       server.json({ messages, nextBefore: null }),
     );
-    server.state.overrides.set(`POST ${base}/conversations/${currentId}/join`, (body) => {
-      items = items.map((v) => (v.id === currentId ? { ...v, joined: true, role: "member" } : v));
-      calls.push({ path: "join", body });
-      return server.json({ ok: true });
-    });
     server.state.overrides.set(`POST ${base}/conversations/${currentId}/leave`, (body) => {
       items = items.filter((v) => v.id !== currentId);
       calls.push({ path: "leave", body });
@@ -205,44 +192,57 @@ async function show(selected = false) {
   render(<RouterProvider router={router} />);
   return userEvent.setup();
 }
-test("channel discovery supports privacy indicators, pagination, filtering and joining", async () => {
-  items[1] = item({
-    id: otherId,
-    name: "Other",
-    visibility: "private",
-    joined: false,
-    role: null,
-    archivedAt: new Date().toISOString(),
-  });
-  const user = await show();
-  await user.click(await screen.findByRole("button", { name: "Browse channels" }));
-  const dialog = screen.getByRole("dialog");
-  expect(within(dialog).getByText("Archived")).toBeVisible();
-  expect(within(dialog).getByRole("button", { name: "Join" })).toBeDisabled();
-  await user.click(within(dialog).getByRole("button", { name: "More channels" }));
-  await user.click(within(dialog).getByRole("button", { name: "Previous channels" }));
-  await user.type(within(dialog).getByLabelText("Find channels"), "Missing");
-  await screen.findByText("No matching channels.");
-  await user.clear(within(dialog).getByLabelText("Find channels"));
-  await user.click(within(dialog).getByRole("link", { name: "# Launch" }));
-  await screen.findByText("Launch decision");
-  await user.click(screen.getByRole("button", { name: "Pinned" }));
-  await screen.findByText("Launch decision");
-});
-test("public history has a real join flow and conversations can be filtered and paged", async () => {
-  items[0] = item({ joined: false, role: null });
+test("public conversations are immediately usable without browse or join steps", async () => {
   const user = await show(true);
   await screen.findByText("Launch decision");
-  expect(screen.queryByLabelText("Message")).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Join channel" }));
-  expect(await screen.findByLabelText("Message")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Browse channels" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Join channel" })).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Message")).toBeVisible();
   await user.type(screen.getByLabelText("Find conversations"), "Missing");
-  await screen.findByText("Browse channels or start a conversation.");
+  await screen.findByText("No matching conversations.");
   await user.clear(screen.getByLabelText("Find conversations"));
   await user.click(await screen.findByRole("button", { name: "Next" }));
   await user.click(screen.getByRole("button", { name: "Previous" }));
-  expect(calls).toContainEqual({ path: "join", body: {} });
+  await user.click(screen.getByRole("button", { name: "Conversation settings" }));
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).queryByLabelText("Find members")).not.toBeInTheDocument();
+  expect(within(dialog).queryByRole("button", { name: "Leave channel" })).not.toBeInTheDocument();
+  expect(
+    within(dialog).queryByRole("button", { name: "Remove Bob Rivera" }),
+  ).not.toBeInTheDocument();
+  expect(within(dialog).getByRole("button", { name: "Make manager" })).toBeVisible();
 });
+
+test("public creation hides the member picker and discards selections when switching visibility", async () => {
+  const user = await show();
+  await user.click(await screen.findByRole("button", { name: "Create channel" }));
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).queryByLabelText("Find members")).not.toBeInTheDocument();
+  await user.type(within(dialog).getByLabelText("Channel name"), "Everyone");
+  await selectOption(user, "Visibility", "Private");
+  await user.click(await within(dialog).findByRole("checkbox", { name: "Bob Rivera" }));
+  await selectOption(user, "Visibility", "Public");
+  expect(within(dialog).queryByLabelText("Find members")).not.toBeInTheDocument();
+  await user.click(within(dialog).getByRole("button", { name: "Create channel" }));
+  await screen.findByRole("heading", { name: "# Everyone" });
+  expect(calls).toContainEqual({
+    path: "create-channel",
+    body: { name: "Everyone", description: "", visibility: "public", memberIds: [] },
+  });
+});
+
+test.each(["owner", "admin", "moderator", "member"] as const)(
+  "channel creation controls reflect workspace role %s",
+  async (role) => {
+    server.state.workspaces.find((ws) => ws.id === teamId)!.role = role;
+    await show();
+    await screen.findByRole("link", { name: /Launch/ });
+    expect(Boolean(screen.queryByRole("button", { name: "Create channel" }))).toBe(
+      role !== "member",
+    );
+  },
+);
+
 test("channel creation and settings persist privacy, member roles, topic, preferences and archive state", async () => {
   const user = await show();
   await user.click(await screen.findByRole("button", { name: "Create channel" }));

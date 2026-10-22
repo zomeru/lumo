@@ -1,5 +1,5 @@
 import type { Conversation } from "@lumo/contracts/collaboration";
-import { conversationSchema, conversationsSchema } from "@lumo/contracts/collaboration";
+import { conversationSchema } from "@lumo/contracts/collaboration";
 import { messengerMembersSchema } from "@lumo/contracts/messenger";
 import {
   Button,
@@ -14,7 +14,7 @@ import {
   Badge,
 } from "@lumo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { api, command, membersQuery, sessionQuery } from "../../lib/api";
@@ -101,6 +101,7 @@ export function CreateConversationDialog({
   initialMembers?: string[];
 }) {
   const returnFocus = useDialogReturnFocus();
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [selected, setSelected] = useState(initialMembers),
     client = useQueryClient(),
     navigate = useNavigate();
@@ -132,7 +133,7 @@ export function CreateConversationDialog({
         <DialogTitle>{channel ? "Create channel" : "New conversation"}</DialogTitle>
         <DialogDescription>
           {channel
-            ? "Public channels can be read by workspace members. Private channels are visible to their members."
+            ? "Everyone in the workspace automatically joins public channels. Private channels are visible only to their members."
             : "Choose workspace members. Changing a group’s participants starts a new conversation with fresh history."}
         </DialogDescription>
         <form
@@ -146,7 +147,7 @@ export function CreateConversationDialog({
                     name: form.get("name"),
                     description: form.get("description"),
                     visibility: form.get("visibility"),
-                    memberIds: selected,
+                    memberIds: visibility === "private" ? selected : [],
                   }
                 : { name: form.get("name"), kind: form.get("kind"), memberIds: selected },
             );
@@ -164,6 +165,8 @@ export function CreateConversationDialog({
               <SelectField
                 label="Visibility"
                 name="visibility"
+                value={visibility}
+                onValueChange={(value) => setVisibility(value === "private" ? "private" : "public")}
                 options={[
                   { value: "public", label: "Public" },
                   { value: "private", label: "Private" },
@@ -181,104 +184,24 @@ export function CreateConversationDialog({
               ]}
             />
           )}
-          <MemberPicker workspaceId={workspaceId} selected={selected} onChange={setSelected} />
+          {!channel || visibility === "private" ? (
+            <MemberPicker workspaceId={workspaceId} selected={selected} onChange={setSelected} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              All current and future workspace members are added automatically.
+            </p>
+          )}
           <ErrorMessage error={create.error} />
           <Button
             type="submit"
             variant="primary"
-            disabled={create.isPending || selected.length > 49}
+            disabled={
+              create.isPending || ((!channel || visibility === "private") && selected.length > 49)
+            }
           >
             {channel ? "Create channel" : "Create conversation"}
           </Button>
         </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-export function ChannelBrowser({
-  workspaceId,
-  onClose,
-}: {
-  workspaceId: string;
-  onClose: () => void;
-}) {
-  const returnFocus = useDialogReturnFocus();
-  const [q, setQ] = useState(""),
-    [offset, setOffset] = useState(0),
-    client = useQueryClient();
-  const channels = useQuery({
-    queryKey: [...messengerKey(workspaceId), "browse", q, offset],
-    queryFn: ({ signal }) =>
-      api(
-        `/workspaces/${workspaceId}/channels?q=${encodeURIComponent(q)}&offset=${offset}`,
-        conversationsSchema,
-        { signal },
-      ),
-  });
-  const join = useMutation({
-    mutationFn: (id: string) => command(`${messengerPath(workspaceId, id)}/join`),
-    onSuccess: () => client.invalidateQueries({ queryKey: messengerKey(workspaceId) }),
-  });
-  return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <DialogContent onCloseAutoFocus={returnFocus}>
-        <DialogTitle>Browse channels</DialogTitle>
-        <DialogDescription>
-          Explore channels in this workspace. Join a public channel to send messages.
-        </DialogDescription>
-        <Field
-          label="Find channels"
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setOffset(0);
-          }}
-        />
-        <ErrorMessage error={channels.error ?? join.error} />
-        <ul className="grid max-h-[50vh] gap-3 overflow-y-auto">
-          {channels.data?.conversations.map((item) => (
-            <li className="flex items-center gap-3 rounded-md border p-3" key={item.id}>
-              <div className="min-w-0 flex-1">
-                <Link
-                  onClick={onClose}
-                  to="/w/$workspaceId/messenger/$conversationId"
-                  params={{ workspaceId, conversationId: item.id }}
-                  hash=""
-                  className="font-medium text-primary"
-                >
-                  {item.visibility === "private" ? "🔒" : "#"} {item.name}
-                </Link>
-                <p className="truncate text-xs">{item.description}</p>
-                {item.archivedAt && <Badge>Archived</Badge>}
-              </div>
-              {item.joined ? (
-                <Badge>Joined</Badge>
-              ) : (
-                <Button
-                  size="sm"
-                  disabled={join.isPending || Boolean(item.archivedAt)}
-                  onClick={() => join.mutate(item.id)}
-                >
-                  Join
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-        {channels.data?.conversations.length === 0 && <p>No matching channels.</p>}
-        <div className="flex gap-2">
-          {offset > 0 && (
-            <Button onClick={() => setOffset(Math.max(0, offset - 50))}>Previous channels</Button>
-          )}
-          {channels.data?.nextOffset != null && (
-            <Button onClick={() => setOffset(channels.data!.nextOffset!)}>More channels</Button>
-          )}
-        </div>
       </DialogContent>
     </Dialog>
   );
@@ -396,6 +319,11 @@ export function ConversationSettings({
             ]}
           />
         )}
+        {item.kind === "channel" && item.visibility === "public" && (
+          <p className="text-xs text-muted-foreground">
+            Membership follows the workspace. Mute notifications to reduce updates.
+          </p>
+        )}
         <h3 className="font-medium">Members</h3>
         <ul className="max-h-44 overflow-y-auto">
           {members.data?.members.map((member) => (
@@ -408,18 +336,20 @@ export function ConversationSettings({
               </span>
               {manager && member.role !== "owner" && (
                 <>
-                  <Button
-                    size="sm"
-                    disabled={action.isPending}
-                    onClick={() =>
-                      action.mutate({
-                        path: `/workspaces/${workspaceId}/channels/${item.id}/members/${member.userId}`,
-                        method: "DELETE",
-                      })
-                    }
-                  >
-                    Remove {member.name}
-                  </Button>
+                  {item.visibility === "private" && (
+                    <Button
+                      size="sm"
+                      disabled={action.isPending}
+                      onClick={() =>
+                        action.mutate({
+                          path: `/workspaces/${workspaceId}/channels/${item.id}/members/${member.userId}`,
+                          method: "DELETE",
+                        })
+                      }
+                    >
+                      Remove {member.name}
+                    </Button>
+                  )}
                   {item.role === "owner" && (
                     <>
                       <Button
@@ -468,7 +398,7 @@ export function ConversationSettings({
             </Button>
           )}
         </div>
-        {manager && !item.archivedAt && (
+        {manager && item.visibility === "private" && !item.archivedAt && (
           <details>
             <summary className="cursor-pointer text-sm font-medium">Add workspace members</summary>
             <MemberPicker workspaceId={workspaceId} selected={selected} onChange={setSelected} />
@@ -503,7 +433,7 @@ export function ConversationSettings({
               {item.archivedAt ? "Unarchive channel" : "Archive channel"}
             </Button>
           )}
-          {item.joined && (
+          {item.joined && !(item.kind === "channel" && item.visibility === "public") && (
             <Button
               disabled={leave.isPending || (item.role === "owner" && item.kind === "channel")}
               onClick={() => leave.mutate()}
@@ -512,7 +442,7 @@ export function ConversationSettings({
             </Button>
           )}
         </div>
-        {item.role === "owner" && item.kind === "channel" && (
+        {item.role === "owner" && item.kind === "channel" && item.visibility === "private" && (
           <p className="text-xs">Transfer ownership before leaving this channel.</p>
         )}
       </DialogContent>

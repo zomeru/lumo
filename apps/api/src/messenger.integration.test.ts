@@ -15,6 +15,7 @@ import {
   conversationMember,
   storageCleanup,
   conversation,
+  user,
 } from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
 import { and, eq } from "drizzle-orm";
@@ -131,7 +132,7 @@ test("channel creation validates names, participant scope and session identity",
   });
   expect(elsewhere.status).toBe(201);
 });
-test("public history is workspace-readable and posting requires joining", async () => {
+test("public channels enroll every workspace member and allow posting without joining", async () => {
   root = await send(publicChannel.id, "Public launch notes");
   expect((await req(`${base()}/conversations/${publicChannel.id}/messages`, outsider)).status).toBe(
     404,
@@ -140,19 +141,159 @@ test("public history is workspace-readable and posting requires joining", async 
     await req(`${base()}/conversations/${publicChannel.id}/messages`, bob)
   ).json();
   expect(history.messages).toHaveLength(1);
+  const listed = await (await req(`${base()}/conversations?includeChannels=true`, bob)).json();
+  expect(
+    listed.conversations.find((item: Conversation) => item.id === publicChannel.id),
+  ).toMatchObject({ joined: true, memberCount: 3, role: "member" });
+  const members = await (await req(`${base()}/conversations/${publicChannel.id}/members`)).json();
+  expect(members.members.map((item: { userId: string }) => item.userId).sort()).toEqual(
+    [alice.id, bob.id, admin.id].sort(),
+  );
+  await send(publicChannel.id, "Automatically joined", bob);
+  expect(
+    (await req(`${base()}/conversations/${publicChannel.id}/leave`, bob, "POST", {})).status,
+  ).toBe(409);
+  expect(
+    (await req(`${base()}/channels/${publicChannel.id}/members/${bob.id}`, alice, "DELETE", {}))
+      .status,
+  ).toBe(409);
+});
+test("channel creation requires a current workspace owner, admin or moderator", async () => {
+  for (const visibility of ["public", "private"]) {
+    expect(
+      (await req(`${base()}/channels`, bob, "POST", { name: `Blocked ${visibility}`, visibility }))
+        .status,
+    ).toBe(403);
+    expect(
+      (
+        await req(`${base()}/channels`, outsider, "POST", {
+          name: `Outsider ${visibility}`,
+          visibility,
+        })
+      ).status,
+    ).toBe(404);
+  }
+  for (const role of ["admin", "moderator"] as const) {
+    await database.db
+      .update(membership)
+      .set({ role })
+      .where(and(eq(membership.workspaceId, alice.workspaceId), eq(membership.userId, admin.id)));
+    const response = await req(`${base()}/channels`, admin, "POST", {
+      name: `Created by ${role}`,
+      visibility: "public",
+    });
+    expect(response.status).toBe(201);
+    const item = await response.json();
+    expect(item).toMatchObject({ role: "owner", memberCount: 3, joined: true });
+    const owner = await (await req(`${base()}/conversations/${item.id}/members`)).json();
+    expect(
+      owner.members.find((member: { userId: string }) => member.userId === admin.id).role,
+    ).toBe("owner");
+  }
+  await database.db
+    .update(membership)
+    .set({ role: "member" })
+    .where(and(eq(membership.workspaceId, alice.workspaceId), eq(membership.userId, admin.id)));
+  expect((await req(`${base()}/channels`, admin, "POST", { name: "After demotion" })).status).toBe(
+    403,
+  );
+  await database.db
+    .update(membership)
+    .set({ role: "admin" })
+    .where(and(eq(membership.workspaceId, alice.workspaceId), eq(membership.userId, admin.id)));
+});
+
+test("new workspace members automatically join public channels through invitations and public joining", async () => {
+  const guest = outsider;
+  const teamResponse = await req("/workspaces", alice, "POST", {
+    name: "Automatic team",
+    visibility: "public",
+  });
+  expect(teamResponse.status).toBe(201);
+  const team = await teamResponse.json(),
+    teamBase = `/workspaces/${team.id}`;
+  const publicResponse = await req(`${teamBase}/channels`, alice, "POST", { name: "Everyone" });
+  expect(publicResponse.status).toBe(201);
+  const publicItem = await publicResponse.json();
+  const privateResponse = await req(`${teamBase}/channels`, alice, "POST", {
+    name: "Leadership",
+    visibility: "private",
+  });
+  const privateItem = await privateResponse.json();
+  expect((await req(`${teamBase}/join`, guest, "POST", {})).status).toBe(200);
+  const list = await (await req(`${teamBase}/conversations?includeChannels=true`, guest)).json();
+  expect(list.conversations.map((item: Conversation) => item.id)).toEqual([publicItem.id]);
+  expect(list.conversations[0]).toMatchObject({ joined: true, role: "member" });
+  expect((await req(`${teamBase}/conversations/${privateItem.id}`, guest)).status).toBe(404);
   expect(
     (
-      await req(`${base()}/conversations/${publicChannel.id}/messages`, bob, "POST", {
-        body: "blocked",
+      await req(`${teamBase}/conversations/${publicItem.id}/messages`, guest, "POST", {
+        body: "Hello automatically",
         nonce: randomUUID(),
       })
     ).status,
-  ).toBe(403);
+  ).toBe(201);
+  const invited = bob;
+  await database.db.update(user).set({ emailVerified: true }).where(eq(user.id, invited.id));
+  const [account] = await database.db
+    .select({ email: user.email })
+    .from(user)
+    .where(eq(user.id, invited.id));
+  const invitation = await req(`${teamBase}/invitations`, alice, "POST", { email: account!.email });
+  expect(invitation.status).toBe(201);
+  const { token } = await invitation.json();
+  const [accepted, concurrent] = await Promise.all([
+    req("/invitations/accept", invited, "POST", { token }),
+    req(`${teamBase}/channels`, alice, "POST", { name: "During enrollment" }),
+  ]);
+  expect(accepted.status).toBe(200);
+  expect(concurrent.status).toBe(201);
+  const simultaneous = await concurrent.json();
   expect(
-    (await req(`${base()}/conversations/${publicChannel.id}/join`, bob, "POST", {})).status,
-  ).toBe(200);
-  await send(publicChannel.id, "Joined", bob);
+    await (await req(`${teamBase}/conversations/${simultaneous.id}`, invited)).json(),
+  ).toMatchObject({ joined: true, memberCount: 3 });
+  const detail = await (await req(`${teamBase}/conversations/${publicItem.id}`, invited)).json();
+  expect(detail).toMatchObject({ joined: true, memberCount: 3, role: "member" });
+  expect((await req(`${teamBase}/conversations/${privateItem.id}`, invited)).status).toBe(404);
 });
+
+test("public channel creation enrolls workspaces larger than the private picker limit", async () => {
+  const response = await req("/workspaces", admin, "POST", { name: "Large automatic team" });
+  expect(response.status).toBe(201);
+  const team = await response.json();
+  const people = await database.db
+    .insert(user)
+    .values(
+      Array.from({ length: 60 }, (_, index) => ({
+        name: `Workspace member ${index}`,
+        email: `${randomUUID()}@example.com`,
+      })),
+    )
+    .returning({ id: user.id });
+  await database.db
+    .insert(membership)
+    .values(people.map((person) => ({ workspaceId: team.id, userId: person.id })));
+  const created = await req(`/workspaces/${team.id}/channels`, admin, "POST", {
+    name: "Everyone automatically",
+  });
+  expect(created.status).toBe(201);
+  const item = await created.json();
+  expect(item).toMatchObject({ memberCount: 61, role: "owner" });
+  const first = await (
+    await req(`/workspaces/${team.id}/conversations/${item.id}/members?limit=50`, admin)
+  ).json();
+  const second = await (
+    await req(`/workspaces/${team.id}/conversations/${item.id}/members?limit=50&offset=50`, admin)
+  ).json();
+  expect(first.members).toHaveLength(50);
+  expect(second.members).toHaveLength(11);
+  expect(
+    new Set(
+      [...first.members, ...second.members].map((member: { userId: string }) => member.userId),
+    ).size,
+  ).toBe(61);
+});
+
 test("private discovery, history, members and mutations deny admins and substituted workspace IDs", async () => {
   const secret = await send(privateChannel.id, "Confidential salary");
   for (const actor of [bob, admin, outsider]) {
@@ -175,7 +316,12 @@ test("private discovery, history, members and mutations deny admins and substitu
     ).toBe(404);
   }
   const browse = await (await req(`${base()}/channels`, bob)).json();
-  expect(browse.conversations.map((v: Conversation) => v.name)).toEqual(["general"]);
+  expect(browse.conversations.map((v: Conversation) => v.id)).toContain(publicChannel.id);
+  expect(
+    browse.conversations.every(
+      (v: Conversation) => v.workspaceId === alice.workspaceId && v.visibility === "public",
+    ),
+  ).toBe(true);
   expect(
     (await req(`${base(bob.workspaceId)}/conversations/${publicChannel.id}/messages`, bob)).status,
   ).toBe(404);
@@ -490,6 +636,10 @@ test("notification aggregates apply preferences and never reveal private convers
 });
 
 test("workspace removal transfers channel ownership without granting administrators private access", async () => {
+  await database.db
+    .update(membership)
+    .set({ role: "moderator" })
+    .where(and(eq(membership.workspaceId, alice.workspaceId), eq(membership.userId, bob.id)));
   const created = await req(`${base()}/channels`, bob, "POST", {
     name: "Member-owned secret",
     visibility: "private",
@@ -550,7 +700,7 @@ test("conversation activity is auditable without exposing private resource IDs t
 test("message mutation and channel edge cases fail closed and preserve visible history", async () => {
   const channel = await createChannel("Lifecycle edges", "public");
   const path = `${base()}/conversations/${channel.id}`;
-  expect((await req(`${path}/leave`, bob, "POST", {})).status).toBe(404);
+  expect((await req(`${path}/leave`, bob, "POST", {})).status).toBe(409);
   expect(
     (await req(`${base()}/channels/${channel.id}`, alice, "PATCH", { name: "general" })).status,
   ).toBe(409);

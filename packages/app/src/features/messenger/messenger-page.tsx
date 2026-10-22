@@ -1,26 +1,18 @@
 import type { Conversation } from "@lumo/contracts/collaboration";
 import { messengerSearchSchema } from "@lumo/contracts/messenger";
+import { canCreateChannel } from "@lumo/contracts/permissions";
 import { formatDateTime } from "@lumo/shared/date-time";
 import { Badge, Button, EmptyState, ErrorMessage, Field, Loading, cn } from "@lumo/ui";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, Hash, Lock, MessageSquare, Plus, Search, Settings, X } from "lucide-react";
 import { useState } from "react";
 
 import { AppAvatar } from "../../components/app-avatar";
-import { api, command } from "../../lib/api";
+import { api, workspaceQuery } from "../../lib/api";
 import { MessageStream } from "./message-stream";
-import {
-  conversationQuery,
-  conversationsQuery,
-  messengerKey,
-  messengerPath,
-} from "./messenger-api";
-import {
-  ChannelBrowser,
-  ConversationSettings,
-  CreateConversationDialog,
-} from "./messenger-dialogs";
+import { conversationQuery, conversationsQuery, messengerKey } from "./messenger-api";
+import { ConversationSettings, CreateConversationDialog } from "./messenger-dialogs";
 import { useMessengerRealtime } from "./messenger-notifications";
 
 export function MessengerPage({
@@ -31,12 +23,13 @@ export function MessengerPage({
   conversationId?: string;
 }) {
   const [creating, setCreating] = useState<"channel" | "dm" | null>(null),
-    [browse, setBrowse] = useState(false),
     [members, setMembers] = useState<string[]>([]),
     [offset, setOffset] = useState(0),
     [filter, setFilter] = useState("");
   const { status: state, typing, sendTyping } = useMessengerRealtime();
   const conversations = useQuery(conversationsQuery(workspaceId, offset, filter));
+  const workspace = useQuery(workspaceQuery(workspaceId));
+  const canCreate = workspace.data ? canCreateChannel(workspace.data.role) : false;
   const items = conversations.data?.conversations ?? [];
   return (
     <section
@@ -75,10 +68,6 @@ export function MessengerPage({
             }}
             maxLength={100}
           />
-          <Button className="mt-2 w-full" size="sm" variant="ghost" onClick={() => setBrowse(true)}>
-            <Search aria-hidden="true" />
-            Browse channels
-          </Button>
         </div>
         <nav className="min-h-0 flex-1 overflow-y-auto p-3" aria-label="Conversations">
           <ErrorMessage error={conversations.error} />
@@ -96,7 +85,7 @@ export function MessengerPage({
                     .map((item) => (
                       <ConversationRow key={item.id} workspaceId={workspaceId} item={item} />
                     ))}
-                  {kind === "channel" && (
+                  {kind === "channel" && canCreate && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -126,7 +115,7 @@ export function MessengerPage({
             </>
           )}
           {conversations.data?.conversations.length === 0 && (
-            <p className="p-2 text-sm">Browse channels or start a conversation.</p>
+            <p className="p-2 text-sm">No matching conversations.</p>
           )}
           <div className="flex gap-2">
             {offset > 0 && (
@@ -175,7 +164,6 @@ export function MessengerPage({
           onClose={() => setCreating(null)}
         />
       )}
-      {browse && <ChannelBrowser workspaceId={workspaceId} onClose={() => setBrowse(false)} />}
     </section>
   );
 }
@@ -251,17 +239,12 @@ function ActiveConversation({
   onNewGroup: (ids: string[]) => void;
 }) {
   const item = useQuery(conversationQuery(workspaceId, conversationId)),
-    client = useQueryClient(),
     [settings, setSettings] = useState(false),
     [thread, setThread] = useState<string | null>(null),
     [view, setView] = useState<"messages" | "pinned" | "files">("messages"),
     [search, setSearch] = useState(false);
   const hash = useRouterState({ select: (s) => s.location.hash }),
     around = /^[0-9a-f-]{36}$/.test(hash) ? hash : undefined;
-  const join = useMutation({
-    mutationFn: () => command(`${messengerPath(workspaceId, conversationId)}/join`),
-    onSuccess: () => client.invalidateQueries({ queryKey: messengerKey(workspaceId) }),
-  });
   if (item.isError)
     return (
       <section className="flex min-w-0 flex-1 flex-col gap-4 p-6">
@@ -360,19 +343,6 @@ function ActiveConversation({
             setView("messages");
           }}
         />
-      )}
-      <ErrorMessage error={join.error} />
-      {!conversation.joined && (
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-accent/40 px-4 py-3 text-sm">
-          <p>You can read this public channel. Join to participate.</p>
-          <Button
-            variant="primary"
-            disabled={join.isPending || Boolean(conversation.archivedAt)}
-            onClick={() => join.mutate()}
-          >
-            Join channel
-          </Button>
-        </div>
       )}
       {around && (
         <div className="border-b p-2 text-center text-xs">

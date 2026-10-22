@@ -15,8 +15,14 @@ export async function verifyMessenger(
   const origin = page.url().startsWith("lumo:") ? "lumo://app" : "http://localhost:3010",
     root = `${origin}/w/${workspaceId}/messenger`;
   await page.goto(root);
+  if (peer) {
+    await peer.goto(`http://localhost:3010/w/${workspaceId}/messenger`);
+    await expect(peer.getByText("Connected", { exact: true })).toBeVisible();
+  }
   await page.getByRole("button", { name: "Create channel", exact: true }).click();
   let dialog = page.getByRole("dialog", { name: "Create channel", exact: true });
+  await expect(dialog.getByLabel("Find members")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Browse channels", exact: true })).toHaveCount(0);
   await dialog.getByLabel("Channel name").fill("Launch team");
   await dialog.getByLabel("Description").fill("Shared launch planning");
   await dialog.getByRole("button", { name: "Create channel", exact: true }).click();
@@ -27,14 +33,16 @@ export async function verifyMessenger(
   const history = page.getByRole("list", { name: "Messages", exact: true });
   await expect(history.getByText("Messenger launch hello", { exact: true })).toBeVisible();
   if (peer) {
-    await peer.goto(`http://localhost:3010/w/${workspaceId}/messenger/${channelId}`);
+    await peer.getByRole("link", { name: /Launch team/ }).click();
+    await expect(peer).toHaveURL(new RegExp(`/messenger/${channelId}$`));
     await expect(
       peer
         .getByRole("list", { name: "Messages", exact: true })
         .getByText("Messenger launch hello", { exact: true }),
     ).toBeVisible();
-    await expect(peer.getByLabel("Message", { exact: true })).toHaveCount(0);
-    await peer.getByRole("button", { name: "Join channel", exact: true }).click();
+    await expect(peer.getByLabel("Message", { exact: true })).toBeVisible();
+    await expect(peer.getByRole("button", { name: "Join channel", exact: true })).toHaveCount(0);
+    await expect(peer.getByRole("button", { name: "Create channel", exact: true })).toHaveCount(0);
     await peer.getByLabel("Message", { exact: true }).fill("Peer realtime reply");
     await peer.getByRole("button", { name: "Send message", exact: true }).click();
     await expect(history.getByText("Peer realtime reply", { exact: true })).toBeVisible();

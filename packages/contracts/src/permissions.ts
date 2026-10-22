@@ -3,6 +3,7 @@ import type { Role } from "./index.ts";
 const rank: Record<Role, number> = { owner: 4, admin: 3, moderator: 2, member: 1 };
 
 export const canManageSettings = (role: Role) => role === "owner" || role === "admin";
+export const canCreateChannel = (role: Role) => role !== "member";
 export const canInvite = (role: Role) => role !== "member";
 export const canInviteRole = (role: Role, next: Role) =>
   canInvite(role) && (next === "member" || (next === "moderator" && canManageSettings(role)));

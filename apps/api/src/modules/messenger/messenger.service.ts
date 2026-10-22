@@ -1,5 +1,6 @@
 import type { conversationInputSchema } from "@lumo/contracts/collaboration";
 import type * as contracts from "@lumo/contracts/messenger";
+import { canCreateChannel } from "@lumo/contracts/permissions";
 import type { Database, Transaction } from "@lumo/database";
 import {
   messengerAudit,
@@ -369,7 +370,8 @@ export function createMessengerService(
       actor: string,
       input: z.infer<typeof contracts.channelInputSchema>,
     ) {
-      return workspaces.withAccess(workspaceId, actor, async (tx) => {
+      return workspaces.withAccess(workspaceId, actor, async (tx, _ws, member) => {
+        if (!canCreateChannel(member.role)) denied();
         const ids = [...new Set([actor, ...input.memberIds])];
         await eligible(tx, workspaceId, ids);
         const slug = slugFor(input.name),
@@ -390,14 +392,22 @@ export function createMessengerService(
             slug,
           })
           .returning();
-        await tx.insert(conversationMember).values(
-          ids.map((userId) => ({
-            workspaceId,
-            conversationId: item!.id,
-            userId,
-            role: userId === actor ? ("owner" as const) : ("member" as const),
-          })),
-        );
+        if (item!.visibility === "public") {
+          // Set-based enrollment has no participant-picker limit or SQL parameter ceiling.
+          await tx.execute(sql`insert into ${conversationMember} (workspace_id, conversation_id, user_id, role)
+            select workspace_id, ${item!.id}::uuid, user_id,
+              case when user_id = ${actor}::uuid then 'owner' else 'member' end
+            from ${membership} where workspace_id = ${workspaceId}::uuid`);
+        } else {
+          await tx.insert(conversationMember).values(
+            ids.map((userId) => ({
+              workspaceId,
+              conversationId: item!.id,
+              userId,
+              role: userId === actor ? ("owner" as const) : ("member" as const),
+            })),
+          );
+        }
         await audit(tx, workspaceId, actor, "channel.created", item!.id);
         return (await dtos(tx, [item!], actor))[0]!;
       });
@@ -445,6 +455,8 @@ export function createMessengerService(
     async leave(workspaceId: string, actor: string, id: string) {
       return scoped(workspaceId, actor, id, async (tx, item, member) => {
         if (!member) missing();
+        if (item.kind === "channel" && item.visibility === "public")
+          conflict("Public channel membership follows the workspace. Mute notifications instead.");
         if (item.kind === "channel" && member.role === "owner")
           conflict("Transfer channel ownership before leaving.");
         await tx
@@ -488,6 +500,8 @@ export function createMessengerService(
       return scoped(workspaceId, actor, id, async (tx, item, own) => {
         manage(item, own);
         if (item.archivedAt) conflict("Unarchive this channel before changing members.");
+        if (item.visibility === "public" && role === null)
+          conflict("Public channel membership follows the workspace.");
         await eligible(tx, workspaceId, [target]);
         const [previous] = await tx
           .select()

@@ -141,7 +141,7 @@ export function documentMessenger(app: OpenAPIHono<ApiContext>) {
       tags: ["Messenger"],
       security: [{ cookieAuth: [] }],
       description:
-        "Requires current workspace membership. Private resources require explicit conversation membership; public channel posting requires joining. Workspace roles never bypass private content permissions.",
+        "Requires current workspace membership. Private resources require explicit conversation membership; public channels automatically include all workspace members. Only workspace owners, admins and moderators may create channels. Workspace roles never bypass private content permissions.",
       request: {
         params: z.object(
           Object.fromEntries(

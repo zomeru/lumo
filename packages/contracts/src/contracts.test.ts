@@ -10,6 +10,7 @@ import {
 } from "./index.ts";
 import {
   canChangeRole,
+  canCreateChannel,
   canInvite,
   canInviteRole,
   canManageSettings,
@@ -53,6 +54,9 @@ describe("role policy", () => {
     expect(
       ["owner", "admin", "moderator", "member"].map((r) => canManageSettings(r as "owner")),
     ).toEqual([true, true, false, false]);
+    expect(
+      ["owner", "admin", "moderator", "member"].map((r) => canCreateChannel(r as "owner")),
+    ).toEqual([true, true, true, false]);
     expect(canInvite("member")).toBe(false);
     expect(canInviteRole("moderator", "moderator")).toBe(false);
     expect(canInviteRole("moderator", "member")).toBe(true);

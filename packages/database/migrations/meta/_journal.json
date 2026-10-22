@@ -141,6 +141,13 @@
       "when": 1792631752776,
       "tag": "0019_majestic_the_professor",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792633575829,
+      "tag": "0020_messenger_public_membership",
+      "breakpoints": true
     }
   ]
 }

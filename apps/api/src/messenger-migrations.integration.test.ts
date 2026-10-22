@@ -105,3 +105,105 @@ test("Messenger upgrade preserves populated provider history references and reje
     await database.cleanup();
   }
 });
+
+test("public membership migration backfills existing channels and enrolls future members without changing private access", async () => {
+  const source = {
+    ...(existsSync(new URL("../.env", import.meta.url))
+      ? parseEnv(readFileSync(new URL("../.env", import.meta.url), "utf8"))
+      : {}),
+    ...process.env,
+  };
+  const database = await createTestDatabase(source.TEST_DATABASE_URL, 19);
+  try {
+    const [owner, existing, newcomer] = await database.db
+      .insert(user)
+      .values(
+        ["Owner", "Existing", "Newcomer"].map((name) => ({
+          name,
+          email: `${name}-${randomUUID()}@example.com`,
+        })),
+      )
+      .returning();
+    const [ws] = await database.db
+      .select()
+      .from(workspace)
+      .where(eq(workspace.personalOwnerId, owner!.id));
+    await database.db.insert(membership).values({ workspaceId: ws!.id, userId: existing!.id });
+    const [publicItem, archived, privateItem, retired] = await database.db
+      .insert(conversation)
+      .values([
+        {
+          workspaceId: ws!.id,
+          createdBy: owner!.id,
+          kind: "channel",
+          name: "Public",
+          slug: "public",
+          visibility: "public" as const,
+        },
+        {
+          workspaceId: ws!.id,
+          createdBy: owner!.id,
+          kind: "channel",
+          name: "Archived",
+          slug: "archived",
+          visibility: "public" as const,
+          archivedAt: new Date(),
+        },
+        {
+          workspaceId: ws!.id,
+          createdBy: owner!.id,
+          kind: "channel",
+          name: "Private",
+          slug: "private",
+          visibility: "private" as const,
+        },
+        {
+          workspaceId: ws!.id,
+          createdBy: owner!.id,
+          kind: "channel",
+          name: "Retired",
+          slug: "retired",
+          visibility: "public" as const,
+          retiredAt: new Date(),
+        },
+      ])
+      .returning();
+    await database.db.insert(conversationMember).values({
+      workspaceId: ws!.id,
+      conversationId: publicItem!.id,
+      userId: owner!.id,
+      role: "owner",
+      lastReadSequence: 84,
+      notifications: "muted",
+    });
+    await database.migrateRemaining();
+    await database.migrateRemaining();
+    const members = await database.db
+      .select()
+      .from(conversationMember)
+      .where(eq(conversationMember.workspaceId, ws!.id));
+    expect(
+      members.find((m) => m.userId === owner!.id && m.conversationId === publicItem!.id),
+    ).toMatchObject({ role: "owner", lastReadSequence: 84, notifications: "muted" });
+    expect(
+      members
+        .filter((m) => m.userId === existing!.id)
+        .map((m) => m.conversationId)
+        .sort(),
+    ).toEqual([publicItem!.id, archived!.id].sort());
+    expect(
+      members.some((m) => m.conversationId === privateItem!.id || m.conversationId === retired!.id),
+    ).toBe(false);
+    await database.db.insert(membership).values({ workspaceId: ws!.id, userId: newcomer!.id });
+    const added = await database.db
+      .select()
+      .from(conversationMember)
+      .where(eq(conversationMember.userId, newcomer!.id));
+    expect(added.map((m) => m.conversationId).sort()).toEqual(
+      [publicItem!.id, archived!.id].sort(),
+    );
+    expect(added.every((m) => m.role === "member")).toBe(true);
+  } finally {
+    await database.cleanup();
+  }
+});
