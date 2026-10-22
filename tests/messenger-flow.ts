@@ -50,12 +50,15 @@ export async function verifyMessenger(
   let message = history
     .locator("li[data-message-id]")
     .filter({ hasText: "Messenger launch hello" });
-  await message.locator("summary").click();
-  await message.getByRole("button", { name: "React 🎉", exact: true }).click();
+  await message.hover();
+  await message.getByRole("button", { name: "Add reaction", exact: true }).click();
+  await page.getByRole("combobox", { name: "Type to search for an emoji" }).fill("party popper");
+  await page.getByRole("gridcell", { name: "party popper", exact: true }).click();
   await expect(message.getByRole("button", { name: "🎉 1", exact: true })).toBeVisible();
   await message.getByRole("button", { name: "Pin", exact: true }).click();
   await expect(message.getByText("Pinned", { exact: true })).toBeVisible();
-  await message.getByRole("button", { name: "Edit message", exact: true }).click();
+  await message.getByRole("button", { name: "More message actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Edit message", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "Edit message", exact: true });
   await dialog.getByLabel("Edit message body").fill("Messenger launch edited");
   await dialog.getByRole("button", { name: "Save message", exact: true }).click();

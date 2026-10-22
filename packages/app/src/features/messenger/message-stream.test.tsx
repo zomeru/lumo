@@ -7,6 +7,28 @@ import { beforeEach, afterEach, expect, test, vi } from "vitest";
 import { mockApi, teamId, bobId } from "../../test/mock-api";
 import { MessageStream } from "./message-stream";
 
+// The virtualized third-party grid needs layout; real search/categories/tones are verified in Chromium.
+vi.mock("emoji-picker-react", () => ({
+  default: ({ onEmojiClick }: { onEmojiClick: (data: { emoji: string }) => void }) => (
+    <div>
+      <input
+        role="combobox"
+        aria-label="Type to search for an emoji"
+        aria-expanded="true"
+        aria-controls="emoji-test-grid"
+      />
+      <div id="emoji-test-grid">
+        <button aria-label="thumbs up" onClick={() => onEmojiClick({ emoji: "👍" })}>
+          👍
+        </button>
+
+        <button aria-label="party popper" onClick={() => onEmojiClick({ emoji: "🎉" })}>
+          🎉
+        </button>
+      </div>
+    </div>
+  ),
+}));
 const filesMock = vi.hoisted(() => ({
   upload: vi.fn<(...args: unknown[]) => Promise<{ id: string; name: string }>>(async () => ({
     id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
@@ -50,6 +72,14 @@ function fixture() {
   });
 }
 beforeEach(() => {
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   server = mockApi();
   rows = [fixture()];
   reads = [];
@@ -172,16 +202,22 @@ test("sender edits, reactions, pins and deletes use real API command shapes", as
     );
   const user = show();
   await screen.findByText("Existing message");
-  await user.click(screen.getByText("Message actions"));
-  await user.click(screen.getByRole("button", { name: "React 👍" }));
+  await user.click(screen.getByRole("button", { name: "Add reaction" }));
+  await user.type(
+    await screen.findByRole("combobox", { name: "Type to search for an emoji" }),
+    "thumbs up",
+  );
+  await user.click(await screen.findByRole("button", { name: /^thumbs up$/ }));
   await user.click(screen.getByRole("button", { name: "Pin" }));
-  await user.click(screen.getByRole("button", { name: "Edit message" }));
+  await user.click(screen.getByRole("button", { name: "More message actions" }));
+  await user.click(screen.getByRole("menuitem", { name: "Edit message" }));
   let dialog = screen.getByRole("dialog");
   await user.clear(within(dialog).getByLabelText("Edit message body"));
   await user.type(within(dialog).getByLabelText("Edit message body"), "Edited body");
   await user.click(within(dialog).getByRole("button", { name: "Save message" }));
   await screen.findByText("Edited body");
-  await user.click(screen.getByRole("button", { name: "Delete message" }));
+  await user.click(screen.getByRole("button", { name: "More message actions" }));
+  await user.click(screen.getByRole("menuitem", { name: "Delete message" }));
   dialog = screen.getByRole("dialog");
   await user.click(within(dialog).getByRole("button", { name: "Delete message" }));
   await waitFor(() => expect(calls).toHaveLength(4));
@@ -275,7 +311,6 @@ test("attachment selection, removal, download errors, deleted messages and exist
   await user.click(screen.getByRole("button", { name: "existing.txt · Download" }));
   await screen.findByText("File access removed");
   await user.click(screen.getByRole("button", { name: "👍 1" }));
-  await user.click(screen.getByText("Message actions"));
   await user.click(screen.getByRole("button", { name: "Unpin" }));
   await waitFor(() => expect(commands).toContainEqual({ emoji: "👍", active: false }));
   await user.upload(
@@ -312,7 +347,11 @@ test("composer inserts emoji at the selection, retains focus and sends persisted
   await user.type(input, "Hello team");
   input.setSelectionRange(6, 10);
   await user.click(screen.getByRole("button", { name: "Emoji" }));
-  await user.click(screen.getByRole("button", { name: "Insert 🎉" }));
+  await user.type(
+    await screen.findByRole("combobox", { name: "Type to search for an emoji" }),
+    "party popper",
+  );
+  await user.click(await screen.findByRole("button", { name: "party popper" }));
   expect(input).toHaveValue("Hello 🎉");
   await waitFor(() => expect(input).toHaveFocus());
   await user.click(screen.getByRole("button", { name: "Send message" }));
@@ -334,4 +373,33 @@ test("message grouping retains date and unread boundaries", async () => {
   expect(items[1]).toHaveAttribute("data-grouped", "true");
   expect(items[2]).not.toHaveAttribute("data-grouped");
   expect(within(history).getByText("Oct. 23, 2026")).toBeVisible();
+});
+
+test("threads keep original context separate from replies and show aggregated participant names", async () => {
+  const parent = {
+    ...fixture(),
+    body: "Original decision",
+    replies: 2,
+    replyParticipants: [{ userId: bobId, name: "Bob", image: null }],
+  };
+  server.state.overrides.set(`GET ${path}/messages`, () =>
+    server.json({
+      parent,
+      messages: [
+        {
+          ...fixture(),
+          id: crypto.randomUUID(),
+          parentId: messageId,
+          body: "A reply",
+          sequence: 2,
+        },
+      ],
+      nextBefore: null,
+    }),
+  );
+  show({ parentId: messageId });
+  expect(await screen.findByText("Original decision")).toBeVisible();
+  expect(screen.getByText("Original message")).toBeVisible();
+  expect(screen.getByText("Replies")).toBeVisible();
+  expect(screen.getAllByText("A reply")).toHaveLength(1);
 });

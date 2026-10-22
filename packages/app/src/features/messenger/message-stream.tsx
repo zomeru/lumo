@@ -4,12 +4,11 @@ import {
   messengerMembersSchema,
   type MessengerMessage,
 } from "@lumo/contracts/messenger";
-import { formatDate, formatTime } from "@lumo/shared/date-time";
+import { formatDate } from "@lumo/shared/date-time";
 import {
   Button,
   Textarea,
   ErrorMessage,
-  Badge,
   Loading,
   Dialog,
   DialogContent,
@@ -21,11 +20,9 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { ArrowDown, Send, X } from "lucide-react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 
-import { AppAvatar } from "../../components/app-avatar";
 import { api, command, sessionQuery } from "../../lib/api";
 import { messengerKey, messengerPath } from "./messenger-api";
 
-const reactions = ["👍", "❤️", "😂", "🎉", "👀", "✅"];
 type Draft = {
   nonce: string;
   body: string;
@@ -33,156 +30,9 @@ type Draft = {
   attachmentIds: string[];
   failed: boolean;
 };
-function MessageItem({
-  message,
-  canPost,
-  highlighted,
-  grouped,
-  own,
-  onReply,
-  onEdit,
-  onDelete,
-  onAction,
-}: {
-  message: MessengerMessage;
-  canPost: boolean;
-  highlighted?: boolean;
-  grouped?: boolean;
-  own: boolean;
-  onReply: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onAction: (action: "reaction" | "pin", body: unknown) => void;
-}) {
-  return (
-    <li
-      id={`message-${message.id}`}
-      data-message-id={message.id}
-      data-highlighted={highlighted || undefined}
-      data-grouped={grouped || undefined}
-      tabIndex={-1}
-      className="group data-[highlighted=true]:bg-accent/70 data-[grouped=true]:py-1 flex min-w-0 gap-3 border-b border-border/30 px-4 py-3 hover:bg-muted/30"
-    >
-      {grouped ? (
-        <span className="w-9 shrink-0" aria-hidden="true" />
-      ) : (
-        <AppAvatar name={message.senderName} src={message.senderImage ?? undefined} />
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <strong className={grouped ? "sr-only" : "text-sm"}>{message.senderName}</strong>
-          <time
-            className="text-xs text-muted-foreground"
-            dateTime={message.createdAt}
-            title={new Date(message.createdAt).toLocaleString()}
-          >
-            {formatTime(message.createdAt)}
-          </time>
-          {message.editedAt && !message.deletedAt && <small>edited</small>}
-          {message.pinnedAt && <Badge>Pinned</Badge>}
-        </div>
-        <p className="mt-1 whitespace-pre-wrap wrap-anywhere text-sm leading-relaxed">
-          {message.deletedAt ? "Message deleted" : message.body}
-        </p>
-        {message.mentionIds.length > 0 && (
-          <p className="text-xs text-primary">
-            {message.mentionIds.length} member mention{message.mentionIds.length === 1 ? "" : "s"}
-          </p>
-        )}
-        {message.attachments.map((file) => (
-          <AttachmentDownload
-            key={file.id}
-            workspaceId={message.workspaceId}
-            id={file.id}
-            name={file.name}
-          />
-        ))}
-        <div className="mt-2 flex flex-wrap gap-1">
-          {message.reactions.map((r) => (
-            <Button
-              key={r.emoji}
-              size="sm"
-              aria-pressed={r.mine}
-              disabled={!canPost}
-              onClick={() => onAction("reaction", { emoji: r.emoji, active: !r.mine })}
-            >
-              {r.emoji} {r.count}
-            </Button>
-          ))}
-          {!message.parentId && (
-            <Button size="sm" variant="ghost" onClick={onReply}>
-              {message.replies
-                ? `${message.replies} ${message.replies === 1 ? "reply" : "replies"}`
-                : "Reply in thread"}
-            </Button>
-          )}
-          {canPost && !message.deletedAt && (
-            <details className="relative">
-              <summary className="cursor-pointer rounded-md px-2 py-1 text-xs hover:bg-muted">
-                Message actions
-              </summary>
-              <fieldset
-                className="my-1 flex flex-wrap gap-1 rounded-md border bg-surface p-2"
-                aria-label="Message actions"
-              >
-                {reactions.map((emoji) => (
-                  <Button
-                    size="sm"
-                    key={emoji}
-                    aria-label={`React ${emoji}`}
-                    onClick={() =>
-                      onAction("reaction", {
-                        emoji,
-                        active: !message.reactions.some((r) => r.emoji === emoji && r.mine),
-                      })
-                    }
-                  >
-                    {emoji}
-                  </Button>
-                ))}
-                <Button size="sm" onClick={() => onAction("pin", { active: !message.pinnedAt })}>
-                  {message.pinnedAt ? "Unpin" : "Pin"}
-                </Button>
-                {own && (
-                  <>
-                    <Button size="sm" onClick={onEdit}>
-                      Edit message
-                    </Button>
-                    <Button size="sm" onClick={onDelete}>
-                      Delete message
-                    </Button>
-                  </>
-                )}
-              </fieldset>
-            </details>
-          )}
-        </div>
-      </div>
-    </li>
-  );
-}
-// Download is authorized again when clicked, including after channel membership changes.
-function AttachmentDownload({
-  workspaceId,
-  id,
-  name,
-}: {
-  workspaceId: string;
-  id: string;
-  name: string;
-}) {
-  const download = useMutation({ mutationFn: () => downloadAttachment(workspaceId, id) });
-  return (
-    <div className="mt-2">
-      <Button size="sm" disabled={download.isPending} onClick={() => download.mutate()}>
-        {name} · Download
-      </Button>
-      <small>Unscanned file</small>
-      <ErrorMessage error={download.error} />
-    </div>
-  );
-}
-import { downloadAttachment, uploadAttachment } from "./messenger-files";
+import { EmojiPopover } from "./emoji-popover";
+import { MessageItem } from "./message-item";
+import { uploadAttachment } from "./messenger-files";
 function MessageComposer({
   workspaceId,
   conversationId,
@@ -200,7 +50,6 @@ function MessageComposer({
   const [text, setText] = useState(""),
     [mentionIds, setMentionIds] = useState<string[]>([]),
     [mentionOpen, setMentionOpen] = useState(false),
-    [emojiOpen, setEmojiOpen] = useState(false),
     [files, setFiles] = useState<{ id: string; name: string }[]>([]);
   const controller = useRef<AbortController | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -222,7 +71,7 @@ function MessageComposer({
   });
   return (
     <form
-      className="shrink-0 space-y-2 border-t bg-surface p-3 sm:p-4"
+      className="m-3 shrink-0 space-y-2 rounded-lg border border-input/70 bg-surface p-2.5 sm:m-4"
       onSubmit={(e) => {
         e.preventDefault();
         if (disabled || upload.isPending || (!text.trim() && !files.length)) return;
@@ -247,7 +96,7 @@ function MessageComposer({
         disabled={disabled}
         maxLength={4000}
         placeholder="Write a message…"
-        className="max-h-40 min-h-20 resize-y"
+        className="max-h-40 min-h-16 resize-y border-0 shadow-none"
         onChange={(e) => {
           setText(e.target.value);
           onTyping();
@@ -293,43 +142,24 @@ function MessageComposer({
           <ErrorMessage error={members.error} />
         </fieldset>
       )}
-      {emojiOpen && (
-        <fieldset className="flex flex-wrap gap-1 rounded-md border p-2">
-          <legend className="text-xs">Insert an emoji</legend>
-          {reactions.map((emoji) => (
-            <Button
-              key={emoji}
-              size="sm"
-              aria-label={`Insert ${emoji}`}
-              onClick={() => {
-                const input = textarea.current,
-                  start = input?.selectionStart ?? text.length,
-                  end = input?.selectionEnd ?? text.length;
-                const next = text.slice(0, start) + emoji + text.slice(end);
-                if (next.length > 4000) return;
-                setText(next);
-                setEmojiOpen(false);
-                onTyping();
-                requestAnimationFrame(() => {
-                  input?.focus();
-                  input?.setSelectionRange(start + emoji.length, start + emoji.length);
-                });
-              }}
-            >
-              {emoji}
-            </Button>
-          ))}
-        </fieldset>
-      )}
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
+        <EmojiPopover
+          label="Emoji"
           disabled={disabled}
-          aria-expanded={emojiOpen}
-          onClick={() => setEmojiOpen(!emojiOpen)}
-        >
-          Emoji
-        </Button>
+          onPick={(emoji) => {
+            const input = textarea.current,
+              start = input?.selectionStart ?? text.length,
+              end = input?.selectionEnd ?? text.length;
+            const next = text.slice(0, start) + emoji + text.slice(end);
+            if (next.length > 4000) return;
+            setText(next);
+            onTyping();
+            requestAnimationFrame(() => {
+              input?.focus();
+              input?.setSelectionRange(start + emoji.length, start + emoji.length);
+            });
+          }}
+        />
         <label className="cursor-pointer rounded-md border px-3 py-1.5 text-xs">
           {upload.isPending ? "Uploading…" : "Attach file"}
           <input
@@ -380,6 +210,7 @@ export function MessageStream({
   lastReadSequence = 0,
   onReply,
   onTyping,
+  onJump,
 }: {
   workspaceId: string;
   conversationId: string;
@@ -389,6 +220,7 @@ export function MessageStream({
   pinned?: boolean;
   files?: boolean;
   lastReadSequence?: number;
+  onJump?: (message: MessengerMessage) => void;
   onReply: (id: string) => void;
   onTyping: () => void;
 }) {
@@ -537,6 +369,24 @@ export function MessageStream({
             setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 48);
           }}
         >
+          {parentId && query.data?.pages[0]?.parent && (
+            <>
+              <li className="px-4 pt-3 text-xs font-medium text-muted-foreground">
+                Original message
+              </li>
+              <MessageItem
+                message={query.data.pages[0].parent}
+                context
+                own={query.data.pages[0].parent.senderId === session.data?.user.id}
+                canPost={false}
+                onReply={() => {}}
+                onEdit={() => {}}
+                onDelete={() => {}}
+                onAction={() => {}}
+              />
+              <li className="border-y px-4 py-2 text-xs text-muted-foreground">Replies</li>
+            </>
+          )}
           {query.hasNextPage && (
             <li className="p-3 text-center">
               <Button
@@ -602,6 +452,8 @@ export function MessageStream({
                 )}
                 own={message.senderId === session.data?.user.id}
                 canPost={canPost}
+                busy={mutation.isPending}
+                onJump={(pinned || files) && onJump ? () => onJump(message) : undefined}
                 onReply={() => onReply(message.id)}
                 onEdit={() => {
                   setEditing({ message, deleting: false });
