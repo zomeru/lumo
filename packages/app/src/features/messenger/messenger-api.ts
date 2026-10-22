@@ -67,13 +67,17 @@ export function connectMessenger(
         attempt = 0;
         onState("Connected");
         void client.invalidateQueries({ queryKey: messengerKey(workspaceId) });
+        void client.invalidateQueries({ queryKey: ["workspace", workspaceId, "presence"] });
       };
       socket.onmessage = (event) => {
         try {
           const value = messengerEventSchema.parse(JSON.parse(String(event.data)));
           if (value.type === "typing" && value.conversationId && value.actorId)
             onTyping(value.conversationId, value.actorId);
-          else invalidate();
+          else if (value.type === "presence") {
+            void client.invalidateQueries({ queryKey: ["workspace", workspaceId, "presence"] });
+            void client.invalidateQueries({ queryKey: ["presence-preference"] });
+          } else invalidate();
         } catch {
           /* Invalid frames never enter query state. */
         }

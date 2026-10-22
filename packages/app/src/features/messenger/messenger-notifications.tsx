@@ -16,6 +16,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 
 import { api } from "../../lib/api";
 import { connectMessenger, messengerKey } from "./messenger-api";
+import { PresenceProvider } from "./presence";
 
 const RealtimeContext = createContext<{
   status: string;
@@ -50,7 +51,9 @@ export function MessengerRealtimeProvider({
   }, [typing]);
   return (
     <RealtimeContext value={{ status, typing, sendTyping: (id) => connection.current?.typing(id) }}>
-      {children}
+      <PresenceProvider key={workspaceId} workspaceId={workspaceId}>
+        {children}
+      </PresenceProvider>
     </RealtimeContext>
   );
 }

@@ -57,7 +57,8 @@ test("workspace socket validates frames, coalesces updates, sends typing and ref
   for (let i = 0; i < 5; i++)
     socket.onmessage!({ data: JSON.stringify({ type: "changed", conversationId: null }) });
   await vi.advanceTimersByTimeAsync(500);
-  expect(invalidate).toHaveBeenCalledTimes(2);
+  expect(invalidate).toHaveBeenCalledTimes(3);
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ["workspace", "workspace", "presence"] });
   connection.typing(id);
   expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ type: "typing", conversationId: id }));
   socket.onerror!();
