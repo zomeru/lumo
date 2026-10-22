@@ -111,6 +111,8 @@ export const messengerMessageSchema = z.object({
   senderId: idSchema,
   senderName: z.string(),
   senderImage: z.string().nullable(),
+  senderJobTitle: z.string().nullable().default(null),
+  senderRole: z.string().nullable().default(null),
   sequence: z.number(),
   nonce: idSchema,
   body: z.string(),

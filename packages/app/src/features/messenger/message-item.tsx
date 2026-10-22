@@ -67,6 +67,9 @@ export function MessageItem({
           userId={message.senderId}
           name={message.senderName}
           image={message.senderImage}
+          jobTitle={message.senderJobTitle}
+          role={message.senderRole}
+          self={own}
         >
           <AppAvatar
             userId={message.senderId}
@@ -78,14 +81,21 @@ export function MessageItem({
       <div className="min-w-0 flex-1">
         <div className="flex min-h-5 flex-wrap items-baseline gap-x-2 pr-8">
           <strong className={grouped ? "sr-only" : "text-sm"}>
-            <MemberCard
-              workspaceId={message.workspaceId}
-              userId={message.senderId}
-              name={message.senderName}
-              image={message.senderImage}
-            >
-              {message.senderName}
-            </MemberCard>
+            {grouped ? (
+              message.senderName
+            ) : (
+              <MemberCard
+                workspaceId={message.workspaceId}
+                userId={message.senderId}
+                name={message.senderName}
+                image={message.senderImage}
+                jobTitle={message.senderJobTitle}
+                role={message.senderRole}
+                self={own}
+              >
+                {message.senderName}
+              </MemberCard>
+            )}
           </strong>
           <time
             className="text-xs text-muted-foreground"

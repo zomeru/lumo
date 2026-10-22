@@ -34,12 +34,18 @@ export function MemberCard({
   name,
   image,
   children,
+  jobTitle,
+  role,
+  self = false,
 }: {
   workspaceId: string;
   userId: string;
   name: string;
   image: string | null;
   children: ReactNode;
+  jobTitle?: string | null;
+  role?: string | null;
+  self?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const returnFocus = useRef(false),
@@ -65,7 +71,7 @@ export function MemberCard({
         <button
           ref={trigger}
           type="button"
-          className="inline-flex max-w-full items-center text-left font-semibold hover:text-primary"
+          className="inline-flex max-w-full self-start items-center text-left font-semibold hover:text-primary"
           aria-label={`View ${name}'s profile`}
           onMouseEnter={enter}
           onMouseLeave={leave}
@@ -106,6 +112,9 @@ export function MemberCard({
           <MemberAvatar userId={userId} name={name} src={image ?? undefined} size="lg" />
           <div className="min-w-0">
             <h3 className="truncate">{name}</h3>
+            {(jobTitle || role) && (
+              <p className="truncate text-xs">{[jobTitle, role].filter(Boolean).join(" · ")}</p>
+            )}
             <p className="text-xs">
               {status === "online"
                 ? "Online"
@@ -117,14 +126,18 @@ export function MemberCard({
             </p>
           </div>
         </div>
-        <Button
-          size="sm"
-          className="mt-3 w-full"
-          disabled={direct.isPending}
-          onClick={() => direct.mutate({ userId, name }, { onSuccess: () => setOpen(false) })}
-        >
-          Message
-        </Button>
+        {self ? (
+          <p className="mt-3 text-xs">This is you</p>
+        ) : (
+          <Button
+            size="sm"
+            className="mt-3 w-full"
+            disabled={direct.isPending}
+            onClick={() => direct.mutate({ userId, name }, { onSuccess: () => setOpen(false) })}
+          >
+            Message
+          </Button>
+        )}
         <ErrorMessage error={direct.error} />
       </PopoverContent>
     </Popover>

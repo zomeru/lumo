@@ -9,6 +9,7 @@ import {
   conversationMember,
   membership,
   user,
+  profile,
   messengerMessage as message,
   messengerReaction as reaction,
   messengerAttachment as attachment,
@@ -242,8 +243,19 @@ export function createMessengerService(
     const ids = rows.map((v) => v.id),
       senderIds = [...new Set(rows.map((v) => v.senderId))];
     const senders = await tx
-      .select({ id: user.id, name: user.name, image: user.image })
+      .select({
+        id: user.id,
+        name: user.name,
+        image: user.image,
+        jobTitle: profile.jobTitle,
+        role: membership.role,
+      })
       .from(user)
+      .leftJoin(
+        membership,
+        and(eq(membership.userId, user.id), eq(membership.workspaceId, rows[0]!.workspaceId)),
+      )
+      .leftJoin(profile, eq(profile.userId, user.id))
       .where(inArray(user.id, senderIds));
     const reactions = await tx.select().from(reaction).where(inArray(reaction.messageId, ids));
     const attachments = await tx
@@ -284,6 +296,8 @@ export function createMessengerService(
         pinnedAt: row.deletedAt ? null : (row.pinnedAt?.toISOString() ?? null),
         senderName: sender.name,
         senderImage: sender.image,
+        senderRole: sender.role ?? null,
+        senderJobTitle: sender.role ? (sender.jobTitle ?? null) : null,
         replies: replies.find((v) => v.parentId === row.id)?.count ?? 0,
         replyParticipants: respondents.rows
           .filter((v) => v.parent_id === row.id)

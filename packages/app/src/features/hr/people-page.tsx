@@ -24,8 +24,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { AppAvatar as Avatar } from "../../components/app-avatar";
 import { api, sessionQuery, workspaceQuery } from "../../lib/api";
+import { MemberCard } from "../messenger/member-card";
+import { MemberAvatar as Avatar } from "../messenger/presence";
 import { HrAdmin } from "./hr-admin";
 import {
   departmentsQuery,
@@ -244,7 +245,22 @@ export function PeoplePage({ workspaceId }: { workspaceId: string }) {
                   <TableRow key={p.userId}>
                     <TableCell>
                       <div className="flex items-center gap-2.5">
-                        <Avatar size="sm" name={p.name} src={p.image ?? undefined} />
+                        <MemberCard
+                          workspaceId={workspaceId}
+                          userId={p.userId}
+                          name={p.name}
+                          image={p.image}
+                          jobTitle={p.jobTitle}
+                          role={p.role}
+                          self={p.userId === session.data?.user.id}
+                        >
+                          <Avatar
+                            userId={p.userId}
+                            size="sm"
+                            name={p.name}
+                            src={p.image ?? undefined}
+                          />
+                        </MemberCard>
                         <h2 className="text-sm font-medium whitespace-nowrap">{p.name}</h2>
                       </div>
                     </TableCell>

@@ -1091,3 +1091,27 @@ test("mention search is bounded to conversation members and edits remove or reau
     404,
   );
 });
+
+test("reply previews aggregate the last three distinct participants without duplicating reply counts", async () => {
+  const channel = await createChannel("Reply summary aggregation");
+  const parent = await send(channel.id, "Decision context");
+  const senders = [alice.id, bob.id, alice.id, admin.id, outsider.id, bob.id];
+  for (const senderId of senders)
+    await database.db.insert(messengerMessage).values({
+      workspaceId: alice.workspaceId,
+      conversationId: channel.id,
+      senderId,
+      parentId: parent.id,
+      nonce: randomUUID(),
+      body: "A reply",
+    });
+  const history = await (await req(`${base()}/conversations/${channel.id}/messages`)).json();
+  expect(history.messages[0].replies).toBe(6);
+  expect(
+    history.messages[0].replyParticipants.map((person: { userId: string }) => person.userId),
+  ).toEqual([bob.id, outsider.id, admin.id]);
+  const plan = await database.db.execute(
+    sql`explain (format json) select parent_id, sender_id, max(sequence) from ${messengerMessage} where parent_id = ${parent.id} group by parent_id, sender_id`,
+  );
+  expect(JSON.stringify(plan.rows)).toContain("Plan");
+});
