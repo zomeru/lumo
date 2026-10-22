@@ -119,3 +119,38 @@ Tests cover public/private creation permissions and demotion, complete enrollmen
 
 
 Update verification: `VITEST_MAX_WORKERS=2 pnpm check:all` passes all 62 files / 588 tests, with 90.36% branch coverage. `pnpm build` passes all four tasks. The updated real Messenger journey passes in Chromium, mobile Chromium and Linux Electron; it checks automatic sidebar appearance for a connected second workspace member, immediate posting, hidden create controls for ordinary members, and the absence of public member-picker/Browse/Join controls. Migration 0020 is applied to the local development database. Existing roles, preferences, cursors, private membership boundaries and retired records are preserved.
+
+## UI/UX enhancement (plan 08, 2026-10-22)
+
+This enhancement retains the existing message store, nonce deduplication, channel policies, private attachments and shared Web/Electron renderer. The current validation record supersedes the earlier UI limitations above: see `docs/ui-ux-audit.md` and `docs/ui-ux-delivery-report.md`.
+
+### Thread summaries and identity
+
+Authorized history responses now return the thread parent separately and include up to three most recent distinct respondents. The summary groups replies by parent/sender, ranks each sender's latest sequence, and selects three per parent in one batched SQL query for the history page. It uses the existing parent/sequence index; there is no per-message API request. Total reply counts include retained deleted-message tombstones consistently with thread history. Missing/deleted parents retain explicit fallback behavior. Public identity includes authorized display name/photo, workspace role and job title; departed members have no role/title. Member cards never return private email or HR records.
+
+### Presence and deployment
+
+Migration `0021_stale_wonder_man` adds indexed PostgreSQL connection leases and user DND preferences. Apply it before the new API; older message tables and history remain intact. The migration is tested through isolated `_test` schemas. No production migration is implied by the test runs.
+
+- Each authenticated workspace socket owns an independent UUID lease. The gateway reauthorizes and renews it every **15 seconds**, with **45 seconds** of validity. A close reduces that connection's expiry to at most **5 seconds**, allowing brief reconnects without flicker. Other tabs/devices retain their own leases.
+- Queries require current workspace membership and consider only valid sessions and unexpired leases. Offline takes precedence over the persisted DND preference. Availability is scoped to workspaces with active connections; DND is an account preference.
+- Every API instance uses the same durable tables. The existing PostgreSQL LISTEN connection also listens to `lumo_messenger_presence`. Content-free invalidations prompt authorized clients to reconcile; lost notifications cannot make a stale lease permanent. Membership/session cascades and delivery reauthorization preserve revocation.
+- The UI registers rendered member identities and batches requests in groups of at most **100**, polls every **20 seconds**, and drops failed or older-than-45-second results to “Availability unavailable.” It does not fetch each avatar separately. Inactive rendered lists may retain identities; server batches remain bounded.
+- **DND is an availability indicator, not notification suppression.** Existing conversation notification preferences still control unread notifications. No suppression behavior is claimed.
+
+### Emoji and mentions
+
+`emoji-picker-react` **5.1.0** is pinned with an MIT license and a React peer range compatible with the installed React. Registry/repository maintenance and the alternative `@emoji-mart/react` peer range were checked at implementation time. The picker loads on first open through `React.lazy`; the native-glyph option avoids remote image requests. The inspected Web picker chunk is approximately **139 kB / 44 kB gzip**, separate from the initial Messenger chunk. Existing Radix popovers handle portal placement and dismissal; token adapters cover light/dark. Search, categories, skin tones, selection replacement and reaction counts are exercised with the real browser picker.
+
+Reactions accept one bounded Unicode grapheme, covering skin tones, flags, keycaps and ZWJ sequences while rejecting ordinary text and multiple emojis. No HTML enters message rendering.
+
+Inline mentions keep editable display ranges paired with stable member IDs. Serialized tokens use `@[encoded display name](user:uuid)`; the mutation also sends `mentionIds`. Editing across a token removes its identity, plain pasted names grant no mention identity, and editing existing messages only restores IDs already present in authorized metadata. Suggestions use bounded conversation-member search, show role and a short ID to distinguish duplicate names, and support keyboard, touch and IME input. The server independently rechecks current conversation membership on send/edit. The existing message length and mention-count limits remain enforced.
+
+### Avatar refresh and acceptance
+
+Saving/removing a photo immediately updates the local session cache, invalidates session/avatar/workspace queries and publishes content-free workspace reconciliation to other clients. Private object identity/versioning, authorized image resolution, server re-encoding and old-object removal remain unchanged. The picker exposes one visible button and explicit Save photo guidance; hidden native input, cancel/retry, size/decode errors and pending controls remain accessible. Real acceptance covers private storage upload/replacement/removal, refresh, workspace switching, reauthentication and Electron restart. Headless Linux without protected safeStorage requires reauthentication after restart by design.
+
+The inspected `EXPLAIN (ANALYZE, BUFFERS)` respondent fixture used `messenger_message_thread_idx`, returned three rows, wrote no temporary blocks and executed in 0.044 ms. This is evidence of the indexed query shape on the integration dataset, not a production-load benchmark. The real WebSocket integration test also waits for a gateway heartbeat and verifies that the durable lease expiry advances, in addition to service-level multi-lease/DND/expiry and session/membership revocation coverage.
+
+
+Roll out the API and shared Web/Electron UI together. A rollback client must understand the updated Unicode reaction contract and inline mention tokens; a pre-enhancement six-reaction client can reject a history containing a new emoji. Keep message data and the additive migration, and prefer rolling forward. The test API binds IPv6 loopback consistently with its readiness probe and Web preview, allowing an isolated allowed-origin storage check beside an existing IPv4 development server without stopping it.
