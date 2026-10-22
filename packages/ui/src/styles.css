@@ -17,6 +17,13 @@
   * {
     @apply border-border;
   }
+  /* Prefer color presentation before Chromium accepts monochrome system-font glyphs. */
+  body,
+  button,
+  input,
+  textarea {
+    font-variant-emoji: emoji;
+  }
   body {
     @apply m-0 min-w-80 bg-background font-sans text-sm text-foreground antialiased;
   }
@@ -110,6 +117,7 @@
   }
 }
 .lumo-emoji-picker {
+  --epr-emoji-font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", emoji;
   --epr-bg-color: var(--elevated);
   --epr-category-label-bg-color: var(--elevated);
   --epr-search-input-bg-color: var(--muted);
