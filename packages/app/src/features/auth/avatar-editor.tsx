@@ -105,6 +105,7 @@ export function AvatarEditor({ name, image }: { name: string; image: string | nu
         <input
           id={pickerId}
           className="sr-only"
+          tabIndex={-1}
           ref={fileInput}
           aria-label={photo ? "Choose a different photo" : "Choose profile photo"}
           type="file"

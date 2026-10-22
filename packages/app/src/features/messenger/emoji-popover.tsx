@@ -11,7 +11,9 @@ class PickerBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
   render() {
     return this.state.failed ? (
-      <ErrorMessage error={new Error("Emoji picker could not load. Close and reopen to retry.")} />
+      <ErrorMessage
+        error={new Error("Emoji picker could not load. Refresh the page and try again.")}
+      />
     ) : (
       this.props.children
     );

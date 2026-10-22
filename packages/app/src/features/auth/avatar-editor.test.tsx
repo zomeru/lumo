@@ -116,6 +116,7 @@ test("uses one visible picker and immediately updates the session avatar after s
   const user = await show();
   expect(screen.getByRole("button", { name: "Choose photo" })).toBeVisible();
   expect(screen.getByLabelText("Choose profile photo")).toHaveClass("sr-only");
+  expect(screen.getByLabelText("Choose profile photo")).toHaveAttribute("tabindex", "-1");
   await user.upload(
     screen.getByLabelText("Choose profile photo"),
     new File(["pixels"], "photo.png", { type: "image/png" }),
