@@ -12,6 +12,7 @@ const createdAt = "2026-10-16T08:00:00.000Z";
 export function mockApi() {
   const state = {
     authenticated: true,
+    presenceDnd: false,
     user: {
       id: userId,
       name: "Alice Chen",
@@ -97,6 +98,18 @@ export function mockApi() {
         return json({ ok: true });
       }
       if (!state.authenticated) return error(401, "Sign in to continue.");
+      if (path === "/api/v1/me/presence") {
+        if (method === "PUT") state.presenceDnd = body.dnd === true;
+        return json({ dnd: state.presenceDnd });
+      }
+      if (/^\/api\/v1\/workspaces\/[^/]+\/presence$/.test(path)) {
+        const ids = new Set(Array.isArray(body.userIds) ? body.userIds : []);
+        return json({
+          members: state.members
+            .filter((member) => ids.has(member.userId))
+            .map((member) => ({ userId: member.userId, status: "offline" })),
+        });
+      }
       if (path === "/api/v1/me") {
         if (method === "PATCH") {
           Object.assign(state.user, body);

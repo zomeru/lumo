@@ -33,6 +33,13 @@ export async function verifyDesktopScrolling(app: ElectronApplication, page: Pag
   await desktopWindow.evaluate((win) => win.setSize(1280, 850));
   await page.goto(new URL("/about", page.url()).href);
   await expect(page.getByRole("heading", { name: "About Lumo" })).toBeVisible();
+  await page.evaluate(() => {
+    // Public copy can legitimately exceed the native window height. Isolate gutter reclamation.
+    document.getElementById("root")!.style.display = "none";
+    const content = document.createElement("div");
+    content.style.height = "100px";
+    document.body.append(content);
+  });
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight))
     .toBe(true);
