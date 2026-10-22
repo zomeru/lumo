@@ -41,9 +41,9 @@ export function SettingsPage({ workspaceId }: { workspaceId: string }) {
         Update your workspace details and preferences.
       </PageHeading>
       <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
-        <section className="max-w-3xl">
+        <section aria-label="Workspace details">
           <form
-            className="grid gap-4"
+            className="grid max-w-3xl gap-4"
             onSubmit={(e) => {
               e.preventDefault();
               const body = Object.fromEntries(new FormData(e.currentTarget));
@@ -73,6 +73,7 @@ export function SettingsPage({ workspaceId }: { workspaceId: string }) {
         <section>
           <h2>Recent workspace activity</h2>
           <ErrorMessage error={activity.error} />
+          {activity.data?.events.length === 0 && <p className="py-4">No workspace activity yet.</p>}
           {activity.isPending ? (
             <Loading label="Loading activity…" />
           ) : (
