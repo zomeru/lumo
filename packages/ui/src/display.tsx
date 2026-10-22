@@ -12,6 +12,8 @@ const badgeVariants = cva(
       variant: {
         secondary: "border-border bg-muted/50 text-muted-foreground",
         primary: "border-primary/15 bg-accent text-accent-foreground",
+        warning: "border-warning-border bg-warning-subtle text-warning",
+        info: "border-info-border bg-info-subtle text-info",
         success: "border-success/15 bg-success-subtle text-success",
         destructive: "border-destructive/20 bg-destructive-subtle text-destructive",
       },
@@ -34,7 +36,7 @@ export function Card({
   const Component = asChild ? Slot.Root : "section";
   return (
     <Component
-      className={cn("min-w-0 rounded-lg border bg-surface p-5 shadow-xs sm:p-6", className)}
+      className={cn("min-w-0 rounded-lg border bg-surface p-4 shadow-xs sm:p-5", className)}
       {...props}
     />
   );

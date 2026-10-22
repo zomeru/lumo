@@ -81,3 +81,20 @@
     scroll-behavior: auto !important;
   }
 }
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight;
+  }
+  button[aria-pressed="true"],
+  a[aria-current="page"] {
+    border: 2px solid Highlight;
+  }
+}
+@media (pointer: coarse) {
+  button,
+  [role="combobox"],
+  summary {
+    min-height: 40px;
+  }
+}

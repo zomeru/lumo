@@ -6,7 +6,7 @@ import { Button } from "./button";
 import { cn } from "./utils";
 
 export const inputStyles =
-  "h-control w-full min-w-0 rounded-md border border-input bg-surface px-3 text-sm text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50 read-only:bg-muted/40 aria-invalid:border-destructive aria-invalid:outline-destructive";
+  "h-control w-full min-w-0 rounded-md border border-input bg-surface px-3 text-sm text-foreground transition-colors hover:border-ring/70 placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60 read-only:bg-muted/40 aria-invalid:border-destructive aria-invalid:outline-destructive";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(inputStyles, className)} {...props} />;
