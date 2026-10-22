@@ -160,10 +160,12 @@ export function AvatarEditor({ name, image }: { name: string; image: string | nu
                 setY(50);
               })
               .catch((cause: unknown) => {
-                if (request === generation.current)
+                if (request === generation.current) {
+                  if (fileInput.current) fileInput.current.value = "";
                   setError(
                     cause instanceof Error ? cause : new Error("Unable to decode this image."),
                   );
+                }
               })
               .finally(() => {
                 if (request === generation.current) setDecoding(false);

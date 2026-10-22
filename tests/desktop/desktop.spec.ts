@@ -17,7 +17,7 @@ import { verifyDrive } from "../drive-flow";
 import { verifyFileModules } from "../file-modules-flow";
 import { verifyHr } from "../hr-flow";
 import { verifyMessenger } from "../messenger-flow";
-import { verifyProfile } from "../profile-flow";
+import { verifyAvatarPersistence, verifyProfile } from "../profile-flow";
 import { acknowledgeRegistration } from "../registration-flow";
 import { verifyDesktopScrolling } from "./scrollbars";
 
@@ -552,6 +552,23 @@ test("shared Messenger channels and persisted messages work in Electron", async 
     }
   } finally {
     await webContext.close();
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("private avatar persistence works through Electron IPC and reload", async () => {
+  test.skip(
+    process.env.LUMO_LIVE_AVATAR_STORAGE !== "1",
+    "Requires configured private S3 storage.",
+  );
+  const dir = await mkdtemp(join(tmpdir(), "lumo-avatar-e2e-"));
+  const app = await launch(dir);
+  try {
+    const page = await app.firstWindow();
+    await register(page, "Desktop Avatar", `desktop-avatar-${Date.now()}@example.com`);
+    await verifyAvatarPersistence(page);
+  } finally {
     await app.close();
     await rm(dir, { recursive: true, force: true });
   }

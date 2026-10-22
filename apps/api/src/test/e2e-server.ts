@@ -4,7 +4,8 @@ import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { createAuth } from "@lumo/auth";
-import { messengerAttachment } from "@lumo/database/schema";
+import { avatarIdentity } from "@lumo/contracts/avatar";
+import { messengerAttachment, user } from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
 
 import { createApp } from "../app.ts";
@@ -42,8 +43,16 @@ const notifications = await listenForWiki(database.pool, app.wiki, () => {}, app
 let stopping = false;
 async function cleanup() {
   if (env.AWS_REGION && env.AWS_S3_BUCKET) {
-    const storage = createS3Storage(env),
-      files = await database.db.select().from(messengerAttachment);
+    const storage = createS3Storage(env);
+    const people = await database.db.select({ image: user.image }).from(user);
+    for (const person of people) {
+      const avatar = avatarIdentity(person.image);
+      if (avatar)
+        await storage
+          .remove(`avatars/${avatar.userId}/${avatar.version}.webp`)
+          .catch(() => console.error("Isolated avatar test storage cleanup needs attention."));
+    }
+    const files = await database.db.select().from(messengerAttachment);
     for (const file of files) {
       const prefix = `messenger/${file.workspaceId}/${file.id}`;
       const result = await Promise.allSettled([

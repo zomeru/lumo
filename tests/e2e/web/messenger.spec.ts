@@ -4,6 +4,7 @@ import { legalVersions } from "@lumo/contracts/legal";
 import { expect, test, type BrowserContext } from "@playwright/test";
 
 import { verifyMessenger } from "../../messenger-flow";
+import { verifyAvatarPersistence } from "../../profile-flow";
 
 const apiOrigin = process.env.LUMO_E2E_API_ORIGIN ?? "http://localhost:3011";
 const webOrigin = process.env.LUMO_E2E_WEB_ORIGIN ?? "http://localhost:3010";
@@ -95,4 +96,18 @@ test("live private S3 attachments send and download through Messenger", async ({
   expect(file.suggestedFilename()).toBe("messenger-validation.txt");
   await file.saveAs(testInfo.outputPath("messenger-validation.txt"));
   expect(await file.failure()).toBeNull();
+});
+
+test("profile photos save, replace, reload and remove in private storage", async ({
+  page,
+  context,
+}) => {
+  test.skip(
+    process.env.LUMO_LIVE_AVATAR_STORAGE !== "1",
+    "Requires configured private S3 storage.",
+  );
+  await signup(context, "Avatar Persistence");
+  const me = await (await context.request.get(`${apiOrigin}/api/v1/me`)).json();
+  await page.goto(`/w/${me.activeWorkspaceId}`);
+  await verifyAvatarPersistence(page);
 });

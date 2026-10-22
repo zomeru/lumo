@@ -6,7 +6,7 @@ import { avatarIdentity, avatarInputSchema } from "@lumo/contracts/avatar";
 import type { Database } from "@lumo/database";
 import { membership, user } from "@lumo/database/schema";
 import type { ServerEnv } from "@lumo/env/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 
 import type { ApiContext } from "../../lib/context";
@@ -36,6 +36,12 @@ export function avatarRoutes(db: Database, storage: Storage, env: ServerEnv) {
           .update(user)
           .set({ image: data ? `avatar:${id}:${version}` : null, updatedAt: new Date() })
           .where(eq(user.id, id));
+        const spaces = await tx
+          .select({ id: membership.workspaceId })
+          .from(membership)
+          .where(eq(membership.userId, id));
+        for (const space of spaces)
+          await tx.execute(sql`select pg_notify('lumo_messenger', ${space.id})`);
       });
     } catch (error) {
       if (data) await storage.remove(key).catch(() => {});
