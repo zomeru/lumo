@@ -345,6 +345,31 @@ export function MessageStream({
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <ErrorMessage error={error ?? mutation.error} />
+      {parentId && query.data && (
+        <section
+          aria-label="Original message"
+          className="max-h-[40%] shrink-0 overflow-y-auto border-b bg-muted/20"
+        >
+          <h4 className="px-4 pt-2 text-xs font-medium text-muted-foreground">Original message</h4>
+          {query.data.pages[0]?.parent ? (
+            <ol>
+              <MessageItem
+                message={query.data.pages[0].parent}
+                context
+                own={query.data.pages[0].parent.senderId === session.data?.user.id}
+                canPost={false}
+                onReply={() => {}}
+                onEdit={() => {}}
+                onDelete={() => {}}
+                onAction={() => {}}
+              />
+            </ol>
+          ) : (
+            <p className="px-4 py-2 text-xs">Original message unavailable.</p>
+          )}
+          <p className="px-4 py-1 text-xs">Replies</p>
+        </section>
+      )}
       {query.isPending ? (
         <Loading />
       ) : (
@@ -358,24 +383,6 @@ export function MessageStream({
             setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 48);
           }}
         >
-          {parentId && query.data?.pages[0]?.parent && (
-            <>
-              <li className="px-4 pt-3 text-xs font-medium text-muted-foreground">
-                Original message
-              </li>
-              <MessageItem
-                message={query.data.pages[0].parent}
-                context
-                own={query.data.pages[0].parent.senderId === session.data?.user.id}
-                canPost={false}
-                onReply={() => {}}
-                onEdit={() => {}}
-                onDelete={() => {}}
-                onAction={() => {}}
-              />
-              <li className="border-y px-4 py-2 text-xs text-muted-foreground">Replies</li>
-            </>
-          )}
           {query.hasNextPage && (
             <li className="p-3 text-center">
               <Button

@@ -73,10 +73,17 @@ export function MemberCard({
           type="button"
           className="inline-flex max-w-full self-start items-center text-left font-semibold hover:text-primary"
           aria-label={`View ${name}'s profile`}
-          onMouseEnter={enter}
-          onMouseLeave={leave}
+          onPointerEnter={(event) => {
+            if (event.pointerType === "mouse" && window.matchMedia?.("(hover: hover)").matches) {
+              clearTimeout(timer.current);
+              timer.current = setTimeout(enter, 250);
+            }
+          }}
+          onPointerLeave={(event) => {
+            if (event.pointerType === "mouse") leave();
+          }}
           onFocus={() => {
-            if (!suppressFocus.current) enter();
+            if (!suppressFocus.current && trigger.current?.matches(":focus-visible")) enter();
           }}
           onClick={(event) => {
             event.preventDefault();
@@ -87,7 +94,7 @@ export function MemberCard({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        side="top"
+        side="bottom"
         onOpenAutoFocus={(e) => {
           returnFocus.current = false;
           e.preventDefault();

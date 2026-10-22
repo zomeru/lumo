@@ -406,5 +406,11 @@ test("threads keep original context separate from replies and show aggregated pa
   expect(await screen.findByText("Original decision")).toBeVisible();
   expect(screen.getByText("Original message")).toBeVisible();
   expect(screen.getByText("Replies")).toBeVisible();
+  expect(
+    within(screen.getByRole("region", { name: "Original message" })).getByText("Original decision"),
+  ).toBeVisible();
+  expect(
+    within(screen.getByRole("list", { name: "Thread messages" })).queryByText("Original decision"),
+  ).not.toBeInTheDocument();
   expect(screen.getAllByText("A reply")).toHaveLength(1);
 });

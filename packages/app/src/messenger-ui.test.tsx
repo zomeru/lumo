@@ -350,9 +350,33 @@ test("suggested teammates open DMs in one step and author profiles support focus
   );
   const profile = screen.getAllByRole("button", { name: /View .*'s profile/ })[0]!;
   profile.focus();
+  await user.keyboard("{Enter}");
   const card = await screen.findByRole("dialog");
   expect(within(card).getByRole("button", { name: "Message" })).toBeVisible();
   expect(within(card).queryByText(/@example.com/)).not.toBeInTheDocument();
   await user.keyboard("{Escape}");
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+});
+
+test("profile hover respects device capability while explicit activation works on touch", async () => {
+  let hover = false;
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(hover: hover)" && hover,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+  const user = await show(true);
+  await screen.findByText("Launch decision");
+  const profile = screen.getAllByRole("button", { name: /View Bob's profile/ })[0]!;
+  await user.hover(profile);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await user.click(profile);
+  expect(await screen.findByRole("dialog")).toBeVisible();
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  hover = true;
+  await user.unhover(profile);
+  await user.hover(profile);
+  expect(await screen.findByRole("dialog")).toBeVisible();
 });
