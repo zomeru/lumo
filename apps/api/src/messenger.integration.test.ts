@@ -806,6 +806,8 @@ test("long histories and large channel directories stay bounded and use stable s
 });
 
 test("realtime tickets bind sessions, durable commits invalidate two clients and revocation closes live sockets", async () => {
+  // Exercise the actual 15-second heartbeat, rather than only calling the lease service.
+  const connectedAt = Date.now();
   const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 });
   if (!(server instanceof Server)) throw new Error("Expected HTTP server");
   if (!server.listening) await once(server, "listening");
@@ -831,6 +833,41 @@ test("realtime tickets bind sessions, durable commits invalidate two clients and
   try {
     const a = await connect(alice),
       b = await connect(bob);
+    await expect
+      .poll(
+        async () =>
+          (
+            await database.db
+              .select()
+              .from(presenceLease)
+              .where(
+                and(
+                  eq(presenceLease.userId, alice.id),
+                  eq(presenceLease.workspaceId, alice.workspaceId),
+                ),
+              )
+          ).length,
+      )
+      .toBe(1);
+    const [initialLease] = await database.db
+      .select()
+      .from(presenceLease)
+      .where(
+        and(eq(presenceLease.userId, alice.id), eq(presenceLease.workspaceId, alice.workspaceId)),
+      );
+    expect(initialLease!.expiresAt.getTime()).toBeGreaterThan(connectedAt);
+    await expect
+      .poll(
+        async () => {
+          const [renewedLease] = await database.db
+            .select()
+            .from(presenceLease)
+            .where(eq(presenceLease.id, initialLease!.id));
+          return renewedLease?.expiresAt.getTime() ?? 0;
+        },
+        { timeout: 20000, interval: 250 },
+      )
+      .toBeGreaterThan(initialLease!.expiresAt.getTime());
     const changed = (socket: WebSocket) =>
       new Promise<[Buffer]>((resolve) => {
         const receive = (data: RawData) => {
@@ -939,7 +976,7 @@ test("realtime tickets bind sessions, durable commits invalidate two clients and
     await notifications.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
-});
+}, 35000);
 
 test("retired conversations are inaccessible and a fresh DM does not reuse their identity", async () => {
   const directKey = [alice.id, bob.id].sort().join(":");
@@ -1111,7 +1148,15 @@ test("reply previews aggregate the last three distinct participants without dupl
     history.messages[0].replyParticipants.map((person: { userId: string }) => person.userId),
   ).toEqual([bob.id, outsider.id, admin.id]);
   const plan = await database.db.execute(
-    sql`explain (format json) select parent_id, sender_id, max(sequence) from ${messengerMessage} where parent_id = ${parent.id} group by parent_id, sender_id`,
+    sql`explain (analyze, buffers, format json)
+      select ranked.parent_id, ranked.user_id, u.name, u.image from (
+        select latest.*, row_number() over (partition by parent_id order by last_sequence desc) as rank from (
+          select parent_id, sender_id as user_id, max(sequence) as last_sequence
+          from ${messengerMessage} where parent_id in (${parent.id}) group by parent_id, sender_id
+        ) latest
+      ) ranked join ${user} u on u.id = ranked.user_id
+      where ranked.rank <= 3 order by ranked.parent_id, ranked.last_sequence desc`,
   );
   expect(JSON.stringify(plan.rows)).toContain("Plan");
+  if (process.env.LUMO_QUERY_PLANS === "1") console.info(JSON.stringify(plan.rows));
 });
