@@ -7,18 +7,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  ErrorMessage,
   cn,
 } from "@lumo/ui";
-import { useMutation } from "@tanstack/react-query";
 import { MessageSquare, MoreHorizontal, Pin } from "lucide-react";
 import { Fragment } from "react";
 
 import { AppAvatar as ReplyAvatar } from "../../components/app-avatar";
+import { AttachmentList } from "./attachment-list";
 import { EmojiPopover } from "./emoji-popover";
 import { MemberCard } from "./member-card";
 import { decodeMentionBody } from "./mention-text";
-import { downloadAttachment } from "./messenger-files";
 import { MemberAvatar as AppAvatar } from "./presence";
 
 export function MessageItem({
@@ -123,14 +121,7 @@ export function MessageItem({
         {message.mentionIds.length > 0 && (
           <span className="sr-only">{message.mentionIds.length} member mentions</span>
         )}
-        {message.attachments.map((file) => (
-          <AttachmentDownload
-            key={file.id}
-            workspaceId={message.workspaceId}
-            id={file.id}
-            name={file.name}
-          />
-        ))}
+        <AttachmentList workspaceId={message.workspaceId} files={message.attachments} />
         {(message.reactions.length > 0 || (!message.parentId && message.replies > 0) || onJump) && (
           <div className="mt-1 flex flex-wrap items-center gap-1">
             {message.reactions.map((r) => (
@@ -260,27 +251,6 @@ export function MessageItem({
     </li>
   );
 }
-function AttachmentDownload({
-  workspaceId,
-  id,
-  name,
-}: {
-  workspaceId: string;
-  id: string;
-  name: string;
-}) {
-  const download = useMutation({ mutationFn: () => downloadAttachment(workspaceId, id) });
-  return (
-    <div className="mt-2">
-      <Button size="sm" disabled={download.isPending} onClick={() => download.mutate()}>
-        {name} · Download
-      </Button>
-      <small>Unscanned file</small>
-      <ErrorMessage error={download.error} />
-    </div>
-  );
-}
-
 function MessageBody({ body, mentionIds }: { body: string; mentionIds: string[] }) {
   const draft = decodeMentionBody(body);
   return (

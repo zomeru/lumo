@@ -1,5 +1,6 @@
 import {
   messengerMessageSchema,
+  messengerAttachmentFormats,
   messengerMessagesSchema,
   type MessengerMessage,
 } from "@lumo/contracts/messenger";
@@ -167,7 +168,9 @@ function MessageComposer({
           aria-label="Choose attachment"
           className="sr-only"
           tabIndex={-1}
-          accept="image/png,image/jpeg,image/webp,application/pdf,text/plain"
+          accept={Object.values(messengerAttachmentFormats)
+            .flatMap((format) => format.extensions.map((extension) => `.${extension}`))
+            .join(",")}
           disabled={disabled || upload.isPending || files.length >= 5}
           onChange={(event) => {
             const file = event.target.files?.[0];

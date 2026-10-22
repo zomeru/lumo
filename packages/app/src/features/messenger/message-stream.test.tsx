@@ -32,13 +32,19 @@ vi.mock("emoji-picker-react", () => ({
 }));
 vi.mock("@tanstack/react-router", () => ({ useNavigate: () => () => {} }));
 const filesMock = vi.hoisted(() => ({
-  upload: vi.fn<(...args: unknown[]) => Promise<{ id: string; name: string }>>(async () => ({
-    id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
-    name: "notes.txt",
-  })),
+  upload: vi.fn<(...args: unknown[]) => Promise<MessengerMessage["attachments"][number]>>(
+    async () => ({
+      id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      name: "notes.txt",
+      mimeType: "text/plain",
+      size: 4,
+      scanStatus: "unscanned",
+    }),
+  ),
   download: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
 }));
-vi.mock("./messenger-files", () => ({
+vi.mock(import("./messenger-files"), async (importOriginal) => ({
+  ...(await importOriginal()),
   uploadAttachment: filesMock.upload,
   downloadAttachment: filesMock.download,
 }));
@@ -418,7 +424,7 @@ test("threads keep original context separate from replies and show aggregated pa
   expect(screen.getAllByText("A reply")).toHaveLength(1);
   expect(screen.getByPlaceholderText("Reply...")).toBeVisible();
   expect(screen.queryByPlaceholderText("Message your team · @ to mention")).not.toBeInTheDocument();
-  const attach = screen.getByRole("button", { name: "Attach file", exact: true });
+  const attach = screen.getByRole("button", { name: "Attach file" });
   expect(attach).toHaveTextContent("");
   expect(attach).toHaveAttribute("type", "button");
 });
