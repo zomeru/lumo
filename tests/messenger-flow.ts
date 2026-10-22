@@ -80,6 +80,11 @@ export async function verifyMessenger(
   await page.getByRole("button", { name: "Unarchive channel", exact: true }).click();
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Files", exact: true }).click();
+  await expect(page.getByText("No shared files.", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Message", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Files", exact: true }).click();
+  await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
   const dimensions = await page.evaluate(() => {
     const main = document.querySelector("main")!,
       section = document.querySelector('[aria-label="Workspace messenger"]')!;

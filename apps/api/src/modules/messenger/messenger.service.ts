@@ -94,9 +94,10 @@ export function createMessengerService(
     if (!items.length) return [];
     const ids = items.map((v) => v.id);
     const directIds = items.filter((item) => item.kind !== "channel").map((item) => item.id);
-    const members = await tx
-      .select()
+    const participantRows = await tx
+      .select({ member: conversationMember, name: user.name, image: user.image })
       .from(conversationMember)
+      .innerJoin(user, eq(user.id, conversationMember.userId))
       .where(
         and(
           inArray(conversationMember.conversationId, ids),
@@ -106,6 +107,7 @@ export function createMessengerService(
           ),
         ),
       );
+    const members = participantRows.map(({ member, name, image }) => ({ ...member, name, image }));
     const counts = await tx
       .select({
         conversationId: conversationMember.conversationId,
@@ -142,13 +144,15 @@ export function createMessengerService(
       .selectDistinctOn([message.conversationId], {
         conversationId: message.conversationId,
         body: message.body,
+        createdAt: message.createdAt,
       })
       .from(message)
       .where(and(inArray(message.conversationId, ids), isNull(message.deletedAt)))
       .orderBy(message.conversationId, desc(message.sequence));
     return items.map((item) => {
       const own = members.find((m) => m.conversationId === item.id && m.userId === actor),
-        unreadStats = stats.find((m) => m.conversationId === item.id);
+        unreadStats = stats.find((m) => m.conversationId === item.id),
+        newest = latest.find((m) => m.conversationId === item.id);
       return {
         id: item.id,
         workspaceId: item.workspaceId,
@@ -167,7 +171,16 @@ export function createMessengerService(
         memberCount: counts.find((m) => m.conversationId === item.id)?.count ?? 0,
         unread: own ? (unreadStats?.unread ?? 0) : 0,
         mentions: own ? (unreadStats?.mentions ?? 0) : 0,
-        lastMessage: latest.find((m) => m.conversationId === item.id)?.body.slice(0, 150) ?? null,
+        lastMessage: newest ? newest.body.slice(0, 150) || "Attachment" : null,
+        lastActivityAt: (newest?.createdAt ?? item.createdAt).toISOString(),
+        participants:
+          item.kind === "channel"
+            ? []
+            : members
+                .filter((m) => m.conversationId === item.id && m.userId !== actor)
+                .sort((a, b) => a.userId.localeCompare(b.userId))
+                .slice(0, 3)
+                .map((m) => ({ userId: m.userId, name: m.name, image: m.image })),
       };
     });
   }
@@ -576,9 +589,15 @@ export function createMessengerService(
               eq(message.conversationId, id),
               input.parentId
                 ? eq(message.parentId, input.parentId)
-                : input.around
+                : input.around || input.files || input.pinned
                   ? undefined
                   : isNull(message.parentId),
+              input.files
+                ? and(
+                    isNull(message.deletedAt),
+                    sql`exists (select 1 from ${attachment} a where a.message_id = ${message.id} and a.state = 'ready')`,
+                  )
+                : undefined,
               before ? lt(message.sequence, before) : undefined,
               after !== undefined ? gt(message.sequence, after) : undefined,
               input.pinned

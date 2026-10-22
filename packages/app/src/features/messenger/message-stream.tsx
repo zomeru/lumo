@@ -37,6 +37,7 @@ function MessageItem({
   message,
   canPost,
   highlighted,
+  grouped,
   own,
   onReply,
   onEdit,
@@ -46,6 +47,7 @@ function MessageItem({
   message: MessengerMessage;
   canPost: boolean;
   highlighted?: boolean;
+  grouped?: boolean;
   own: boolean;
   onReply: () => void;
   onEdit: () => void;
@@ -57,13 +59,18 @@ function MessageItem({
       id={`message-${message.id}`}
       data-message-id={message.id}
       data-highlighted={highlighted || undefined}
+      data-grouped={grouped || undefined}
       tabIndex={-1}
-      className="group data-[highlighted=true]:bg-accent/70 flex min-w-0 gap-3 border-b border-border/30 px-4 py-3 hover:bg-muted/30"
+      className="group data-[highlighted=true]:bg-accent/70 data-[grouped=true]:py-1 flex min-w-0 gap-3 border-b border-border/30 px-4 py-3 hover:bg-muted/30"
     >
-      <AppAvatar name={message.senderName} src={message.senderImage ?? undefined} />
+      {grouped ? (
+        <span className="w-9 shrink-0" aria-hidden="true" />
+      ) : (
+        <AppAvatar name={message.senderName} src={message.senderImage ?? undefined} />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <strong className="text-sm">{message.senderName}</strong>
+          <strong className={grouped ? "sr-only" : "text-sm"}>{message.senderName}</strong>
           <time
             className="text-xs text-muted-foreground"
             dateTime={message.createdAt}
@@ -193,8 +200,10 @@ function MessageComposer({
   const [text, setText] = useState(""),
     [mentionIds, setMentionIds] = useState<string[]>([]),
     [mentionOpen, setMentionOpen] = useState(false),
+    [emojiOpen, setEmojiOpen] = useState(false),
     [files, setFiles] = useState<{ id: string; name: string }[]>([]);
   const controller = useRef<AbortController | null>(null);
+  const textarea = useRef<HTMLTextAreaElement>(null);
   useEffect(() => () => controller.current?.abort(), []);
   const members = useQuery({
     queryKey: [...messengerKey(workspaceId), "mention-members", conversationId],
@@ -233,6 +242,7 @@ function MessageComposer({
       </label>
       <Textarea
         id={inputId}
+        ref={textarea}
         value={text}
         disabled={disabled}
         maxLength={4000}
@@ -283,7 +293,43 @@ function MessageComposer({
           <ErrorMessage error={members.error} />
         </fieldset>
       )}
+      {emojiOpen && (
+        <fieldset className="flex flex-wrap gap-1 rounded-md border p-2">
+          <legend className="text-xs">Insert an emoji</legend>
+          {reactions.map((emoji) => (
+            <Button
+              key={emoji}
+              size="sm"
+              aria-label={`Insert ${emoji}`}
+              onClick={() => {
+                const input = textarea.current,
+                  start = input?.selectionStart ?? text.length,
+                  end = input?.selectionEnd ?? text.length;
+                const next = text.slice(0, start) + emoji + text.slice(end);
+                if (next.length > 4000) return;
+                setText(next);
+                setEmojiOpen(false);
+                onTyping();
+                requestAnimationFrame(() => {
+                  input?.focus();
+                  input?.setSelectionRange(start + emoji.length, start + emoji.length);
+                });
+              }}
+            >
+              {emoji}
+            </Button>
+          ))}
+        </fieldset>
+      )}
       <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          disabled={disabled}
+          aria-expanded={emojiOpen}
+          onClick={() => setEmojiOpen(!emojiOpen)}
+        >
+          Emoji
+        </Button>
         <label className="cursor-pointer rounded-md border px-3 py-1.5 text-xs">
           {upload.isPending ? "Uploading…" : "Attach file"}
           <input
@@ -330,6 +376,7 @@ export function MessageStream({
   parentId,
   around,
   pinned = false,
+  files = false,
   lastReadSequence = 0,
   onReply,
   onTyping,
@@ -340,6 +387,7 @@ export function MessageStream({
   parentId?: string;
   around?: string;
   pinned?: boolean;
+  files?: boolean;
   lastReadSequence?: number;
   onReply: (id: string) => void;
   onTyping: () => void;
@@ -355,11 +403,19 @@ export function MessageStream({
   const list = useRef<HTMLOListElement>(null),
     read = useRef<string | undefined>(undefined);
   const query = useInfiniteQuery({
-    queryKey: [...messengerKey(workspaceId), "messages", conversationId, parentId, around, pinned],
+    queryKey: [
+      ...messengerKey(workspaceId),
+      "messages",
+      conversationId,
+      parentId,
+      around,
+      pinned,
+      files,
+    ],
     initialPageParam: undefined as number | undefined,
     queryFn: ({ pageParam, signal }) =>
       api(
-        `${messengerPath(workspaceId, conversationId)}/messages?${new URLSearchParams({ ...(pageParam ? { before: String(pageParam) } : {}), ...(parentId ? { parentId } : {}), ...(around && !pageParam ? { around } : {}), ...(pinned ? { pinned: "true" } : {}) })}`,
+        `${messengerPath(workspaceId, conversationId)}/messages?${new URLSearchParams({ ...(pageParam ? { before: String(pageParam) } : {}), ...(parentId ? { parentId } : {}), ...(around && !pageParam ? { around } : {}), ...(pinned ? { pinned: "true" } : {}), ...(files ? { files: "true" } : {}) })}`,
         messengerMessagesSchema,
         { signal },
       ),
@@ -427,6 +483,7 @@ export function MessageStream({
     const mark = () => {
       if (
         !pinned &&
+        !files &&
         !around &&
         atBottom &&
         document.visibilityState === "visible" &&
@@ -453,7 +510,7 @@ export function MessageStream({
       document.removeEventListener("visibilitychange", mark);
       window.removeEventListener("focus", mark);
     };
-  }, [workspaceId, conversationId, lastId, atBottom, around, pinned, client]);
+  }, [workspaceId, conversationId, lastId, atBottom, around, pinned, files, client]);
   useEffect(() => {
     if (around && query.data)
       document.getElementById(`message-${around}`)?.scrollIntoView({ block: "center" });
@@ -501,11 +558,13 @@ export function MessageStream({
           )}
           {messages.length === 0 && (
             <li className="px-6 py-16 text-center text-sm text-muted-foreground">
-              {pinned
-                ? "No pinned messages."
-                : parentId
-                  ? "No replies yet."
-                  : "No messages yet. Say hello."}
+              {files
+                ? "No shared files."
+                : pinned
+                  ? "No pinned messages."
+                  : parentId
+                    ? "No replies yet."
+                    : "No messages yet. Say hello."}
             </li>
           )}
           {messages.map((message, index) => (
@@ -528,6 +587,19 @@ export function MessageStream({
               <MessageItem
                 message={message}
                 highlighted={message.id === around}
+                grouped={Boolean(
+                  index > 0 &&
+                  !message.deletedAt &&
+                  !messages[index - 1]!.deletedAt &&
+                  messages[index - 1]!.senderId === message.senderId &&
+                  messages[index - 1]!.parentId === message.parentId &&
+                  new Date(message.createdAt).toDateString() ===
+                    new Date(messages[index - 1]!.createdAt).toDateString() &&
+                  new Date(message.createdAt).getTime() -
+                    new Date(messages[index - 1]!.createdAt).getTime() <
+                    300000 &&
+                  !(messages[index - 1]!.sequence <= initialRead && message.sequence > initialRead),
+                )}
                 own={message.senderId === session.data?.user.id}
                 canPost={canPost}
                 onReply={() => onReply(message.id)}
@@ -575,7 +647,7 @@ export function MessageStream({
           Latest messages
         </Button>
       )}
-      {canPost && !pinned && (
+      {canPost && !pinned && !files && (
         <MessageComposer
           workspaceId={workspaceId}
           conversationId={conversationId}

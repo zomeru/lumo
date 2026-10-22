@@ -102,6 +102,8 @@ beforeEach(() => {
         name: "Project team",
         createdAt: new Date().toISOString(),
         memberIds: [bobId],
+        participants: [{ userId: bobId, name: "Bob Rivera", image: null }],
+        lastActivityAt: "2026-10-22T08:00:00.000Z",
       },
     ],
     nextOffset: 50,

@@ -76,7 +76,13 @@ afterEach(async () => {
   restoreFocus = () => {};
 });
 function show(
-  props: { canPost?: boolean; parentId?: string; around?: string; pinned?: boolean } = {},
+  props: {
+    canPost?: boolean;
+    parentId?: string;
+    around?: string;
+    pinned?: boolean;
+    files?: boolean;
+  } = {},
 ) {
   render(
     <QueryClientProvider client={client}>
@@ -182,7 +188,7 @@ test("sender edits, reactions, pins and deletes use real API command shapes", as
   expect(calls).toContainEqual({ method: "PATCH", suffix: "", body: { body: "Edited body" } });
 });
 
-test.each([{ pinned: true }, { around: messageId }])(
+test.each([{ pinned: true }, { files: true }, { around: messageId }])(
   "reading a filtered history does not advance the durable cursor: %j",
   async (props) => {
     const focusMock = vi.spyOn(document, "hasFocus").mockReturnValue(true);
@@ -292,4 +298,40 @@ test("history authorization failures clear content and keep the error visible", 
   show();
   await screen.findByText("History access removed");
   expect(screen.queryByLabelText("Message")).not.toBeInTheDocument();
+});
+
+test("composer inserts emoji at the selection, retains focus and sends persisted text", async () => {
+  const sent: Record<string, unknown>[] = [];
+  server.state.overrides.set(`POST ${path}/messages`, (body) => {
+    sent.push(body);
+    return server.json({ ...fixture(), ...body, id: crypto.randomUUID(), sequence: 2 }, 201);
+  });
+  const user = show();
+  await screen.findByText("Existing message");
+  const input = screen.getByLabelText<HTMLTextAreaElement>("Message");
+  await user.type(input, "Hello team");
+  input.setSelectionRange(6, 10);
+  await user.click(screen.getByRole("button", { name: "Emoji" }));
+  await user.click(screen.getByRole("button", { name: "Insert 🎉" }));
+  expect(input).toHaveValue("Hello 🎉");
+  await waitFor(() => expect(input).toHaveFocus());
+  await user.click(screen.getByRole("button", { name: "Send message" }));
+  await waitFor(() => expect(sent).toHaveLength(1));
+  expect(sent[0]?.body).toBe("Hello 🎉");
+});
+
+test("message grouping retains date and unread boundaries", async () => {
+  rows = [
+    { ...fixture(), sequence: 1 },
+    { ...fixture(), id: crypto.randomUUID(), sequence: 2, createdAt: "2026-10-22T08:01:00.000Z" },
+    { ...fixture(), id: crypto.randomUUID(), sequence: 3, createdAt: "2026-10-23T08:01:00.000Z" },
+  ];
+  show();
+  const history = await screen.findByRole("list", { name: "Messages" });
+  await waitFor(() => expect(history.querySelectorAll("li[data-message-id]")).toHaveLength(3));
+  const items = history.querySelectorAll("li[data-message-id]");
+  expect(items[0]).not.toHaveAttribute("data-grouped");
+  expect(items[1]).toHaveAttribute("data-grouped", "true");
+  expect(items[2]).not.toHaveAttribute("data-grouped");
+  expect(within(history).getByText("Oct. 23, 2026")).toBeVisible();
 });

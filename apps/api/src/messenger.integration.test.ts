@@ -390,7 +390,15 @@ test("private attachments validate metadata, immutable content and current downl
       })
     ).status,
   ).toBe(404);
-  const message = await send(channel.id, "", alice, { attachmentIds: [id] });
+  const parent = await send(channel.id, "File discussion");
+  const message = await send(channel.id, "", alice, { attachmentIds: [id], parentId: parent.id });
+  const shared = await (
+    await req(`${base()}/conversations/${channel.id}/messages?files=true`, bob)
+  ).json();
+  expect(shared.messages.map((item: MessengerMessage) => item.id)).toEqual([message.id]);
+  expect(
+    (await req(`${base()}/conversations/${channel.id}/messages?files=true`, admin)).status,
+  ).toBe(404);
   expect(message.attachments).toMatchObject([{ id, name: "notes.txt", scanStatus: "unscanned" }]);
   await database.db.insert(storageCleanup).values({ key: content, notBefore: new Date(0) });
   await cleanupStorage(database.db, files.storage);
@@ -414,6 +422,10 @@ test("private attachments validate metadata, immutable content and current downl
     (await req(`${base()}/messenger/attachments/${id}/download`, bob, "POST", {})).status,
   ).toBe(404);
   expect((await req(`${base()}/messages/${message.id}`, alice, "DELETE", {})).status).toBe(200);
+  expect(
+    (await (await req(`${base()}/conversations/${channel.id}/messages?files=true`)).json())
+      .messages,
+  ).toEqual([]);
   await database.db
     .update(storageCleanup)
     .set({ notBefore: new Date(0) })
@@ -816,5 +828,7 @@ test("retired conversations are inaccessible and a fresh DM does not reuse their
   const fresh = await response.json();
   expect(fresh.id).not.toBe(retired!.id);
   expect(fresh).not.toHaveProperty("retiredAt");
+  expect(fresh.participants).toEqual([{ userId: bob.id, name: "Bob", image: null }]);
+  expect(fresh.lastActivityAt).toBe(fresh.createdAt);
   expect(fresh).not.toHaveProperty("directKey");
 });

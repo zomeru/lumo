@@ -52,6 +52,7 @@ export const messengerHistoryQuerySchema = z.object({
   parentId: idSchema.optional(),
   around: idSchema.optional(),
   pinned: z.enum(["true"]).optional(),
+  files: z.enum(["true"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(40),
 });
 export const messengerSearchQuerySchema = z.object({

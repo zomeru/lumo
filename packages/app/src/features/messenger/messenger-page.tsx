@@ -1,11 +1,13 @@
 import type { Conversation } from "@lumo/contracts/collaboration";
 import { messengerSearchSchema } from "@lumo/contracts/messenger";
+import { formatDateTime } from "@lumo/shared/date-time";
 import { Badge, Button, EmptyState, ErrorMessage, Field, Loading, cn } from "@lumo/ui";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, Hash, Lock, MessageSquare, Plus, Search, Settings, X } from "lucide-react";
 import { useState } from "react";
 
+import { AppAvatar } from "../../components/app-avatar";
 import { api, command } from "../../lib/api";
 import { MessageStream } from "./message-stream";
 import {
@@ -193,7 +195,24 @@ function ConversationRow({ workspaceId, item }: { workspaceId: string; item: Con
       hash=""
       resetScroll={false}
     >
-      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      {item.kind === "channel" ? (
+        <Icon className="size-4 shrink-0" aria-hidden="true" />
+      ) : (
+        <span className="flex shrink-0 -space-x-3" aria-hidden="true">
+          {item.participants.length ? (
+            item.participants.map((person) => (
+              <AppAvatar
+                key={person.userId}
+                name={person.name}
+                src={person.image ?? undefined}
+                className="size-7 border-2 border-sidebar"
+              />
+            ))
+          ) : (
+            <AppAvatar name={item.name} className="size-7" />
+          )}
+        </span>
+      )}
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">
           {item.name}
@@ -201,6 +220,15 @@ function ConversationRow({ workspaceId, item }: { workspaceId: string; item: Con
         </span>
         {item.lastMessage && (
           <span className="block truncate text-xs text-muted-foreground">{item.lastMessage}</span>
+        )}
+        {item.lastActivityAt && (
+          <time
+            className="block truncate text-[10px] text-muted-foreground"
+            dateTime={item.lastActivityAt}
+            title={formatDateTime(item.lastActivityAt)}
+          >
+            {formatDateTime(item.lastActivityAt)}
+          </time>
         )}
       </span>
       {count > 0 && (
@@ -226,7 +254,7 @@ function ActiveConversation({
     client = useQueryClient(),
     [settings, setSettings] = useState(false),
     [thread, setThread] = useState<string | null>(null),
-    [pinned, setPinned] = useState(false),
+    [view, setView] = useState<"messages" | "pinned" | "files">("messages"),
     [search, setSearch] = useState(false);
   const hash = useRouterState({ select: (s) => s.location.hash }),
     around = /^[0-9a-f-]{36}$/.test(hash) ? hash : undefined;
@@ -280,6 +308,7 @@ function ActiveConversation({
               (conversation.kind === "channel"
                 ? `${conversation.visibility} channel`
                 : "Private direct conversation")}
+            {` · ${conversation.memberCount} members`}
             {conversation.archivedAt ? " · Archived" : ""}
           </p>
         </div>
@@ -291,8 +320,27 @@ function ActiveConversation({
         >
           <Search aria-hidden="true" />
         </Button>
-        <Button size="sm" variant="ghost" aria-pressed={pinned} onClick={() => setPinned(!pinned)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-pressed={view === "pinned"}
+          onClick={() => {
+            setThread(null);
+            setView(view === "pinned" ? "messages" : "pinned");
+          }}
+        >
           Pinned
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-pressed={view === "files"}
+          onClick={() => {
+            setThread(null);
+            setView(view === "files" ? "messages" : "files");
+          }}
+        >
+          Files
         </Button>
         <Button
           size="icon"
@@ -303,7 +351,16 @@ function ActiveConversation({
           <Settings aria-hidden="true" />
         </Button>
       </header>
-      {search && <MessageSearch workspaceId={workspaceId} onClose={() => setSearch(false)} />}
+      {search && (
+        <MessageSearch
+          workspaceId={workspaceId}
+          onClose={() => {
+            setSearch(false);
+            setThread(null);
+            setView("messages");
+          }}
+        />
+      )}
       <ErrorMessage error={join.error} />
       {!conversation.joined && (
         <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-accent/40 px-4 py-3 text-sm">
@@ -333,13 +390,14 @@ function ActiveConversation({
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", thread && "hidden xl:flex")}>
           <MessageStream
-            key={`${conversationId}:${around ?? ""}:${pinned}`}
+            key={`${conversationId}:${around ?? ""}:${view}`}
             workspaceId={workspaceId}
             conversationId={conversationId}
             canPost={canPost}
             lastReadSequence={conversation.lastReadSequence}
             around={around}
-            pinned={pinned}
+            pinned={view === "pinned"}
+            files={view === "files"}
             onReply={setThread}
             onTyping={onTyping}
           />

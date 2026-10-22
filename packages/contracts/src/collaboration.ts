@@ -27,6 +27,11 @@ export const conversationSchema = z.object({
   mentions: z.number().default(0),
   notifications: z.enum(["all", "mentions", "muted"]).default("all"),
   lastMessage: z.string().nullable().default(null),
+  lastActivityAt: z.iso.datetime().nullable().default(null),
+  participants: z
+    .array(z.object({ userId: idSchema, name: z.string(), image: z.string().nullable() }))
+    .max(3)
+    .default([]),
 });
 export const conversationsSchema = z.object({
   conversations: z.array(conversationSchema),
