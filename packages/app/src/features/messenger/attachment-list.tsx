@@ -207,7 +207,7 @@ export function AttachmentList({
               }
             }}
           >
-            <DialogTitle>{file.name}</DialogTitle>
+            <DialogTitle className="break-all">{file.name}</DialogTitle>
             <DialogDescription>
               {attachmentFormat(file.mimeType)?.label} · {formatBytes(file.size)} · {index + 1} of{" "}
               {media.length}
