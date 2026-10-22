@@ -1,23 +1,20 @@
 import {
   messengerMessageSchema,
   messengerMessagesSchema,
-  messengerMembersSchema,
   type MessengerMessage,
 } from "@lumo/contracts/messenger";
 import { formatDate } from "@lumo/shared/date-time";
 import {
   Button,
-  Textarea,
   ErrorMessage,
   Loading,
   Dialog,
   DialogContent,
   DialogTitle,
   DialogDescription,
-  Checkbox,
 } from "@lumo/ui";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, Send, X } from "lucide-react";
+import { ArrowDown, Paperclip, Send, X } from "lucide-react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 
 import { api, command, sessionQuery } from "../../lib/api";
@@ -31,6 +28,13 @@ type Draft = {
   failed: boolean;
 };
 import { EmojiPopover } from "./emoji-popover";
+import { MentionInput } from "./mention-input";
+import {
+  decodeMentionBody,
+  encodeMentionDraft,
+  updateMentionDraft,
+  type MentionDraft,
+} from "./mention-text";
 import { MessageItem } from "./message-item";
 import { uploadAttachment } from "./messenger-files";
 function MessageComposer({
@@ -47,21 +51,14 @@ function MessageComposer({
   disabled?: boolean;
 }) {
   const inputId = useId();
-  const [text, setText] = useState(""),
-    [mentionIds, setMentionIds] = useState<string[]>([]),
-    [mentionOpen, setMentionOpen] = useState(false),
-    [files, setFiles] = useState<{ id: string; name: string }[]>([]);
+  const [draft, setDraft] = useState<MentionDraft>({ text: "", mentions: [] });
+  const text = draft.text;
+  const [validation, setValidation] = useState<Error | null>(null);
+  const [files, setFiles] = useState<{ id: string; name: string }[]>([]);
   const controller = useRef<AbortController | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const attachmentInput = useRef<HTMLInputElement>(null);
   useEffect(() => () => controller.current?.abort(), []);
-  const members = useQuery({
-    queryKey: [...messengerKey(workspaceId), "mention-members", conversationId],
-    queryFn: ({ signal }) =>
-      api(`${messengerPath(workspaceId, conversationId)}/members`, messengerMembersSchema, {
-        signal,
-      }),
-    enabled: mentionOpen,
-  });
   const upload = useMutation({
     mutationFn: async (file: File) => {
       controller.current = new AbortController();
@@ -75,39 +72,39 @@ function MessageComposer({
       onSubmit={(e) => {
         e.preventDefault();
         if (disabled || upload.isPending || (!text.trim() && !files.length)) return;
+        const encoded = encodeMentionDraft(draft);
+        if (encoded.body.length > 4000 || encoded.mentionIds.length > 20) {
+          setValidation(new Error("Shorten this message or use fewer mentions before sending."));
+          return;
+        }
+        setValidation(null);
         onSend({
           nonce: crypto.randomUUID(),
-          body: text.trim(),
-          mentionIds,
+          ...encoded,
           attachmentIds: files.map((f) => f.id),
         });
-        setText("");
+        setDraft({ text: "", mentions: [] });
         setFiles([]);
-        setMentionIds([]);
       }}
     >
       <label className="sr-only" htmlFor={inputId}>
         Message
       </label>
-      <Textarea
+      <MentionInput
+        workspaceId={workspaceId}
+        conversationId={conversationId}
+        draft={draft}
+        onDraft={setDraft}
+        inputRef={textarea}
+        onTyping={onTyping}
+        onSubmit={() => textarea.current?.form?.requestSubmit()}
         id={inputId}
-        ref={textarea}
-        value={text}
         disabled={disabled}
         maxLength={4000}
-        placeholder="Write a message…"
+        placeholder="Message your team · @ to mention"
         className="max-h-40 min-h-16 resize-y border-0 shadow-none"
-        onChange={(e) => {
-          setText(e.target.value);
-          onTyping();
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            e.currentTarget.form?.requestSubmit();
-          }
-        }}
       />
+      <ErrorMessage error={validation} />
       <ErrorMessage error={upload.error} />
       {files.map((file) => (
         <span className="mr-2 inline-flex items-center gap-1 text-xs" key={file.id}>
@@ -121,27 +118,6 @@ function MessageComposer({
           </Button>
         </span>
       ))}
-      {mentionOpen && (
-        <fieldset className="max-h-28 overflow-y-auto rounded-md border p-2">
-          <legend className="text-xs">Mention members</legend>
-          {members.data?.members.map((member) => (
-            <label className="mr-3 inline-flex items-center gap-2 text-xs" key={member.userId}>
-              <Checkbox
-                checked={mentionIds.includes(member.userId)}
-                onCheckedChange={(checked) =>
-                  setMentionIds((current) =>
-                    checked
-                      ? [...current, member.userId]
-                      : current.filter((id) => id !== member.userId),
-                  )
-                }
-              />
-              {member.name}
-            </label>
-          ))}
-          <ErrorMessage error={members.error} />
-        </fieldset>
-      )}
       <div className="flex flex-wrap items-center gap-2">
         <EmojiPopover
           label="Emoji"
@@ -152,7 +128,7 @@ function MessageComposer({
               end = input?.selectionEnd ?? text.length;
             const next = text.slice(0, start) + emoji + text.slice(end);
             if (next.length > 4000) return;
-            setText(next);
+            setDraft(updateMentionDraft(draft, next));
             onTyping();
             requestAnimationFrame(() => {
               input?.focus();
@@ -160,29 +136,29 @@ function MessageComposer({
             });
           }}
         />
-        <label className="cursor-pointer rounded-md border px-3 py-1.5 text-xs">
-          {upload.isPending ? "Uploading…" : "Attach file"}
-          <input
-            type="file"
-            aria-label="Attach file"
-            className="sr-only"
-            accept="image/png,image/jpeg,image/webp,application/pdf,text/plain"
-            disabled={disabled || upload.isPending || files.length >= 5}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) upload.mutate(file);
-              e.target.value = "";
-            }}
-          />
-        </label>
         <Button
           size="sm"
-          disabled={disabled}
-          aria-pressed={mentionOpen}
-          onClick={() => setMentionOpen(!mentionOpen)}
+          variant="ghost"
+          disabled={disabled || upload.isPending || files.length >= 5}
+          onClick={() => attachmentInput.current?.click()}
         >
-          Mention{mentionIds.length ? ` (${mentionIds.length})` : ""}
+          <Paperclip aria-hidden="true" />
+          {upload.isPending ? "Uploading…" : "Attach file"}
         </Button>
+        <input
+          ref={attachmentInput}
+          type="file"
+          aria-label="Attach file"
+          className="sr-only"
+          tabIndex={-1}
+          accept="image/png,image/jpeg,image/webp,application/pdf,text/plain"
+          disabled={disabled || upload.isPending || files.length >= 5}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) upload.mutate(file);
+            event.target.value = "";
+          }}
+        />
         <small className="ml-auto hidden sm:block">
           Enter to send · Shift+Enter for a new line
         </small>
@@ -228,7 +204,7 @@ export function MessageStream({
     session = useQuery(sessionQuery()),
     [pending, setPending] = useState<Draft[]>([]),
     [editing, setEditing] = useState<{ message: MessengerMessage; deleting: boolean } | null>(null),
-    [editText, setEditText] = useState(""),
+    [editDraft, setEditDraft] = useState<MentionDraft>({ text: "", mentions: [] }),
     [atBottom, setAtBottom] = useState(true),
     [error, setError] = useState<unknown>(null);
   const [initialRead] = useState(lastReadSequence);
@@ -320,6 +296,7 @@ export function MessageStream({
         atBottom &&
         document.visibilityState === "visible" &&
         document.hasFocus() &&
+        (list.current?.checkVisibility?.() ?? true) &&
         lastId &&
         read.current !== lastId
       ) {
@@ -336,9 +313,17 @@ export function MessageStream({
       }
     };
     mark();
+    const observer =
+      typeof IntersectionObserver !== "undefined"
+        ? new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) mark();
+          })
+        : undefined;
+    if (list.current) observer?.observe(list.current);
     document.addEventListener("visibilitychange", mark);
     window.addEventListener("focus", mark);
     return () => {
+      observer?.disconnect();
       document.removeEventListener("visibilitychange", mark);
       window.removeEventListener("focus", mark);
     };
@@ -457,7 +442,7 @@ export function MessageStream({
                 onReply={() => onReply(message.id)}
                 onEdit={() => {
                   setEditing({ message, deleting: false });
-                  setEditText(message.body);
+                  setEditDraft(decodeMentionBody(message.body));
                 }}
                 onDelete={() => setEditing({ message, deleting: true })}
                 onAction={(action, body) => mutation.mutate({ id: message.id, action, body })}
@@ -468,7 +453,9 @@ export function MessageStream({
             .filter((d) => !messages.some((m) => m.nonce === d.nonce))
             .map((draft) => (
               <li key={draft.nonce} className="border-b px-4 py-3 text-sm">
-                <p className="whitespace-pre-wrap wrap-anywhere">{draft.body || "Attachment"}</p>
+                <p className="whitespace-pre-wrap wrap-anywhere">
+                  {decodeMentionBody(draft.body).text || "Attachment"}
+                </p>
                 {draft.failed ? (
                   <Button
                     size="sm"
@@ -533,17 +520,19 @@ export function MessageStream({
                 mutation.mutate({
                   id: editing.message.id,
                   action: editing.deleting ? "delete" : "edit",
-                  body: editing.deleting ? {} : { body: editText },
+                  body: editing.deleting ? {} : encodeMentionDraft(editDraft),
                 });
               }}
             >
               {!editing.deleting && (
-                <Textarea
+                <MentionInput
+                  workspaceId={workspaceId}
+                  conversationId={conversationId}
+                  draft={editDraft}
+                  onDraft={setEditDraft}
                   aria-label="Edit message body"
                   required
                   maxLength={4000}
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
                 />
               )}
               <ErrorMessage error={mutation.error} />

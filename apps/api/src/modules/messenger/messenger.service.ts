@@ -210,6 +210,29 @@ export function createMessengerService(
       .where(and(eq(membership.workspaceId, workspaceId), inArray(membership.userId, ids)));
     if (rows.length !== ids.length) missing();
   }
+  async function validateMentions(
+    tx: Transaction,
+    workspaceId: string,
+    item: Conversation,
+    id: string,
+    mentions: string[],
+  ) {
+    if (mentions.length) {
+      await eligible(tx, workspaceId, mentions);
+      if (item.visibility !== "public") {
+        const members = await tx
+          .select()
+          .from(conversationMember)
+          .where(
+            and(
+              eq(conversationMember.conversationId, id),
+              inArray(conversationMember.userId, mentions),
+            ),
+          );
+        if (members.length !== mentions.length) missing();
+      }
+    }
+  }
   async function messageDtos(
     tx: Transaction,
     rows: (typeof message.$inferSelect)[],
@@ -488,7 +511,14 @@ export function createMessengerService(
         await notify(tx, workspaceId);
       });
     },
-    async members(workspaceId: string, actor: string, id: string, offset: number, limit: number) {
+    async members(
+      workspaceId: string,
+      actor: string,
+      id: string,
+      offset: number,
+      limit: number,
+      q = "",
+    ) {
       return scoped(workspaceId, actor, id, async (tx) => {
         const rows = await tx
           .select({
@@ -499,7 +529,12 @@ export function createMessengerService(
           })
           .from(conversationMember)
           .innerJoin(user, eq(user.id, conversationMember.userId))
-          .where(eq(conversationMember.conversationId, id))
+          .where(
+            and(
+              eq(conversationMember.conversationId, id),
+              q ? ilike(user.name, `%${q}%`) : undefined,
+            ),
+          )
           .orderBy(asc(user.name), asc(user.id))
           .offset(offset)
           .limit(limit + 1);
@@ -675,21 +710,7 @@ export function createMessengerService(
           if (parent.conversationId !== id || parent.parentId) missing();
         }
         const mentions = [...new Set(input.mentionIds)];
-        if (mentions.length) {
-          await eligible(tx, workspaceId, mentions);
-          if (item.visibility !== "public") {
-            const members = await tx
-              .select()
-              .from(conversationMember)
-              .where(
-                and(
-                  eq(conversationMember.conversationId, id),
-                  inArray(conversationMember.userId, mentions),
-                ),
-              );
-            if (members.length !== mentions.length) missing();
-          }
-        }
+        await validateMentions(tx, workspaceId, item, id, mentions);
         const attachmentIds = [...new Set(input.attachmentIds)];
         if (attachmentIds.length) {
           const rows = await tx
@@ -737,7 +758,7 @@ export function createMessengerService(
       actor: string,
       messageId: string,
       action: "edit" | "delete" | "reaction" | "pin",
-      input: { body?: string; emoji?: string; active?: boolean },
+      input: { body?: string; mentionIds?: string[]; emoji?: string; active?: boolean },
     ) {
       return workspaces.withAccess(workspaceId, actor, async (tx) => {
         const row = await findMessage(tx, workspaceId, messageId),
@@ -746,11 +767,19 @@ export function createMessengerService(
         if (row.deletedAt) missing();
         if (action === "edit" || action === "delete") {
           if (row.senderId !== actor) denied();
+          if (action === "edit")
+            await validateMentions(tx, workspaceId, item, row.conversationId, [
+              ...new Set(input.mentionIds ?? []),
+            ]);
           await tx
             .update(message)
             .set(
               action === "edit"
-                ? { body: input.body!, editedAt: new Date() }
+                ? {
+                    body: input.body!,
+                    mentionIds: [...new Set(input.mentionIds ?? [])],
+                    editedAt: new Date(),
+                  }
                 : {
                     body: "",
                     deletedAt: new Date(),

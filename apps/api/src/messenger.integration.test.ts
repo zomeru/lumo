@@ -832,11 +832,16 @@ test("realtime tickets bind sessions, durable commits invalidate two clients and
     const a = await connect(alice),
       b = await connect(bob);
     const changed = (socket: WebSocket) =>
-      new Promise<[RawData]>((resolve) => {
+      new Promise<[Buffer]>((resolve) => {
         const receive = (data: RawData) => {
-          if (JSON.parse(data.toString()).type !== "changed") return;
+          const buffer = Array.isArray(data)
+            ? Buffer.concat(data)
+            : Buffer.isBuffer(data)
+              ? data
+              : Buffer.from(data);
+          if (JSON.parse(buffer.toString()).type !== "changed") return;
           socket.off("message", receive);
-          resolve([data]);
+          resolve([buffer]);
         };
         socket.on("message", receive);
       });
@@ -1054,4 +1059,35 @@ test("presence coordinates sessions with durable expiry, DND and workspace autho
   await presence.setPreference(alice.id, false);
   expect(await presence.preference(alice.id)).toEqual({ dnd: false });
   expect(await presence.query(alice.workspaceId, alice.id, [])).toEqual({ members: [] });
+});
+
+test("mention search is bounded to conversation members and edits remove or reauthorize metadata", async () => {
+  const result = await (
+    await req(`${base()}/conversations/${publicChannel.id}/members?q=Bob&limit=1`)
+  ).json();
+  expect(result.members).toHaveLength(1);
+  expect(result.members[0].userId).toBe(bob.id);
+  const channel = await createChannel("Mention boundary", "private");
+  const note = await send(channel.id, "Own mention", alice, { mentionIds: [alice.id] });
+  expect(
+    (
+      await req(`${base()}/messages/${note.id}`, alice, "PATCH", {
+        body: "Foreign mention",
+        mentionIds: [bob.id],
+      })
+    ).status,
+  ).toBe(404);
+  expect(
+    (
+      await req(`${base()}/messages/${note.id}`, alice, "PATCH", {
+        body: "Mention removed",
+        mentionIds: [],
+      })
+    ).status,
+  ).toBe(200);
+  const history = await (await req(`${base()}/conversations/${channel.id}/messages`)).json();
+  expect(history.messages[0].mentionIds).toEqual([]);
+  expect((await req(`${base()}/conversations/${channel.id}/members?q=Bob`, admin)).status).toBe(
+    404,
+  );
 });

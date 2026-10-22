@@ -12,9 +12,11 @@ import {
 } from "@lumo/ui";
 import { useMutation } from "@tanstack/react-query";
 import { MessageSquare, MoreHorizontal, Pin } from "lucide-react";
+import { Fragment } from "react";
 
 import { EmojiPopover } from "./emoji-popover";
 import { MemberCard } from "./member-card";
+import { decodeMentionBody } from "./mention-text";
 import { downloadAttachment } from "./messenger-files";
 import { MemberAvatar as AppAvatar } from "./presence";
 
@@ -101,7 +103,11 @@ export function MessageItem({
           )}
         </div>
         <p className="whitespace-pre-wrap wrap-anywhere text-sm leading-relaxed text-foreground">
-          {message.deletedAt ? "Message deleted" : message.body}
+          {message.deletedAt ? (
+            "Message deleted"
+          ) : (
+            <MessageBody body={message.body} mentionIds={message.mentionIds} />
+          )}
         </p>
         {message.mentionIds.length > 0 && (
           <span className="sr-only">{message.mentionIds.length} member mentions</span>
@@ -262,5 +268,26 @@ function AttachmentDownload({
       <small>Unscanned file</small>
       <ErrorMessage error={download.error} />
     </div>
+  );
+}
+
+function MessageBody({ body, mentionIds }: { body: string; mentionIds: string[] }) {
+  const draft = decodeMentionBody(body);
+  return (
+    <>
+      {draft.mentions.map((mention, index) => (
+        <Fragment key={mention.start}>
+          {draft.text.slice(draft.mentions[index - 1]?.end ?? 0, mention.start)}
+          {mentionIds.includes(mention.userId) ? (
+            <mark className="rounded-sm bg-accent px-0.5 text-accent-foreground">
+              {draft.text.slice(mention.start, mention.end)}
+            </mark>
+          ) : (
+            draft.text.slice(mention.start, mention.end)
+          )}
+        </Fragment>
+      ))}
+      {draft.text.slice(draft.mentions.at(-1)?.end ?? 0)}
+    </>
   );
 }

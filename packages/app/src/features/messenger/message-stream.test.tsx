@@ -151,8 +151,8 @@ test("failed optimistic sends retry the same nonce and mentions are persisted", 
   });
   const user = show();
   await screen.findByText("Existing message");
-  await user.click(screen.getByRole("button", { name: "Mention" }));
-  await user.click(await screen.findByRole("checkbox", { name: "Bob" }));
+  await user.type(screen.getByLabelText("Message"), "@Bo");
+  await user.click(await screen.findByRole("option", { name: /Bob/ }));
   await user.type(screen.getByLabelText("Message"), "Retried message");
   await user.click(screen.getByRole("button", { name: "Send message" }));
   await screen.findByText("Offline");
@@ -163,7 +163,7 @@ test("failed optimistic sends retry the same nonce and mentions are persisted", 
   expect(sent).toHaveLength(2);
   expect(sent[0]?.nonce).toBe(sent[1]?.nonce);
   expect(sent[1]?.mentionIds).toEqual([bobId]);
-  expect(screen.getAllByText("Retried message")).toHaveLength(1);
+  expect(screen.getAllByText(/Retried message/)).toHaveLength(1);
 });
 test("read cursors wait for visibility and focus and are never sent for pinned or search views", async () => {
   let focused = false;
@@ -222,7 +222,11 @@ test("sender edits, reactions, pins and deletes use real API command shapes", as
   dialog = screen.getByRole("dialog");
   await user.click(within(dialog).getByRole("button", { name: "Delete message" }));
   await waitFor(() => expect(calls).toHaveLength(4));
-  expect(calls).toContainEqual({ method: "PATCH", suffix: "", body: { body: "Edited body" } });
+  expect(calls).toContainEqual({
+    method: "PATCH",
+    suffix: "",
+    body: { body: "Edited body", mentionIds: [] },
+  });
 });
 
 test.each([{ pinned: true }, { files: true }, { around: messageId }])(

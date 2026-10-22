@@ -41,7 +41,12 @@ export const messageInputSchema = z
   .refine((v) => v.body.length > 0 || v.attachmentIds.length > 0, {
     message: "Write a message or attach a file.",
   });
-export const messageEditSchema = z.object({ body: z.string().trim().min(1).max(4000) }).strict();
+export const messageEditSchema = z
+  .object({
+    body: z.string().trim().min(1).max(4000),
+    mentionIds: z.array(idSchema).max(20).default([]),
+  })
+  .strict();
 export const messageReactionSchema = z
   .object({
     emoji: z

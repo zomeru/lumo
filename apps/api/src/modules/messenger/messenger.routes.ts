@@ -73,6 +73,7 @@ export function messengerRoutes(db: Database, chat: MessengerService) {
         parse(idSchema, c.req.param("id")),
         offset,
         limit,
+        parse(z.string().max(100), c.req.query("q") ?? ""),
       ),
     );
   });
