@@ -33,7 +33,7 @@ const app = createApp({
   env,
   clientIp: (c) => getConnInfo(c).remote.address ?? "unknown",
 });
-const server = serve({ fetch: app.fetch, port: env.PORT }, () =>
+const server = serve({ fetch: app.fetch, hostname: "::1", port: env.PORT }, () =>
   console.log(`E2E API ready on port ${env.PORT}`),
 );
 if (!(server instanceof Server)) throw new Error("Collaboration requires an HTTP server");
