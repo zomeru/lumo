@@ -166,7 +166,12 @@ export function documentMessenger(app: OpenAPIHono<ApiContext>) {
     {
       method: "post",
       path: "/messenger/attachments/{id}/download",
-      response: z.object({ url: z.url(), expiresAt: z.iso.datetime() }),
+      response: messenger.messengerAttachmentUrlSchema,
+    },
+    {
+      method: "post",
+      path: "/messenger/attachments/{id}/preview",
+      response: messenger.messengerAttachmentUrlSchema,
     },
   ];
   for (const endpoint of endpoints) {
@@ -199,7 +204,7 @@ export function documentMessenger(app: OpenAPIHono<ApiContext>) {
             content: { "application/json": { schema: endpoint.response } },
           },
         ],
-        ...[400, 401, 403, 404, 409, 429, 503].map((status) => [
+        ...[400, 401, 403, 404, 409, 415, 429, 503].map((status) => [
           status,
           {
             description: "Validated API error",

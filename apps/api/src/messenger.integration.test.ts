@@ -21,7 +21,7 @@ import {
 } from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
 import { and, eq, sql } from "drizzle-orm";
-import { beforeAll, afterAll, test, expect } from "vitest";
+import { beforeAll, afterAll, test, expect, vi } from "vitest";
 import { WebSocket, type RawData } from "ws";
 
 import { createApp } from "./app";
@@ -597,6 +597,48 @@ test("private attachments validate metadata, immutable content and current downl
       (await req(`${base()}/conversations/${channel.id}/attachments`, alice, "POST", invalid))
         .status,
     ).toBe(400);
+});
+
+test("media preview links require a posted validated attachment and current private access", async () => {
+  const channel = await createChannel("Media preview authorization", "private", [bob.id]);
+  for (const [name, mimeType, data] of [
+    ["picture.png", "image/png", Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])],
+    ["animation.gif", "image/gif", Buffer.from("GIF89a")],
+    ["clip.mp4", "video/mp4", Buffer.from("\0\0\0\x18ftypisom")],
+    ["clip.webm", "video/webm", Buffer.from([0x1a, 0x45, 0xdf, 0xa3, ...Buffer.from("webm")])],
+    ["archive.zip", "application/zip", Buffer.from([80, 75, 5, 6])],
+  ] as const) {
+    const upload = await req(`${base()}/conversations/${channel.id}/attachments`, alice, "POST", {
+      name,
+      mimeType,
+      size: data.length,
+      checksum: files.sha(data),
+    });
+    expect(upload.status).toBe(201);
+    const { id } = await upload.json();
+    files.put(`messenger/${alice.workspaceId}/${id}/staging`, data, mimeType);
+    const route = `${base()}/messenger/attachments/${id}`;
+    expect((await req(`${route}/complete`, alice, "POST", {})).status).toBe(200);
+    expect((await req(`${route}/preview`, alice, "POST", {})).status).toBe(404);
+    const sent = await send(channel.id, "Media", alice, { attachmentIds: [id] });
+    vi.mocked(files.storage.downloadUrl).mockClear();
+    expect((await req(`${route}/preview`, bob, "POST", {})).status).toBe(
+      mimeType === "application/zip" ? 415 : 200,
+    );
+    expect(vi.mocked(files.storage.downloadUrl).mock.calls).toEqual(
+      mimeType === "application/zip"
+        ? []
+        : [[`messenger/${alice.workspaceId}/${id}/content`, name, mimeType]],
+    );
+    for (const actor of [admin, outsider])
+      expect((await req(`${route}/preview`, actor, "POST", {})).status).toBe(404);
+    expect(
+      (await req(`${base(bob.workspaceId)}/messenger/attachments/${id}/preview`, bob, "POST", {}))
+        .status,
+    ).toBe(404);
+    await req(`${base()}/messages/${sent.id}`, alice, "DELETE", {});
+    expect((await req(`${route}/preview`, alice, "POST", {})).status).toBe(404);
+  }
 });
 
 test("notification aggregates apply preferences and never reveal private conversations", async () => {

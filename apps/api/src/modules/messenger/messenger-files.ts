@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import { idSchema } from "@lumo/contracts";
-import { messengerAttachmentInputSchema } from "@lumo/contracts/messenger";
+import {
+  messengerAttachmentInputSchema,
+  attachmentMimeFromName,
+  isMessengerMedia,
+} from "@lumo/contracts/messenger";
 import type { Database } from "@lumo/database";
 import {
   messengerAttachment as attachment,
@@ -35,14 +39,7 @@ export function messengerFileRoutes(db: Database, chat: MessengerService, storag
       conversationId = parse(idSchema, c.req.param("id")),
       input = parse(messengerAttachmentInputSchema, await c.req.json()),
       actor = c.get("user").id;
-    const extensions: Record<string, RegExp> = {
-      "image/png": /\.png$/i,
-      "image/jpeg": /\.jpe?g$/i,
-      "image/webp": /\.webp$/i,
-      "application/pdf": /\.pdf$/i,
-      "text/plain": /\.txt$/i,
-    };
-    if (!extensions[input.mimeType]?.test(input.name))
+    if (attachmentMimeFromName(input.name) !== input.mimeType)
       throw new AppError(400, "INVALID_FILE", "The file extension must match its type.");
     return c.json(
       await chat.scoped(workspaceId, actor, conversationId, async (tx, item, member) => {
@@ -99,35 +96,42 @@ export function messengerFileRoutes(db: Database, chat: MessengerService, storag
       }),
     );
   });
-  app.post("/workspaces/:workspaceId/messenger/attachments/:id/download", async (c) => {
-    const workspaceId = parse(idSchema, c.req.param("workspaceId")),
-      id = parse(idSchema, c.req.param("id")),
-      actor = c.get("user").id;
-    const [file] = await db
-      .select()
-      .from(attachment)
-      .where(
-        and(
-          eq(attachment.workspaceId, workspaceId),
-          eq(attachment.id, id),
-          eq(attachment.state, "ready"),
-        ),
-      );
-    if (!file?.messageId) missing();
-    return c.json(
-      await chat.scoped(workspaceId, actor, file.conversationId, async (tx) => {
-        const [parent] = await tx.select().from(message).where(eq(message.id, file.messageId!));
-        if (!parent || parent.deletedAt) missing();
-        return {
-          url: await storage.downloadUrl(
-            keyFor(workspaceId, id),
-            file.name,
-            "application/octet-stream",
+  for (const action of ["download", "preview"] as const)
+    app.post(`/workspaces/:workspaceId/messenger/attachments/:id/${action}`, async (c) => {
+      const workspaceId = parse(idSchema, c.req.param("workspaceId")),
+        id = parse(idSchema, c.req.param("id")),
+        actor = c.get("user").id;
+      const [file] = await db
+        .select()
+        .from(attachment)
+        .where(
+          and(
+            eq(attachment.workspaceId, workspaceId),
+            eq(attachment.id, id),
+            eq(attachment.state, "ready"),
           ),
-          expiresAt: new Date(Date.now() + 120000).toISOString(),
-        };
-      }),
-    );
-  });
+        );
+      if (!file?.messageId) missing();
+      return c.json(
+        await chat.scoped(workspaceId, actor, file.conversationId, async (tx) => {
+          const [parent] = await tx.select().from(message).where(eq(message.id, file.messageId!));
+          if (!parent || parent.deletedAt) missing();
+          if (action === "preview" && !isMessengerMedia(file.mimeType))
+            throw new AppError(
+              415,
+              "PREVIEW_UNSUPPORTED",
+              "A preview is not available for this file type. Download the original instead.",
+            );
+          return {
+            url: await storage.downloadUrl(
+              keyFor(workspaceId, id),
+              file.name,
+              action === "preview" ? file.mimeType : undefined,
+            ),
+            expiresAt: new Date(Date.now() + 120000).toISOString(),
+          };
+        }),
+      );
+    });
   return app;
 }

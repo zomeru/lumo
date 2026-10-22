@@ -24,6 +24,14 @@ export function validateSignature(mime: string, bytes: Uint8Array) {
     "image/jpeg": () => starts(255, 216, 255),
     "image/gif": () => ["GIF87a", "GIF89a"].includes(ascii(0, 6)),
     "image/webp": () => ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP",
+    "video/mp4": () =>
+      ascii(4, 8) === "ftyp" && /^(isom|iso[2-9]|mp4[12]|avc1|M4V |dash)$/.test(ascii(8, 12)),
+    "video/webm": () => starts(0x1a, 0x45, 0xdf, 0xa3) && ascii(0, bytes.length).includes("webm"),
+    "application/x-7z-compressed": () => starts(0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c),
+    "application/vnd.rar": () => starts(0x52, 0x61, 0x72, 0x21, 0x1a, 0x07),
+    "application/msword": () => starts(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1),
+    "application/vnd.ms-excel": () => starts(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1),
+    "application/vnd.ms-powerpoint": () => starts(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1),
     "application/pdf": () => ascii(0, 5) === "%PDF-",
     "application/zip": () => starts(80, 75, 3, 4) || starts(80, 75, 5, 6),
   };

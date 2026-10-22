@@ -1,3 +1,11 @@
+import { messengerAttachmentMimeSchema } from "./messenger-attachments";
+export {
+  attachmentFormat,
+  attachmentMimeFromName,
+  isMessengerMedia,
+  messengerAttachmentFormats,
+  messengerAttachmentUrlSchema,
+} from "./messenger-attachments";
 import { z } from "zod";
 
 import { idSchema } from "./index";
@@ -92,7 +100,7 @@ export const messengerAttachmentInputSchema = z
       .max(180)
       .regex(/^[^/\\]+$/)
       .refine((v) => v.split("").every((char) => char.charCodeAt(0) >= 32)),
-    mimeType: z.enum(["image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain"]),
+    mimeType: messengerAttachmentMimeSchema,
     size: z
       .number()
       .int()
