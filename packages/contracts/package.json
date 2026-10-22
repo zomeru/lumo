@@ -8,6 +8,7 @@
     "./legal": "./src/legal.ts",
     "./permissions": "./src/permissions.ts",
     "./collaboration": "./src/collaboration.ts",
+    "./messenger": "./src/messenger.ts",
     "./drive": "./src/drive.ts",
     "./office": "./src/office.ts",
     "./files": "./src/files.ts",

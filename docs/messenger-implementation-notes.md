@@ -15,7 +15,7 @@
 
 - [x] 0: Read complete plan; audit architecture and document decisions.
 - [x] 1: Additive schema, constraints, migration and populated-data regression.
-- [ ] 2: Channel/DM lifecycle, message authorization, history, threads, reactions, pins and search APIs.
+- [x] 2: Channel/DM lifecycle, message authorization, history, threads, reactions, pins and search APIs.
 - [ ] 3: Authorized realtime, idempotent sends, reconnect reconciliation and durable unread state.
 - [ ] 4: Full-space shared responsive layout and reusable conversation UI.
 - [ ] 5: Channel discovery, creation, membership and settings UI.
@@ -28,3 +28,5 @@
 Record milestone checks and remaining limitations here as implementation proceeds. Integration tests use generated schemas in the dedicated `_test` database, never reset the development database. Deploy additive migrations before the new API/UI. Keep old provider credentials and history until a separately verified provider export is available. Rollback application code without dropping added columns/tables.
 
 Phase 1: migration 0016 tested twice over populated legacy conversations; IDs, group references and memberships retained. Composite message/thread constraints and channel slug uniqueness verified. Database typecheck and scoped lint/format pass.
+
+Phase 2: seven request/integration scenarios cover sessions, two-workspace ID substitution, public read/join-to-post, private admin denial, concurrency-safe DM and nonce deduplication, immutable DM sets, threads, reactions, pins, edits/deletes, cursor pagination, mentions, search, ownership and archive controls. Existing 25 collaboration tests still pass. Scoped API/contracts typecheck, lint and formatting pass. Attachment endpoints follow in phase 6.

@@ -11,11 +11,21 @@ export const conversationInputSchema = z
 export const conversationSchema = z.object({
   id: idSchema,
   workspaceId: idSchema,
-  kind: z.enum(["direct", "group"]),
+  kind: z.enum(["direct", "group", "channel"]),
   name: z.string(),
   createdAt: z.iso.datetime(),
   memberIds: z.array(idSchema),
   providerGroupId: z.string().nullable().default(null),
+  description: z.string().default(""),
+  visibility: z.enum(["public", "private"]).default("private"),
+  slug: z.string().nullable().default(null),
+  archivedAt: z.iso.datetime().nullable().default(null),
+  joined: z.boolean().default(true),
+  role: z.enum(["owner", "manager", "member"]).nullable().default(null),
+  unread: z.number().default(0),
+  mentions: z.number().default(0),
+  notifications: z.enum(["all", "mentions", "muted"]).default("all"),
+  lastMessage: z.string().nullable().default(null),
 });
 export const conversationsSchema = z.object({
   conversations: z.array(conversationSchema),
