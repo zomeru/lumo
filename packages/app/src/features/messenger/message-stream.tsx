@@ -121,13 +121,17 @@ function MessageComposer({
       <div className="flex flex-wrap items-center gap-2">
         <EmojiPopover
           label="Emoji"
+          returnFocus={() => textarea.current?.focus()}
           disabled={disabled}
           onPick={(emoji) => {
             const input = textarea.current,
               start = input?.selectionStart ?? text.length,
               end = input?.selectionEnd ?? text.length;
             const next = text.slice(0, start) + emoji + text.slice(end);
-            if (next.length > 4000) return;
+            if (next.length > 4000) {
+              setValidation(new Error("This emoji would exceed the message length limit."));
+              return;
+            }
             setDraft(updateMentionDraft(draft, next));
             onTyping();
             requestAnimationFrame(() => {

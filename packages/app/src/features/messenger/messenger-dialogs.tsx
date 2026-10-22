@@ -232,7 +232,7 @@ export function CreateConversationDialog({
               (!channel &&
                 (kind === "direct"
                   ? selected.filter((id) => id !== session.data?.user.id).length !== 1
-                  : selected.filter((id) => id !== session.data?.user.id).length < 2))
+                  : selected.filter((id) => id !== session.data?.user.id).length < 1))
             }
           >
             {channel ? "Create channel" : "Create conversation"}

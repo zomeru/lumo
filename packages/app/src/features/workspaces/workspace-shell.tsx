@@ -44,7 +44,7 @@ import { MessengerInbox, MessengerRealtimeProvider } from "../messenger/messenge
 import { moduleRoutes, moduleIcons } from "../office/file-modules";
 
 const navigationLink =
-  "flex min-h-9 items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-[current=page]:bg-accent aria-[current=page]:font-medium aria-[current=page]:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0";
+  "flex min-h-9 items-center gap-2.5 rounded-md border-l-2 border-transparent px-3 py-2 text-sm text-muted-foreground transition-colors aria-[current=page]:border-primary hover:bg-muted hover:text-foreground aria-[current=page]:bg-accent aria-[current=page]:font-medium aria-[current=page]:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0";
 function NavigationGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="mt-4">

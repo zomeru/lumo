@@ -7,7 +7,7 @@ import { Badge, Button, EmptyState, ErrorMessage, Field, Loading, cn } from "@lu
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Hash, Lock, MessageSquare, Plus, Search, Settings, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AppAvatar } from "../../components/app-avatar";
 import { api, workspaceQuery, sessionQuery } from "../../lib/api";
@@ -226,7 +226,7 @@ function ConversationRow({ workspaceId, item }: { workspaceId: string; item: Con
     Icon = item.kind === "channel" ? (item.visibility === "private" ? Lock : Hash) : MessageSquare;
   return (
     <Link
-      className="mb-1 flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
+      className="mb-1 flex items-center gap-2 rounded-md border-l-2 border-transparent aria-[current=page]:border-primary px-2 py-2 text-sm hover:bg-muted aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
       to="/w/$workspaceId/messenger/$conversationId"
       params={{ workspaceId, conversationId: item.id }}
       hash=""
@@ -256,12 +256,12 @@ function ConversationRow({ workspaceId, item }: { workspaceId: string; item: Con
           {item.name}
           {item.archivedAt ? " · Archived" : ""}
         </span>
-        {item.lastMessage && (
+        {item.lastMessage && item.kind !== "channel" && (
           <span className="block truncate text-xs text-muted-foreground">{item.lastMessage}</span>
         )}
         {item.lastActivityAt && (
           <time
-            className="block truncate text-[10px] text-muted-foreground"
+            className="sr-only"
             dateTime={item.lastActivityAt}
             title={formatDateTime(item.lastActivityAt)}
           >
@@ -270,7 +270,9 @@ function ConversationRow({ workspaceId, item }: { workspaceId: string; item: Con
         )}
       </span>
       {count > 0 && (
-        <Badge aria-label={`${count} unread messages`}>{count > 99 ? "99+" : count}</Badge>
+        <Badge variant="primary" aria-label={`${count} unread messages`}>
+          {count > 99 ? "99+" : count}
+        </Badge>
       )}
     </Link>
   );
@@ -294,6 +296,16 @@ function ActiveConversation({
     [thread, setThread] = useState<string | null>(null),
     [view, setView] = useState<"messages" | "pinned" | "files">("messages"),
     [search, setSearch] = useState(false);
+  const threadTrigger = useRef<HTMLElement | null>(null),
+    closeThread = useRef<HTMLButtonElement>(null);
+  const openThread = (id: string) => {
+    threadTrigger.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setThread(id);
+  };
+  useEffect(() => {
+    if (thread) closeThread.current?.focus();
+  }, [thread]);
   const hash = useRouterState({ select: (s) => s.location.hash }),
     around = /^[0-9a-f-]{36}$/.test(hash) ? hash : undefined;
   if (item.isError)
@@ -440,7 +452,7 @@ function ActiveConversation({
                 resetScroll: false,
               });
             }}
-            onReply={setThread}
+            onReply={openThread}
             onTyping={onTyping}
           />
         </div>
@@ -455,7 +467,12 @@ function ActiveConversation({
                 size="icon"
                 variant="ghost"
                 aria-label="Close thread"
-                onClick={() => setThread(null)}
+                ref={closeThread}
+                title="Back to conversation"
+                onClick={() => {
+                  setThread(null);
+                  requestAnimationFrame(() => threadTrigger.current?.focus());
+                }}
               >
                 <X aria-hidden="true" />
               </Button>
@@ -467,7 +484,7 @@ function ActiveConversation({
               parentId={thread}
               canPost={canPost}
               lastReadSequence={conversation.lastReadSequence}
-              onReply={setThread}
+              onReply={openThread}
               onTyping={onTyping}
             />
           </aside>

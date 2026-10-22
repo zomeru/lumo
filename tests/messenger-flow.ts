@@ -53,7 +53,7 @@ export async function verifyMessenger(
   await message.hover();
   await message.getByRole("button", { name: "Add reaction", exact: true }).click();
   await page.getByRole("combobox", { name: "Type to search for an emoji" }).fill("party popper");
-  await page.getByRole("gridcell", { name: "party popper", exact: true }).click();
+  await page.getByRole("gridcell", { name: "party popper", exact: true }).first().click();
   await expect(message.getByRole("button", { name: "🎉 1", exact: true })).toBeVisible();
   await message.getByRole("button", { name: "Pin", exact: true }).click();
   await expect(message.getByText("Pinned", { exact: true })).toBeVisible();

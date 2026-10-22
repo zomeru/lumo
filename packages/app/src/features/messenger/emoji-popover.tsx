@@ -21,10 +21,12 @@ export function EmojiPopover({
   label,
   disabled,
   onPick,
+  returnFocus,
 }: {
   label: string;
   disabled?: boolean;
   onPick: (emoji: string) => void;
+  returnFocus?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -39,6 +41,12 @@ export function EmojiPopover({
         align="end"
         className="w-[min(352px,calc(100vw-24px))] p-0"
         aria-label={label}
+        onCloseAutoFocus={(event) => {
+          if (returnFocus) {
+            event.preventDefault();
+            returnFocus();
+          }
+        }}
       >
         <PickerBoundary>
           <Suspense fallback={<Loading label="Loading emoji…" />}>

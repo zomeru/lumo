@@ -163,7 +163,7 @@ test("failed optimistic sends retry the same nonce and mentions are persisted", 
   expect(sent).toHaveLength(2);
   expect(sent[0]?.nonce).toBe(sent[1]?.nonce);
   expect(sent[1]?.mentionIds).toEqual([bobId]);
-  expect(screen.getAllByText(/Retried message/)).toHaveLength(1);
+  expect(await screen.findAllByText(/Retried message/)).toHaveLength(1);
 });
 test("read cursors wait for visibility and focus and are never sent for pinned or search views", async () => {
   let focused = false;

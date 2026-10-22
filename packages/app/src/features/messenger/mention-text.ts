@@ -1,4 +1,4 @@
-export type MentionRange = { start: number; end: number; userId: string; name: string };
+type MentionRange = { start: number; end: number; userId: string; name: string };
 export type MentionDraft = { text: string; mentions: MentionRange[] };
 /** Retain only intact tokens; text edits inside one deliberately remove its identity. */
 export function updateMentionDraft(previous: MentionDraft, text: string): MentionDraft {

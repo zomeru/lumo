@@ -120,3 +120,27 @@
   --epr-hover-bg-color: var(--muted);
   --epr-focus-bg-color: var(--accent);
 }
+@media (hover: hover) and (pointer: fine) {
+  .message-toolbar {
+    top: -4px;
+  }
+  .message-toolbar button {
+    width: 28px;
+    height: 28px;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  [data-message-id] {
+    flex-wrap: wrap;
+  }
+  .message-toolbar {
+    position: static;
+    margin-left: 3rem;
+    flex-basis: calc(100% - 3rem);
+    width: fit-content;
+  }
+}
+.lumo-emoji-picker {
+  --epr-category-icon-inactive-color: var(--muted-foreground);
+  --epr-category-icon-active-color: var(--primary);
+}
