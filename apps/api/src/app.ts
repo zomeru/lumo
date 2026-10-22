@@ -33,6 +33,7 @@ import { createDriveService } from "./modules/drive/drive.service";
 import { hrRoutes } from "./modules/hr/hr.routes";
 import { activateOnboarding } from "./modules/hr/onboarding";
 import { documentHr } from "./modules/hr/openapi";
+import { messengerFileRoutes } from "./modules/messenger/messenger-files";
 import { createMessengerHub } from "./modules/messenger/messenger-hub";
 import { messengerRoutes } from "./modules/messenger/messenger.routes";
 import { createMessengerService } from "./modules/messenger/messenger.service";
@@ -285,6 +286,7 @@ export function createApp({
   app.route("/api/v1", collaborationRoutes(db, workspaces, provider));
   const messenger = createMessengerService(db, workspaces, provider);
   app.route("/api/v1", messengerRoutes(db, messenger));
+  app.route("/api/v1", messengerFileRoutes(db, messenger, storage));
   const messengerHub = createMessengerHub(db, auth, workspaces, messenger, env);
   app.post("/api/v1/workspaces/:workspaceId/messenger/session", async (c) =>
     c.json(

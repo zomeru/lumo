@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 
 import {
@@ -17,7 +17,9 @@ import { createTestDatabase } from "./test/database";
 
 test("Messenger upgrade preserves populated provider history references and rejects cross-workspace threads", async () => {
   const source = {
-    ...parseEnv(readFileSync(new URL("../.env", import.meta.url), "utf8")),
+    ...(existsSync(new URL("../.env", import.meta.url))
+      ? parseEnv(readFileSync(new URL("../.env", import.meta.url), "utf8"))
+      : {}),
     ...process.env,
   };
   const database = await createTestDatabase(source.TEST_DATABASE_URL, 15);

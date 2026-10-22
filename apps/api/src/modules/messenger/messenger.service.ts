@@ -3,6 +3,7 @@ import type * as contracts from "@lumo/contracts/messenger";
 import type { Database, Transaction } from "@lumo/database";
 import {
   auditEvent,
+  storageCleanup,
   conversation,
   conversationMember,
   membership,
@@ -132,6 +133,8 @@ export function createMessengerService(
         joined: Boolean(own),
         role: own?.role ?? null,
         notifications: own?.notifications ?? "all",
+        lastReadSequence: own?.lastReadSequence ?? 0,
+        memberCount: members.filter((m) => m.conversationId === item.id).length,
         unread: own ? (counts?.unread ?? 0) : 0,
         mentions: own ? (counts?.mentions ?? 0) : 0,
         lastMessage: latest.find((m) => m.conversationId === item.id)?.body.slice(0, 150) ?? null,
@@ -664,6 +667,10 @@ export function createMessengerService(
             .update(attachment)
             .set({ messageId: row!.id })
             .where(inArray(attachment.id, attachmentIds));
+        for (const attachmentId of attachmentIds)
+          await tx
+            .delete(storageCleanup)
+            .where(eq(storageCleanup.key, `messenger/${workspaceId}/${attachmentId}/content`));
         await notify(tx, workspaceId);
         return (await messageDtos(tx, [row!], actor))[0]!;
       });

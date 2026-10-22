@@ -16,6 +16,7 @@ import { verifyCalendar } from "../calendar-flow";
 import { verifyDrive } from "../drive-flow";
 import { verifyFileModules } from "../file-modules-flow";
 import { verifyHr } from "../hr-flow";
+import { verifyMessenger } from "../messenger-flow";
 import { verifyProfile } from "../profile-flow";
 import { acknowledgeRegistration } from "../registration-flow";
 import { verifyDesktopScrolling } from "./scrollbars";
@@ -302,8 +303,8 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
     expect(dialogBounds!.y).toBeGreaterThanOrEqual(0);
     expect(dialogBounds!.y + dialogBounds!.height).toBeLessThanOrEqual(540);
     await dialog.getByRole("combobox", { name: "Type" }).click();
-    await page.getByRole("option", { name: "Private group" }).click();
-    await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Private group");
+    await page.getByRole("option", { name: "Group direct message" }).click();
+    await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Group direct message");
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
     await desktopWindow.evaluate((win) => win.setSize(1280, 850));
@@ -591,6 +592,62 @@ test("People and HR share real workflows through the sandboxed Electron transpor
     await verifyHr(page, colleague, (name) => info.outputPath(`desktop-hr-${name}.png`));
   } finally {
     await context.close();
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("shared Messenger channels and persisted messages work in Electron", async ({
+  browser,
+}, testInfo) => {
+  const dir = await mkdtemp(join(tmpdir(), "lumo-messenger-e2e-")),
+    app = await launch(dir),
+    webContext = await browser.newContext({ baseURL: "http://localhost:3010" });
+  try {
+    const page = await app.firstWindow(),
+      email = `messenger-desktop-${Date.now()}@example.com`;
+    await register(page, "Messenger Desktop", email);
+    const web = await webContext.newPage();
+    await web.goto("/login");
+    await login(web, email);
+    const team = await web.request.post("http://localhost:3011/api/v1/workspaces", {
+      headers: { origin: "http://localhost:3010" },
+      data: { name: "Desktop messenger team", visibility: "public" },
+    });
+    expect(team.ok()).toBe(true);
+    const { id } = await team.json();
+    const peerContext = await browser.newContext({ baseURL: "http://localhost:3010" });
+    try {
+      const peer = await peerContext.newPage();
+      await peer.goto("/login");
+      await register(peer, "Desktop Peer", `messenger-peer-${Date.now()}@example.com`);
+      expect(
+        (
+          await peer.request.post(`http://localhost:3011/api/v1/workspaces/${id}/join`, {
+            headers: { origin: "http://localhost:3010" },
+            data: {},
+          })
+        ).ok(),
+      ).toBe(true);
+      await page.goto(`lumo://app/w/${id}/messenger`);
+      await verifyMessenger(
+        page,
+        id,
+        "Desktop Peer",
+        testInfo.outputPath("messenger-desktop.png"),
+        peer,
+      );
+      const window = await app.browserWindow(page);
+      await window.evaluate((win) => win.setSize(600, 540));
+      await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+    } finally {
+      await peerContext.close();
+    }
+  } finally {
+    await webContext.close();
     await app.close();
     await rm(dir, { recursive: true, force: true });
   }

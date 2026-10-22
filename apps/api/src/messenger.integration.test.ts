@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { Server } from "node:http";
 import { parseEnv } from "node:util";
 
@@ -18,9 +18,12 @@ import { WebSocket } from "ws";
 import { createApp } from "./app";
 import { listenForWiki } from "./modules/office/wiki-notifications";
 import { createTestDatabase } from "./test/database";
+import { memoryStorage } from "./test/storage";
 
 const source = {
-  ...parseEnv(readFileSync(new URL("../.env", import.meta.url), "utf8")),
+  ...(existsSync(new URL("../.env", import.meta.url))
+    ? parseEnv(readFileSync(new URL("../.env", import.meta.url), "utf8"))
+    : {}),
   ...process.env,
 };
 const database = await createTestDatabase(source.TEST_DATABASE_URL);
@@ -31,7 +34,13 @@ const env = readServerEnv({
   LOG_LEVEL: "silent",
   MAIL_DIR: "../../.local/messenger-mail",
 });
-const app = createApp({ db: database.db, auth: createAuth(database.db, env), env });
+const files = memoryStorage();
+const app = createApp({
+  storage: files.storage,
+  db: database.db,
+  auth: createAuth(database.db, env),
+  env,
+});
 type Actor = { id: string; cookie: string; workspaceId: string };
 let alice: Actor,
   bob: Actor,
@@ -328,6 +337,84 @@ test("1:1 creation is concurrent-safe, group sets are immutable and workspace re
       .from(messengerMessage)
       .where(eq(messengerMessage.conversationId, a.id)),
   ).toHaveLength(1);
+});
+
+test("private attachments validate metadata, immutable content and current download authorization", async () => {
+  const channel = await createChannel("Private files", "private", [bob.id]);
+  const data = Buffer.from("private file contents"),
+    input = {
+      name: "notes.txt",
+      mimeType: "text/plain",
+      size: data.length,
+      checksum: files.sha(data),
+    };
+  const uploaded = await req(
+    `${base()}/conversations/${channel.id}/attachments`,
+    alice,
+    "POST",
+    input,
+  );
+  expect(uploaded.status).toBe(201);
+  const { id } = await uploaded.json();
+  const staging = `messenger/${alice.workspaceId}/${id}/staging`,
+    content = `messenger/${alice.workspaceId}/${id}/content`;
+  files.put(staging, Buffer.from("wrong size"), input.mimeType);
+  expect(
+    (await req(`${base()}/messenger/attachments/${id}/complete`, alice, "POST", {})).status,
+  ).toBe(400);
+  files.put(staging, data, input.mimeType);
+  expect(
+    (await req(`${base()}/messenger/attachments/${id}/complete`, bob, "POST", {})).status,
+  ).toBe(403);
+  expect(
+    (await req(`${base()}/messenger/attachments/${id}/complete`, alice, "POST", {})).status,
+  ).toBe(200);
+  files.put(staging, Buffer.from("mutated staging"), input.mimeType);
+  expect(files.objects.get(content)?.data).toEqual(data);
+  expect(
+    (await req(`${base()}/messenger/attachments/${id}/download`, alice, "POST", {})).status,
+  ).toBe(404);
+  expect(
+    (
+      await req(`${base()}/conversations/${publicChannel.id}/messages`, alice, "POST", {
+        nonce: randomUUID(),
+        body: "Wrong channel",
+        attachmentIds: [id],
+      })
+    ).status,
+  ).toBe(404);
+  const message = await send(channel.id, "File", alice, { attachmentIds: [id] });
+  expect(message.attachments).toMatchObject([{ id, name: "notes.txt", scanStatus: "unscanned" }]);
+  expect(
+    (await req(`${base()}/messenger/attachments/${id}/download`, bob, "POST", {})).status,
+  ).toBe(200);
+  for (const actor of [admin, outsider])
+    expect(
+      (await req(`${base()}/messenger/attachments/${id}/download`, actor, "POST", {})).status,
+    ).toBe(404);
+  expect(
+    (await req(`${base(bob.workspaceId)}/messenger/attachments/${id}/download`, bob, "POST", {}))
+      .status,
+  ).toBe(404);
+  expect(
+    (await req(`${base()}/channels/${channel.id}/members/${bob.id}`, alice, "DELETE", {})).status,
+  ).toBe(200);
+  expect(
+    (await req(`${base()}/messenger/attachments/${id}/download`, bob, "POST", {})).status,
+  ).toBe(404);
+  expect((await req(`${base()}/messages/${message.id}`, alice, "DELETE", {})).status).toBe(200);
+  expect(
+    (await req(`${base()}/messenger/attachments/${id}/download`, alice, "POST", {})).status,
+  ).toBe(404);
+  for (const invalid of [
+    { ...input, name: "payload.exe" },
+    { ...input, size: 30 * 1024 ** 2 },
+    { ...input, mimeType: "text/html" },
+  ])
+    expect(
+      (await req(`${base()}/conversations/${channel.id}/attachments`, alice, "POST", invalid))
+        .status,
+    ).toBe(400);
 });
 
 test("realtime tickets bind sessions, durable commits invalidate two clients and revocation closes live sockets", async () => {

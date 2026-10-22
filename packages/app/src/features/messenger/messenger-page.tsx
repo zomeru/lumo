@@ -1,33 +1,27 @@
-import { conversationSchema, conversationsSchema } from "@lumo/contracts/collaboration";
-import { chatIdentity, type ChatMessage } from "@lumo/shared";
-import { formatDateTime } from "@lumo/shared/date-time";
-import {
-  Badge,
-  Button,
-  Card,
-  Checkbox,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-  EmptyState,
-  ErrorMessage,
-  Field,
-  FormField,
-  Loading,
-  PageHeading,
-  SelectField,
-  Textarea,
-} from "@lumo/ui";
+import type { Conversation } from "@lumo/contracts/collaboration";
+import { messengerSearchSchema } from "@lumo/contracts/messenger";
+import { Badge, Button, EmptyState, ErrorMessage, Field, Loading, cn } from "@lumo/ui";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, Link } from "@tanstack/react-router";
-import { MessageSquare, Plus, RefreshCw, Send } from "lucide-react";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { ArrowLeft, Hash, Lock, MessageSquare, Plus, Search, Settings, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { AppAvatar as Avatar } from "../../components/app-avatar";
-import { api, command, membersQuery, sessionQuery } from "../../lib/api";
-import { connectChat } from "./chat";
+import { api, command } from "../../lib/api";
+import { LegacyConversationView } from "./legacy-conversation";
+import { MessageStream } from "./message-stream";
+import {
+  connectMessenger,
+  conversationQuery,
+  conversationsQuery,
+  messengerKey,
+  messengerPath,
+} from "./messenger-api";
+import {
+  ChannelBrowser,
+  ConversationSettings,
+  CreateConversationDialog,
+} from "./messenger-dialogs";
+
 export function MessengerPage({
   workspaceId,
   conversationId,
@@ -36,346 +30,496 @@ export function MessengerPage({
   conversationId?: string;
 }) {
   const client = useQueryClient(),
-    navigate = useNavigate();
-  const [creating, setCreating] = useState(false);
-  const [unread, setUnread] = useState<Record<string, number>>({});
-  const [offset, setOffset] = useState(0),
-    [q, setQ] = useState("");
-  const conversations = useQuery({
-    queryKey: ["workspace", workspaceId, "conversations", offset],
-    queryFn: ({ signal }) =>
-      api(`/workspaces/${workspaceId}/conversations?offset=${offset}`, conversationsSchema, {
-        signal,
-      }),
-    refetchInterval: 15000,
-  });
-  const people = useQuery(membersQuery(workspaceId, q)),
-    session = useQuery(sessionQuery());
-  const create = useMutation({
-    mutationFn: (body: { kind: string; name: string; memberIds: string[] }) =>
-      api(`/workspaces/${workspaceId}/conversations`, conversationSchema, { method: "POST", body }),
-    onSuccess: async (value) => {
-      setCreating(false);
-      await client.invalidateQueries({ queryKey: ["workspace", workspaceId, "conversations"] });
-      await navigate({
-        to: "/w/$workspaceId/messenger/$conversationId",
-        params: { workspaceId, conversationId: value.id },
-      });
-    },
-  });
+    [creating, setCreating] = useState<"channel" | "dm" | null>(null),
+    [browse, setBrowse] = useState(false),
+    [members, setMembers] = useState<string[]>([]),
+    [offset, setOffset] = useState(0),
+    [filter, setFilter] = useState(""),
+    [state, setState] = useState("Connecting…"),
+    [typing, setTyping] = useState<{ id: string; until: number } | null>(null),
+    [unread, setUnread] = useState<Record<string, number>>({});
+  const connection = useRef<ReturnType<typeof connectMessenger> | null>(null);
+  const conversations = useQuery(conversationsQuery(workspaceId, offset));
+  useEffect(() => {
+    const current = connectMessenger(workspaceId, client, setState, (id) =>
+      setTyping({ id, until: Date.now() + 4000 }),
+    );
+    connection.current = current;
+    return () => {
+      current.close();
+      connection.current = null;
+    };
+  }, [workspaceId, client]);
+  useEffect(() => {
+    if (!typing) return;
+    const timer = setTimeout(() => setTyping(null), Math.max(0, typing.until - Date.now()));
+    return () => clearTimeout(timer);
+  }, [typing]);
+  const items =
+    conversations.data?.conversations.filter((item) =>
+      item.name.toLowerCase().includes(filter.toLowerCase()),
+    ) ?? [];
   return (
-    <>
-      <PageHeading eyebrow="Communicate" title="Messenger">
-        Private conversations with the people in this workspace.
-      </PageHeading>
-      <div className="grid items-start gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
-          <aside className="grid gap-4 xl:sticky xl:top-6">
-            <h2>Conversations</h2>
-            <ErrorMessage error={conversations.error} />
-            {conversations.isPending ? (
-              <Loading />
-            ) : conversations.data?.conversations.length ? (
-              conversations.data.conversations.map((item) => (
-                <Link
-                  className="block rounded-md border border-transparent px-3 py-3 text-sm font-medium transition-colors hover:bg-muted aria-[current=page]:border-primary/15 aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
-                  key={item.id}
-                  to="/w/$workspaceId/messenger/$conversationId"
-                  params={{ workspaceId, conversationId: item.id }}
-                >
-                  {item.name}{" "}
-                  {item.providerGroupId && (unread[item.providerGroupId] ?? 0) > 0 && (
-                    <Badge>{unread[item.providerGroupId]} unread</Badge>
-                  )}
-                  <small>{item.kind === "direct" ? "Direct message" : "Private group"}</small>
-                </Link>
-              ))
-            ) : (
-              <p>No conversations yet.</p>
-            )}
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              {offset > 0 && (
-                <Button onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</Button>
-              )}
-              {conversations.data?.nextOffset != null && (
-                <Button onClick={() => setOffset(conversations.data!.nextOffset!)}>Next</Button>
-              )}
-            </div>
-            <Dialog open={creating} onOpenChange={setCreating}>
-              <DialogTrigger asChild>
-                <Button className="w-full" variant="primary">
-                  <Plus aria-hidden="true" />
-                  New conversation
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogTitle>New conversation</DialogTitle>
-                <DialogDescription>
-                  Choose the people and give your conversation a name.
-                </DialogDescription>
-                <form
-                  className="grid gap-4"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const body = new FormData(event.currentTarget);
-                    create.mutate({
-                      kind: body.get("kind") as string,
-                      name: body.get("name") as string,
-                      memberIds: body.getAll("memberIds") as string[],
-                    });
-                  }}
-                >
-                  <Field label="Conversation name" name="name" required maxLength={100} />
-                  <SelectField
-                    label="Type"
-                    name="kind"
-                    options={[
-                      { value: "direct", label: "Direct message" },
-                      { value: "group", label: "Private group" },
-                    ]}
-                  />
-                  <Field
-                    label="Find members"
-                    value={q}
-                    onChange={(event) => setQ(event.target.value)}
-                    maxLength={100}
-                  />
-                  <fieldset className="grid max-h-52 gap-1 overflow-y-auto rounded-md border p-3">
-                    <legend className="px-1 text-xs font-medium">Participants</legend>
-                    {people.data?.members
-                      .filter((person) => person.userId !== session.data?.user.id)
-                      .map((person) => (
-                        <label
-                          htmlFor={`participant-${person.userId}`}
-                          className="flex cursor-pointer items-center gap-3 py-2 text-sm"
-                          key={person.userId}
-                        >
-                          <Checkbox
-                            id={`participant-${person.userId}`}
-                            name="memberIds"
-                            value={person.userId}
-                          />
-                          {person.name}
-                        </label>
-                      ))}
-                  </fieldset>
-                  <ErrorMessage error={people.error ?? create.error} />
-                  <Button type="submit" disabled={create.isPending}>
-                    Create conversation
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </aside>
-        </Card>
-        {conversationId ? (
-          <ConversationView
-            key={conversationId}
-            workspaceId={workspaceId}
-            conversationId={conversationId}
-            onUnread={setUnread}
-          />
-        ) : (
-          <EmptyState
-            title="Start a conversation"
-            icon={<MessageSquare aria-hidden="true" />}
-            className="min-h-[420px]"
-          >
-            Choose a conversation or find someone in Contacts.
-          </EmptyState>
+    <section
+      className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-surface"
+      aria-label="Workspace messenger"
+    >
+      <aside
+        className={cn(
+          "flex min-h-0 w-full shrink-0 flex-col border-r bg-sidebar/40 md:w-60 xl:w-72",
+          conversationId && "hidden md:flex",
         )}
-      </div>
-    </>
+        aria-label="Messenger sidebar"
+      >
+        <header className="flex items-center gap-2 border-b p-4">
+          <MessageSquare className="size-5 text-primary" aria-hidden="true" />
+          <h1 className="flex-1 text-lg font-semibold">Messenger</h1>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Compose direct message"
+            onClick={() => {
+              setMembers([]);
+              setCreating("dm");
+            }}
+          >
+            <Plus aria-hidden="true" />
+          </Button>
+        </header>
+        <div className="border-b p-3">
+          <Field
+            label="Find conversations"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            maxLength={100}
+          />
+          <Button className="mt-2 w-full" size="sm" variant="ghost" onClick={() => setBrowse(true)}>
+            <Search aria-hidden="true" />
+            Browse channels
+          </Button>
+        </div>
+        <nav className="min-h-0 flex-1 overflow-y-auto p-3" aria-label="Conversations">
+          <ErrorMessage error={conversations.error} />
+          {conversations.isPending ? (
+            <Loading />
+          ) : (
+            <>
+              {(["channel", "dm"] as const).map((kind) => (
+                <details key={kind} open className="mb-4">
+                  <summary className="cursor-pointer px-2 py-2 text-xs font-semibold text-muted-foreground">
+                    {kind === "channel" ? "Channels" : "Direct messages"}
+                  </summary>
+                  {items
+                    .filter((item) => (item.kind === "channel") === (kind === "channel"))
+                    .map((item) => (
+                      <ConversationRow
+                        key={item.id}
+                        workspaceId={workspaceId}
+                        item={item}
+                        providerUnread={
+                          item.providerGroupId ? (unread[item.providerGroupId] ?? 0) : 0
+                        }
+                      />
+                    ))}
+                  {kind === "channel" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1 w-full justify-start"
+                      onClick={() => setCreating("channel")}
+                    >
+                      <Plus aria-hidden="true" />
+                      Create channel
+                    </Button>
+                  )}
+                  {kind === "dm" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1 w-full justify-start"
+                      onClick={() => {
+                        setMembers([]);
+                        setCreating("dm");
+                      }}
+                    >
+                      <Plus aria-hidden="true" />
+                      New conversation
+                    </Button>
+                  )}
+                </details>
+              ))}
+            </>
+          )}
+          {conversations.data?.conversations.length === 0 && (
+            <p className="p-2 text-sm">Browse channels or start a conversation.</p>
+          )}
+          <div className="flex gap-2">
+            {offset > 0 && (
+              <Button size="sm" onClick={() => setOffset(Math.max(0, offset - 50))}>
+                Previous
+              </Button>
+            )}
+            {conversations.data?.nextOffset != null && (
+              <Button size="sm" onClick={() => setOffset(conversations.data!.nextOffset!)}>
+                Next
+              </Button>
+            )}
+          </div>
+        </nav>
+        <output
+          aria-live="polite"
+          className="shrink-0 border-t px-4 py-3 text-xs text-muted-foreground"
+        >
+          {state}
+        </output>
+      </aside>
+      {conversationId ? (
+        <ActiveConversation
+          key={conversationId}
+          workspaceId={workspaceId}
+          conversationId={conversationId}
+          onTyping={() => connection.current?.typing(conversationId)}
+          typing={typing?.id === conversationId}
+          onNewGroup={(ids) => {
+            setMembers(ids);
+            setCreating("dm");
+          }}
+          onUnread={setUnread}
+        />
+      ) : (
+        <div className="hidden min-h-0 min-w-0 flex-1 items-center justify-center md:flex">
+          <EmptyState title="Start a conversation" icon={<MessageSquare aria-hidden="true" />}>
+            Choose a channel or start a direct message with your team.
+          </EmptyState>
+        </div>
+      )}
+      {creating && (
+        <CreateConversationDialog
+          workspaceId={workspaceId}
+          channel={creating === "channel"}
+          initialMembers={members}
+          onClose={() => setCreating(null)}
+        />
+      )}
+      {browse && <ChannelBrowser workspaceId={workspaceId} onClose={() => setBrowse(false)} />}
+    </section>
   );
 }
-function ConversationView({
+function ConversationRow({
+  workspaceId,
+  item,
+  providerUnread,
+}: {
+  workspaceId: string;
+  item: Conversation;
+  providerUnread: number;
+}) {
+  const count =
+      item.notifications === "muted"
+        ? 0
+        : item.notifications === "mentions"
+          ? item.mentions
+          : item.unread + providerUnread,
+    Icon = item.kind === "channel" ? (item.visibility === "private" ? Lock : Hash) : MessageSquare;
+  return (
+    <Link
+      className="mb-1 flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
+      to="/w/$workspaceId/messenger/$conversationId"
+      params={{ workspaceId, conversationId: item.id }}
+      hash=""
+      resetScroll={false}
+    >
+      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">
+          {item.name}
+          {item.archivedAt ? " · Archived" : ""}
+        </span>
+        {item.lastMessage && (
+          <span className="block truncate text-xs text-muted-foreground">{item.lastMessage}</span>
+        )}
+      </span>
+      {count > 0 && (
+        <Badge aria-label={`${count} unread messages`}>{count > 99 ? "99+" : count}</Badge>
+      )}
+    </Link>
+  );
+}
+function ActiveConversation({
   workspaceId,
   conversationId,
+  onTyping,
+  typing,
+  onNewGroup,
   onUnread,
 }: {
   workspaceId: string;
   conversationId: string;
+  onTyping: () => void;
+  typing: boolean;
+  onNewGroup: (ids: string[]) => void;
   onUnread: (counts: Record<string, number>) => void;
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]),
-    [state, setState] = useState("Connecting…"),
-    [error, setError] = useState<unknown>(null),
-    [text, setText] = useState(""),
-    [older, setOlder] = useState(true),
-    [busy, setBusy] = useState(false),
-    [attempt, setAttempt] = useState(0);
-  const connection = useRef<Awaited<ReturnType<typeof connectChat>> | null>(null);
-  const people = useQuery(membersQuery(workspaceId));
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    void connectChat(
-      workspaceId,
-      conversationId,
-      (values) => {
-        if (!cancelled) setMessages(values);
-      },
-      (value) => {
-        if (!cancelled) setState(value);
-      },
-      onUnread,
-      controller.signal,
-    ).then(
-      (value) => {
-        if (cancelled) value.close();
-        else {
-          connection.current = value;
-          void command(`/workspaces/${workspaceId}/conversations/${conversationId}/read`).catch(
-            () => undefined,
-          );
-        }
-      },
-      (cause) => {
-        if (!cancelled) {
-          setError(cause);
-          setState("Unable to connect");
-        }
-      },
+  const item = useQuery(conversationQuery(workspaceId, conversationId)),
+    client = useQueryClient(),
+    [settings, setSettings] = useState(false),
+    [thread, setThread] = useState<string | null>(null),
+    [pinned, setPinned] = useState(false),
+    [search, setSearch] = useState(false);
+  const hash = useRouterState({ select: (s) => s.location.hash }),
+    around = /^[0-9a-f-]{36}$/.test(hash) ? hash : undefined;
+  const join = useMutation({
+    mutationFn: () => command(`${messengerPath(workspaceId, conversationId)}/join`),
+    onSuccess: () => client.invalidateQueries({ queryKey: messengerKey(workspaceId) }),
+  });
+  if (item.isError)
+    return (
+      <section className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+        <h2>Conversation unavailable</h2>
+        <ErrorMessage error={item.error} />
+        <Button asChild>
+          <Link to="/w/$workspaceId/messenger" params={{ workspaceId }}>
+            Back to conversations
+          </Link>
+        </Button>
+      </section>
     );
-    return () => {
-      cancelled = true;
-      controller.abort();
-      connection.current?.close();
-      connection.current = null;
-    };
-  }, [workspaceId, conversationId, attempt, onUnread]);
-  const names = new Map(
-    people.data?.members.map((person) => [chatIdentity(workspaceId, person.userId), person.name]),
-  );
-  const photos = new Map(
-    people.data?.members.map((person) => [chatIdentity(workspaceId, person.userId), person.image]),
-  );
-  async function send(value: string, retryId?: string) {
-    if (!connection.current) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await connection.current.send(value, retryId);
-      setText("");
-    } catch (cause) {
-      setError(cause);
-    } finally {
-      setBusy(false);
-    }
-  }
+  if (!item.data) return <Loading />;
+  const conversation = item.data,
+    canPost = conversation.joined && !conversation.archivedAt;
   return (
-    <Card asChild className="[&>p]:my-3 [&>form]:mt-4">
-      <section className="flex min-h-[540px] flex-col">
-        <header className="mt-7 mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="flex-1">Messages</h2>
-          <Badge variant={state === "Connected" ? "success" : "secondary"}>
-            <output aria-live="polite">{state}</output>
-          </Badge>
-          <Button
-            onClick={() => {
-              setError(null);
-              connection.current?.close();
-              setAttempt((value) => value + 1);
-            }}
-          >
-            <RefreshCw aria-hidden="true" />
-            Reconnect
-          </Button>
-        </header>
-        <ErrorMessage error={error} />
-        {older && state === "Connected" && (
-          <Button
-            disabled={busy}
-            onClick={() => {
-              setBusy(true);
-              void connection
-                .current!.history()
-                .then(setOlder, setError)
-                .finally(() => setBusy(false));
-            }}
-          >
-            Load older messages
-          </Button>
-        )}
-        <ol
-          className="my-4 max-h-[55vh] flex-1 overflow-y-auto"
-          aria-label="Messages"
-          aria-live="polite"
+    <section
+      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+      aria-label={conversation.name}
+    >
+      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-3 sm:px-5">
+        <Button
+          asChild
+          size="icon"
+          variant="ghost"
+          className="md:hidden"
+          aria-label="Back to conversations"
         >
-          {messages.map((message) => (
-            <li
-              key={message.id}
-              className="flex gap-3 rounded-md px-1 py-3 hover:bg-muted/30 [&_time]:text-xs [&_time]:text-muted-foreground [&_p]:mt-1 [&_p]:whitespace-pre-wrap [&_p]:wrap-anywhere [&_p]:text-foreground"
-            >
-              <Avatar
-                name={names.get(message.sender) ?? "Member"}
-                src={photos.get(message.sender) ?? undefined}
-              />
-              <div className="min-w-0 flex-1">
-                <strong>{names.get(message.sender) ?? "Workspace member"}</strong>{" "}
-                <time dateTime={new Date(message.time).toISOString()}>
-                  {formatDateTime(message.time)}
-                </time>
-                <p>{message.text}</p>
-                {message.pending && <small>Sending…</small>}
-                {message.failed && (
-                  <Button
-                    disabled={busy}
-                    onClick={() => {
-                      void send(message.text, message.id);
-                    }}
-                  >
-                    Retry message
-                  </Button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
-        {!messages.length && state === "Connected" && (
-          <p className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-surface px-5 py-10 text-center text-muted-foreground">
-            No messages yet. Say hello.
+          <Link to="/w/$workspaceId/messenger" params={{ workspaceId }}>
+            <ArrowLeft aria-hidden="true" />
+          </Link>
+        </Button>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-base font-semibold">
+            {conversation.kind === "channel"
+              ? conversation.visibility === "private"
+                ? "🔒 "
+                : "# "
+              : ""}
+            {conversation.name}
+          </h2>
+          <p className="truncate text-xs text-muted-foreground">
+            {conversation.description ||
+              (conversation.kind === "channel"
+                ? `${conversation.visibility} channel`
+                : "Private direct conversation")}
+            {conversation.archivedAt ? " · Archived" : ""}
           </p>
-        )}
-        <form
-          className="flex flex-wrap items-end gap-3 border-t pt-4 [&>div]:min-w-40 [&>div]:flex-1"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void send(text);
-          }}
+        </div>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label="Search messages"
+          onClick={() => setSearch(!search)}
         >
-          <FormField label="Message" hint="Ctrl/⌘ + Enter to send">
-            <Textarea
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              maxLength={4000}
-              required
-              placeholder="Write a message to your team…"
-              className="min-h-20"
-              onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  (event.ctrlKey || event.metaKey) &&
-                  !busy &&
-                  state === "Connected" &&
-                  text.trim()
-                ) {
-                  event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
-          </FormField>
+          <Search aria-hidden="true" />
+        </Button>
+        {!conversation.providerGroupId && (
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-pressed={pinned}
+            onClick={() => setPinned(!pinned)}
+          >
+            Pinned
+          </Button>
+        )}
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label="Conversation settings"
+          onClick={() => setSettings(true)}
+        >
+          <Settings aria-hidden="true" />
+        </Button>
+      </header>
+      {search && <MessageSearch workspaceId={workspaceId} onClose={() => setSearch(false)} />}
+      <ErrorMessage error={join.error} />
+      {!conversation.joined && (
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-accent/40 px-4 py-3 text-sm">
+          <p>You can read this public channel. Join to participate.</p>
           <Button
             variant="primary"
-            type="submit"
-            disabled={busy || state !== "Connected" || !text.trim()}
+            disabled={join.isPending || Boolean(conversation.archivedAt)}
+            onClick={() => join.mutate()}
           >
-            <Send aria-hidden="true" />
-            Send message
+            Join channel
           </Button>
-        </form>
-      </section>
-    </Card>
+        </div>
+      )}
+      {around && (
+        <div className="border-b p-2 text-center text-xs">
+          <Button asChild size="sm">
+            <Link
+              to="/w/$workspaceId/messenger/$conversationId"
+              params={{ workspaceId, conversationId }}
+              hash=""
+            >
+              Return to latest messages
+            </Link>
+          </Button>
+        </div>
+      )}
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        {conversation.providerGroupId ? (
+          <LegacyConversationView
+            workspaceId={workspaceId}
+            conversationId={conversationId}
+            onUnread={onUnread}
+          />
+        ) : (
+          <>
+            <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", thread && "hidden xl:flex")}>
+              <MessageStream
+                key={`${conversationId}:${around ?? ""}:${pinned}`}
+                workspaceId={workspaceId}
+                conversationId={conversationId}
+                canPost={canPost}
+                lastReadSequence={conversation.lastReadSequence}
+                around={around}
+                pinned={pinned}
+                onReply={setThread}
+                onTyping={onTyping}
+              />
+            </div>
+            {thread && (
+              <aside
+                className="flex min-h-0 min-w-0 flex-1 flex-col border-l xl:max-w-md"
+                aria-label="Thread"
+              >
+                <header className="flex shrink-0 items-center justify-between border-b px-4 py-2">
+                  <h3 className="text-sm font-semibold">Thread</h3>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Close thread"
+                    onClick={() => setThread(null)}
+                  >
+                    <X aria-hidden="true" />
+                  </Button>
+                </header>
+                <MessageStream
+                  key={thread}
+                  workspaceId={workspaceId}
+                  conversationId={conversationId}
+                  parentId={thread}
+                  canPost={canPost}
+                  lastReadSequence={conversation.lastReadSequence}
+                  onReply={setThread}
+                  onTyping={onTyping}
+                />
+              </aside>
+            )}
+          </>
+        )}
+      </div>
+      {typing && (
+        <output aria-live="polite" className="border-t px-4 py-1 text-xs text-muted-foreground">
+          Someone is typing…
+        </output>
+      )}
+      {settings && (
+        <ConversationSettings
+          workspaceId={workspaceId}
+          item={conversation}
+          onClose={() => setSettings(false)}
+          onNewGroup={(ids) => {
+            setSettings(false);
+            onNewGroup(ids);
+          }}
+        />
+      )}
+    </section>
+  );
+}
+function MessageSearch({ workspaceId, onClose }: { workspaceId: string; onClose: () => void }) {
+  const [q, setQ] = useState(""),
+    [term, setTerm] = useState(""),
+    [before, setBefore] = useState<number | undefined>();
+  const results = useQuery({
+    queryKey: [...messengerKey(workspaceId), "search", term, before],
+    queryFn: ({ signal }) =>
+      api(
+        `/workspaces/${workspaceId}/messenger/search?${new URLSearchParams({ q: term, ...(before ? { before: String(before) } : {}) })}`,
+        messengerSearchSchema,
+        { signal },
+      ),
+    enabled: term.length >= 2,
+  });
+  return (
+    <section
+      className="max-h-[45%] shrink-0 overflow-y-auto border-b bg-muted/20 p-3"
+      aria-label="Message search"
+    >
+      <form
+        className="flex items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setTerm(q);
+          setBefore(undefined);
+        }}
+      >
+        <div className="min-w-0 flex-1">
+          <Field
+            label="Search workspace messages"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            minLength={2}
+            maxLength={200}
+          />
+        </div>
+        <Button type="submit" size="sm">
+          Search
+        </Button>
+        <Button size="icon" variant="ghost" aria-label="Close search" onClick={onClose}>
+          <X aria-hidden="true" />
+        </Button>
+      </form>
+      <ErrorMessage error={results.error} />
+      <ul className="mt-2 grid gap-2">
+        {results.data?.results.map((result) => (
+          <li className="rounded-md border bg-surface p-2" key={result.id}>
+            <Link
+              onClick={onClose}
+              to="/w/$workspaceId/messenger/$conversationId"
+              params={{ workspaceId, conversationId: result.conversationId }}
+              hash={result.parentId ?? result.id}
+              className="block text-sm"
+            >
+              <strong>
+                {result.conversationName} · {result.senderName}
+              </strong>
+              <p className="line-clamp-2 wrap-anywhere">{result.body}</p>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {results.data?.results.length === 0 && <p className="py-3 text-sm">No matching messages.</p>}
+      {results.data?.nextBefore != null && (
+        <Button size="sm" onClick={() => setBefore(results.data!.nextBefore!)}>
+          More results
+        </Button>
+      )}
+      {before && (
+        <Button size="sm" onClick={() => setBefore(undefined)}>
+          First results
+        </Button>
+      )}
+    </section>
   );
 }

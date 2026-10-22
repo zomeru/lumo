@@ -23,6 +23,8 @@ export const conversationSchema = z.object({
   joined: z.boolean().default(true),
   role: z.enum(["owner", "manager", "member"]).nullable().default(null),
   unread: z.number().default(0),
+  lastReadSequence: z.number().default(0),
+  memberCount: z.number().default(0),
   mentions: z.number().default(0),
   notifications: z.enum(["all", "mentions", "muted"]).default("all"),
   lastMessage: z.string().nullable().default(null),

@@ -61,6 +61,15 @@ beforeEach(() => {
   server = hrFixture().server;
   ended = false;
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  override(`GET /api/v1/workspaces/${teamId}/conversations/${id}`, () => ({
+    id,
+    workspaceId: teamId,
+    kind: "group",
+    name: "Project team",
+    createdAt: new Date().toISOString(),
+    memberIds: [bobId],
+    providerGroupId: "legacy",
+  }));
   override(`GET /api/v1/workspaces/${teamId}/conversations`, () => ({
     conversations: [
       {
@@ -126,7 +135,7 @@ test("new private conversations and conversation pagination remain usable", asyn
   const user = await show(`/w/${teamId}/messenger`);
   await user.click(await screen.findByText("New conversation"));
   await user.type(screen.getByLabelText("Conversation name"), "Team");
-  await selectOption(user, "Type", "Private group");
+  await selectOption(user, "Type", "Group direct message");
   await user.type(screen.getByLabelText("Find members"), "Bob");
   await user.click(screen.getByLabelText("Bob Rivera"));
   await user.click(screen.getByRole("button", { name: "Create conversation" }));

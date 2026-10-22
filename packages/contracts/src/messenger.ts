@@ -15,10 +15,12 @@ export const channelInputSchema = z
     memberIds: z.array(idSchema).max(49).default([]),
   })
   .strict();
-export const channelUpdateSchema = channelInputSchema
-  .pick({ name: true, description: true })
-  .partial()
-  .extend({ archived: z.boolean().optional() })
+export const channelUpdateSchema = z
+  .object({
+    name: channelInputSchema.shape.name.optional(),
+    description: z.string().trim().max(1000).optional(),
+    archived: z.boolean().optional(),
+  })
   .strict();
 export const channelMemberInputSchema = z
   .object({ userId: idSchema, role: z.enum(["owner", "manager", "member"]).default("member") })

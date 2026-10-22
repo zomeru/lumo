@@ -57,6 +57,7 @@ function NavigationGroup({ label, children }: { label: string; children: ReactNo
 export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const editorLayout = /\/(?:documents|docs|sheets|slides)\/[^/]+$|\/wiki(?:\/|$)/.test(pathname);
+  const fullLayout = editorLayout || /\/messenger(?:\/|$)/.test(pathname);
   const ws = useQuery(workspaceQuery(workspaceId));
   const joined = useQuery(workspacesQuery());
   const session = useQuery(sessionQuery());
@@ -310,7 +311,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
       <div
         className={cn(
           "flex min-w-0 flex-col lg:ml-60",
-          editorLayout ? "h-dvh overflow-hidden" : "min-h-dvh",
+          fullLayout ? "h-dvh overflow-hidden" : "min-h-dvh",
         )}
       >
         <AppHeader className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b bg-surface px-4 sm:px-8">
@@ -356,7 +357,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
         <main
           id="main-content"
           className={
-            editorLayout
+            fullLayout
               ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden"
               : "mx-auto w-full max-w-7xl flex-1 space-y-5 px-4 py-5 sm:px-8 sm:py-6 xl:px-10"
           }
@@ -364,7 +365,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           <ErrorMessage error={error} />
           {switching ? <Loading label="Switching workspace…" /> : <Outlet key={workspaceId} />}
         </main>
-        {!editorLayout && (
+        {!fullLayout && (
           <footer className="flex items-center justify-between gap-3 border-t px-5 py-4 text-[10px] text-muted-foreground sm:px-8">
             <span>Lumo · Everything, connected.</span>
             <span className="flex items-center gap-1.5">
