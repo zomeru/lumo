@@ -3,6 +3,7 @@ export type AppPlatform = {
   kind: "web" | "desktop";
   webOrigin: string;
   transport: Transport;
+  openAttachment?: (path: string) => Promise<void>;
   download?: (path: string, body: unknown) => Promise<void>;
 };
 let platform: AppPlatform | undefined;

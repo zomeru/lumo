@@ -20,6 +20,26 @@ export async function driveDownload(
   save: (url: string) => void,
 ) {
   const value = downloadRequest.parse(input);
+  save(await authorizedStorageUrl(value, request));
+}
+
+/** Renderer supplies an attachment identity path; the main process obtains the actual URL. */
+export async function openMessengerAttachment(
+  path: unknown,
+  request: (input: unknown) => Promise<{ status: number; body: unknown }>,
+  open: (url: string) => void | Promise<void>,
+) {
+  const value = z
+    .string()
+    .regex(new RegExp(`^/api/v1/workspaces/${id}/messenger/attachments/${id}/preview$`))
+    .parse(path);
+  await open(await authorizedStorageUrl({ path: value, body: {} }, request));
+}
+
+async function authorizedStorageUrl(
+  value: { path: string; body: unknown },
+  request: (input: unknown) => Promise<{ status: number; body: unknown }>,
+) {
   const result = await request({ ...value, method: "POST" });
   if (result.status !== 200) {
     const failure = z.object({ error: z.object({ message: z.string() }) }).safeParse(result.body);
@@ -36,5 +56,5 @@ export async function driveDownload(
     !/^(?:[a-z0-9.-]+\.)?s3[.-][a-z0-9-]+\.amazonaws\.com(?:\.cn)?$/.test(url.hostname)
   )
     throw new Error("Invalid storage download URL");
-  save(url.href);
+  return url.href;
 }

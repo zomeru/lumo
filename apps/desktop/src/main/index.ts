@@ -14,7 +14,7 @@ import {
   desktopCapturer,
 } from "electron";
 
-import { driveDownload } from "./drive-download";
+import { driveDownload, openMessengerAttachment } from "./drive-download";
 import { remoteOrigin, trustedRenderer, externalUrl, rendererCsp } from "./policy";
 import { createSessionTransport } from "./transport";
 import { registerWindowControls, synchronizeWindowState } from "./window-controls";
@@ -73,6 +73,10 @@ void app.whenReady().then(async () => {
   ipcMain.handle("lumo:download", async (event, input: unknown) => {
     sender(event);
     await driveDownload(input, request, (url) => window!.webContents.downloadURL(url));
+  });
+  ipcMain.handle("lumo:media-external", async (event, path: unknown) => {
+    sender(event);
+    await openMessengerAttachment(path, request, (url) => shell.openExternal(url));
   });
   ipcMain.handle("lumo:external", async (event, url: unknown) => {
     sender(event);

@@ -16,6 +16,7 @@ declare global {
       window: WindowApi;
       request: Transport;
       webOrigin: () => Promise<string>;
+      openAttachment: (path: string) => Promise<void>;
       openExternal: (url: string) => Promise<void>;
       download: (path: string, body: unknown) => Promise<void>;
     };
@@ -27,6 +28,7 @@ configurePlatform({
   webOrigin: await window.lumo.webOrigin(),
   transport: window.lumo.request,
   download: window.lumo.download,
+  openAttachment: window.lumo.openAttachment,
 });
 const router = createAppRouter();
 const root = document.getElementById("root");

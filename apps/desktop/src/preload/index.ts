@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld(
         method: options.method ?? "GET",
         body: options.body,
       }),
+    openAttachment: (path: string) => ipcRenderer.invoke("lumo:media-external", path),
     openExternal: (url: string) => ipcRenderer.invoke("lumo:external", url),
     download: (path: string, body: unknown) => ipcRenderer.invoke("lumo:download", { path, body }),
     webOrigin: () => ipcRenderer.invoke("lumo:web-origin"),
