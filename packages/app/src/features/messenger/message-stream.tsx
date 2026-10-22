@@ -15,7 +15,7 @@ import {
 } from "@lumo/ui";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, Paperclip, Send, X } from "lucide-react";
-import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 import { api, command, sessionQuery } from "../../lib/api";
 import { messengerKey, messengerPath } from "./messenger-api";
@@ -58,6 +58,15 @@ function MessageComposer({
   const controller = useRef<AbortController | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const attachmentInput = useRef<HTMLInputElement>(null);
+  const selection = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (selection.current !== null && textarea.current) {
+      const caret = selection.current;
+      selection.current = null;
+      textarea.current.focus();
+      textarea.current.setSelectionRange(caret, caret);
+    }
+  }, [draft]);
   useEffect(() => () => controller.current?.abort(), []);
   const upload = useMutation({
     mutationFn: async (file: File) => {
@@ -132,12 +141,9 @@ function MessageComposer({
               setValidation(new Error("This emoji would exceed the message length limit."));
               return;
             }
+            selection.current = start + emoji.length;
             setDraft(updateMentionDraft(draft, next));
             onTyping();
-            requestAnimationFrame(() => {
-              input?.focus();
-              input?.setSelectionRange(start + emoji.length, start + emoji.length);
-            });
           }}
         />
         <Button
@@ -418,7 +424,9 @@ export function MessageStream({
               {(index === 0 ||
                 new Date(messages[index - 1]!.createdAt).toDateString() !==
                   new Date(message.createdAt).toDateString()) && (
-                <li className="sticky top-0 z-10 bg-surface/95 py-2 text-center text-xs text-muted-foreground">
+                <li
+                  className={`${parentId ? "" : "sticky top-0 z-10 "}bg-surface/95 py-2 text-center text-xs text-muted-foreground`}
+                >
                   {formatDate(message.createdAt)}
                 </li>
               )}

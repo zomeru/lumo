@@ -328,7 +328,12 @@ function ActiveConversation({
       className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
       aria-label={conversation.name}
     >
-      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-3 sm:px-5">
+      <header
+        className={cn(
+          "flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-3 sm:px-5",
+          thread && "hidden xl:flex",
+        )}
+      >
         <Button
           asChild
           size="icon"
@@ -397,7 +402,7 @@ function ActiveConversation({
           <Settings aria-hidden="true" />
         </Button>
       </header>
-      {search && (
+      {search && !thread && (
         <MessageSearch
           workspaceId={workspaceId}
           onClose={() => {
@@ -407,7 +412,7 @@ function ActiveConversation({
           }}
         />
       )}
-      {view !== "messages" && (
+      {view !== "messages" && !thread && (
         <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-2">
           <Button size="sm" onClick={() => setView("messages")}>
             <ArrowLeft aria-hidden="true" />
@@ -418,7 +423,7 @@ function ActiveConversation({
           </span>
         </div>
       )}
-      {around && (
+      {around && !thread && (
         <div className="border-b p-2 text-center text-xs">
           <Button asChild size="sm">
             <Link
@@ -464,7 +469,7 @@ function ActiveConversation({
             <header className="flex shrink-0 items-center justify-between border-b px-4 py-2">
               <h3 className="text-sm font-semibold">Thread</h3>
               <Button
-                size="icon"
+                size="sm"
                 variant="ghost"
                 aria-label="Close thread"
                 ref={closeThread}
@@ -474,7 +479,9 @@ function ActiveConversation({
                   requestAnimationFrame(() => threadTrigger.current?.focus());
                 }}
               >
-                <X aria-hidden="true" />
+                <ArrowLeft className="xl:hidden" aria-hidden="true" />
+                <span className="xl:sr-only">Back to messages</span>
+                <X className="hidden xl:block" aria-hidden="true" />
               </Button>
             </header>
             <MessageStream

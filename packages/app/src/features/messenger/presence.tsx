@@ -113,7 +113,9 @@ export function PresencePreference() {
       api("/me/presence", presencePreferenceSchema, { method: "PUT", body: { dnd } }),
     onSuccess: async (data) => {
       client.setQueryData(["presence-preference"], data);
-      await client.invalidateQueries({ queryKey: ["workspace"] });
+      await client.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "workspace" && query.queryKey[2] === "presence",
+      });
     },
   });
   return (

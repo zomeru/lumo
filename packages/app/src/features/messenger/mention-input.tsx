@@ -2,7 +2,7 @@
 import { messengerMembersSchema } from "@lumo/contracts/messenger";
 import { ErrorMessage, Textarea, cn } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Fragment, useId, useRef, useState, type ComponentProps } from "react";
+import { Fragment, useId, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import { createPortal } from "react-dom";
 
 import { api } from "../../lib/api";
@@ -67,6 +67,15 @@ export function MentionInput({
 }) {
   const localRef = useRef<HTMLTextAreaElement>(null),
     input = inputRef ?? localRef;
+  const selection = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (selection.current !== null && input.current) {
+      const caret = selection.current;
+      selection.current = null;
+      input.current.focus();
+      input.current.setSelectionRange(caret, caret);
+    }
+  }, [draft, input]);
   const overlay = useRef<HTMLDivElement>(null),
     listId = useId();
   const [search, setSearch] = useState<ReturnType<typeof mentionSearch>>(null),
@@ -107,6 +116,7 @@ export function MentionInput({
       text = draft.text.slice(0, search.start) + value + " " + draft.text.slice(search.end);
     if (text.length > 4000 || draft.mentions.length >= 20) return;
     const next = updateMentionDraft(draft, text);
+    selection.current = search.start + value.length + 1;
     onDraft({
       ...next,
       mentions: [
@@ -121,13 +131,6 @@ export function MentionInput({
     });
     setSearch(null);
     onTyping?.();
-    requestAnimationFrame(() => {
-      input.current?.focus();
-      input.current?.setSelectionRange(
-        search.start + value.length + 1,
-        search.start + value.length + 1,
-      );
-    });
   };
   const highlights = draft.mentions.map((mention, index) => {
     const before = draft.text.slice(draft.mentions[index - 1]?.end ?? 0, mention.start);

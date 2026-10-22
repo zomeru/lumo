@@ -371,7 +371,12 @@ describe("failure, pagination and stale-session recovery", () => {
     );
     await act(() => client.invalidateQueries({ queryKey: ["session"] }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Session service unavailable");
+    expect(screen.getByRole("heading", { name: "Connection interrupted" })).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Sign in again" })).not.toBeInTheDocument();
     expect(screen.queryByText("Bob Rivera")).not.toBeInTheDocument();
+    server.state.overrides.delete("GET /api/v1/me");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByRole("heading", { name: "Bob Rivera" })).toBeVisible();
   });
   test("contacts paginate without preserving the previous page", async () => {
     server.state.overrides.set(`GET /api/v1/workspaces/${teamId}/hr/people`, (_body, url) =>

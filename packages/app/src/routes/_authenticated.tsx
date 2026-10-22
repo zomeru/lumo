@@ -1,6 +1,6 @@
-import { ErrorMessage, Loading } from "@lumo/ui";
+import { Button, ErrorMessage, Loading } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { ProfileProvider } from "../features/auth/profile-dialog";
@@ -41,11 +41,17 @@ function SessionBoundary() {
       })();
     }
   }, [session.error, queryClient, navigate]);
+  if (session.error instanceof ApiError && session.error.status === 401)
+    return <Loading label="Returning to sign in…" />;
   if (session.isError)
     return (
       <main className="mx-auto my-16 grid max-w-xl gap-5 px-6">
+        <h1>Connection interrupted</h1>
+        <p>Your account could not be refreshed. Try again once the connection is available.</p>
         <ErrorMessage error={session.error} />
-        <Link to="/login">Sign in again</Link>
+        <Button loading={session.isFetching} onClick={() => void session.refetch()}>
+          Try again
+        </Button>
       </main>
     );
   if (!session.data) return <Loading label="Restoring your session…" />;
