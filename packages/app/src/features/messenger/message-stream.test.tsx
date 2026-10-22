@@ -29,6 +29,7 @@ vi.mock("emoji-picker-react", () => ({
     </div>
   ),
 }));
+vi.mock("@tanstack/react-router", () => ({ useNavigate: () => () => {} }));
 const filesMock = vi.hoisted(() => ({
   upload: vi.fn<(...args: unknown[]) => Promise<{ id: string; name: string }>>(async () => ({
     id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",

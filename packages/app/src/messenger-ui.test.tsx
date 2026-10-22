@@ -337,3 +337,22 @@ test("notification inbox paginates authorized unread totals and opens a conversa
   await screen.findByText("Launch decision");
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
+
+test("suggested teammates open DMs in one step and author profiles support focus", async () => {
+  const user = await show(true);
+  await screen.findByText("Launch decision");
+  await user.click(screen.getByRole("button", { name: /Bob Rivera/ }));
+  await waitFor(() =>
+    expect(calls).toContainEqual({
+      path: "create-dm",
+      body: { kind: "direct", name: "Bob Rivera", memberIds: [bobId] },
+    }),
+  );
+  const profile = screen.getAllByRole("button", { name: /View .*'s profile/ })[0]!;
+  profile.focus();
+  const card = await screen.findByRole("dialog");
+  expect(within(card).getByRole("button", { name: "Message" })).toBeVisible();
+  expect(within(card).queryByText(/@example.com/)).not.toBeInTheDocument();
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+});

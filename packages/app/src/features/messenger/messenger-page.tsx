@@ -1,19 +1,22 @@
+import { membersSchema } from "@lumo/contracts";
 import type { Conversation } from "@lumo/contracts/collaboration";
 import { messengerSearchSchema } from "@lumo/contracts/messenger";
 import { canCreateChannel } from "@lumo/contracts/permissions";
 import { formatDateTime } from "@lumo/shared/date-time";
 import { Badge, Button, EmptyState, ErrorMessage, Field, Loading, cn } from "@lumo/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Hash, Lock, MessageSquare, Plus, Search, Settings, X } from "lucide-react";
 import { useState } from "react";
 
 import { AppAvatar } from "../../components/app-avatar";
-import { api, workspaceQuery } from "../../lib/api";
+import { api, workspaceQuery, sessionQuery } from "../../lib/api";
+import { useStartDirectMessage } from "./member-card";
 import { MessageStream } from "./message-stream";
 import { conversationQuery, conversationsQuery, messengerKey } from "./messenger-api";
 import { ConversationSettings, CreateConversationDialog } from "./messenger-dialogs";
 import { useMessengerRealtime } from "./messenger-notifications";
+import { PresencePreference, MemberAvatar } from "./presence";
 
 export function MessengerPage({
   workspaceId,
@@ -27,6 +30,17 @@ export function MessengerPage({
     [offset, setOffset] = useState(0),
     [filter, setFilter] = useState("");
   const { status: state, typing, sendTyping } = useMessengerRealtime();
+  const session = useQuery(sessionQuery());
+  const suggestions = useQuery({
+    queryKey: ["workspace", workspaceId, "suggested-contacts", filter],
+    queryFn: ({ signal }) =>
+      api(
+        `/workspaces/${workspaceId}/members?limit=11&q=${encodeURIComponent(filter)}`,
+        membersSchema,
+        { signal },
+      ),
+  });
+  const direct = useStartDirectMessage(workspaceId);
   const conversations = useQuery(conversationsQuery(workspaceId, offset, filter));
   const workspace = useQuery(workspaceQuery(workspaceId));
   const canCreate = workspace.data ? canCreateChannel(workspace.data.role) : false;
@@ -97,6 +111,40 @@ export function MessengerPage({
                     </Button>
                   )}
                   {kind === "dm" && (
+                    <>
+                      {(suggestions.data?.members ?? [])
+                        .filter(
+                          (person) =>
+                            person.userId !== session.data?.user.id &&
+                            !items.some(
+                              (item) =>
+                                item.kind === "direct" && item.memberIds.includes(person.userId),
+                            ),
+                        )
+                        .slice(0, 10)
+                        .map((person) => (
+                          <Button
+                            key={person.userId}
+                            variant="ghost"
+                            className="my-0.5 w-full justify-start px-2"
+                            disabled={direct.isPending}
+                            onClick={() =>
+                              direct.mutate({ userId: person.userId, name: person.name })
+                            }
+                          >
+                            <MemberAvatar
+                              userId={person.userId}
+                              name={person.name}
+                              src={person.image ?? undefined}
+                              size="sm"
+                            />
+                            <span className="truncate text-foreground">{person.name}</span>
+                          </Button>
+                        ))}
+                      <ErrorMessage error={direct.error} />
+                    </>
+                  )}
+                  {kind === "dm" && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -130,6 +178,7 @@ export function MessengerPage({
             )}
           </div>
         </nav>
+        <PresencePreference />
         <output
           aria-live="polite"
           className="shrink-0 border-t px-4 py-3 text-xs text-muted-foreground"
@@ -189,7 +238,8 @@ function ConversationRow({ workspaceId, item }: { workspaceId: string; item: Con
         <span className="flex shrink-0 -space-x-3" aria-hidden="true">
           {item.participants.length ? (
             item.participants.map((person) => (
-              <AppAvatar
+              <MemberAvatar
+                userId={person.userId}
                 key={person.userId}
                 name={person.name}
                 src={person.image ?? undefined}
@@ -238,6 +288,7 @@ function ActiveConversation({
   typing: boolean;
   onNewGroup: (ids: string[]) => void;
 }) {
+  const navigate = useNavigate();
   const item = useQuery(conversationQuery(workspaceId, conversationId)),
     [settings, setSettings] = useState(false),
     [thread, setThread] = useState<string | null>(null),
@@ -344,6 +395,17 @@ function ActiveConversation({
           }}
         />
       )}
+      {view !== "messages" && (
+        <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-2">
+          <Button size="sm" onClick={() => setView("messages")}>
+            <ArrowLeft aria-hidden="true" />
+            Back to messages
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {view === "pinned" ? "Pinned messages" : "Shared files"}
+          </span>
+        </div>
+      )}
       {around && (
         <div className="border-b p-2 text-center text-xs">
           <Button asChild size="sm">
@@ -368,6 +430,16 @@ function ActiveConversation({
             around={around}
             pinned={view === "pinned"}
             files={view === "files"}
+            onJump={(message) => {
+              setView("messages");
+              setThread(message.parentId);
+              void navigate({
+                to: "/w/$workspaceId/messenger/$conversationId",
+                params: { workspaceId, conversationId },
+                hash: message.parentId ?? message.id,
+                resetScroll: false,
+              });
+            }}
             onReply={setThread}
             onTyping={onTyping}
           />

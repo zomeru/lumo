@@ -15,10 +15,12 @@ import {
 } from "@lumo/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { X } from "lucide-react";
 import { useState } from "react";
 
 import { api, command, membersQuery, sessionQuery } from "../../lib/api";
 import { messengerKey, messengerPath } from "./messenger-api";
+import { MemberAvatar } from "./presence";
 
 // These controlled dialogs mount without a DialogTrigger; restore the initiating control.
 function useDialogReturnFocus() {
@@ -40,6 +42,7 @@ function MemberPicker({
   selected: string[];
   onChange: (ids: string[]) => void;
 }) {
+  const [names, setNames] = useState<Record<string, string>>({});
   const [q, setQ] = useState(""),
     [offset, setOffset] = useState(0),
     people = useQuery(membersQuery(workspaceId, q, offset)),
@@ -55,6 +58,23 @@ function MemberPicker({
         }}
         maxLength={100}
       />
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1" aria-label="Selected participants">
+          {selected.map((id) => (
+            <Button
+              key={id}
+              size="sm"
+              aria-label={`Remove ${names[id] ?? people.data?.members.find((p) => p.userId === id)?.name ?? "selected participant"}`}
+              onClick={() => onChange(selected.filter((value) => value !== id))}
+            >
+              {names[id] ??
+                people.data?.members.find((p) => p.userId === id)?.name ??
+                "Selected teammate"}
+              <X aria-hidden="true" />
+            </Button>
+          ))}
+        </div>
+      )}
       <fieldset className="max-h-48 overflow-y-auto rounded-md border p-3">
         <legend className="px-1 text-xs">Participants ({selected.length} selected)</legend>
         {people.data?.members
@@ -62,13 +82,17 @@ function MemberPicker({
           .map((p) => (
             <label className="flex items-center gap-3 py-2 text-sm" key={p.userId}>
               <Checkbox
+                aria-label={p.name}
                 checked={selected.includes(p.userId)}
-                onCheckedChange={(checked) =>
+                disabled={!selected.includes(p.userId) && selected.length >= 49}
+                onCheckedChange={(checked) => {
+                  setNames((current) => ({ ...current, [p.userId]: p.name }));
                   onChange(
                     checked ? [...selected, p.userId] : selected.filter((id) => id !== p.userId),
-                  )
-                }
+                  );
+                }}
               />
+              <MemberAvatar userId={p.userId} name={p.name} src={p.image ?? undefined} size="sm" />
               {p.name}
             </label>
           ))}
@@ -101,6 +125,8 @@ export function CreateConversationDialog({
   initialMembers?: string[];
 }) {
   const returnFocus = useDialogReturnFocus();
+  const session = useQuery(sessionQuery());
+  const [kind, setKind] = useState(initialMembers.length > 1 ? "group" : "direct");
   const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [selected, setSelected] = useState(initialMembers),
     client = useQueryClient(),
@@ -149,7 +175,11 @@ export function CreateConversationDialog({
                     visibility: form.get("visibility"),
                     memberIds: visibility === "private" ? selected : [],
                   }
-                : { name: form.get("name"), kind: form.get("kind"), memberIds: selected },
+                : {
+                    name: form.get("name"),
+                    kind,
+                    memberIds: selected.filter((id) => id !== session.data?.user.id),
+                  },
             );
           }}
         >
@@ -177,7 +207,8 @@ export function CreateConversationDialog({
             <SelectField
               label="Type"
               name="kind"
-              defaultValue={initialMembers.length > 1 ? "group" : "direct"}
+              value={kind}
+              onValueChange={setKind}
               options={[
                 { value: "direct", label: "Direct message" },
                 { value: "group", label: "Group direct message" },
@@ -196,7 +227,12 @@ export function CreateConversationDialog({
             type="submit"
             variant="primary"
             disabled={
-              create.isPending || ((!channel || visibility === "private") && selected.length > 49)
+              create.isPending ||
+              ((!channel || visibility === "private") && selected.length > 49) ||
+              (!channel &&
+                (kind === "direct"
+                  ? selected.filter((id) => id !== session.data?.user.id).length !== 1
+                  : selected.filter((id) => id !== session.data?.user.id).length < 2))
             }
           >
             {channel ? "Create channel" : "Create conversation"}

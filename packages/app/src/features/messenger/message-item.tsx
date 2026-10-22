@@ -14,6 +14,7 @@ import { useMutation } from "@tanstack/react-query";
 import { MessageSquare, MoreHorizontal, Pin } from "lucide-react";
 
 import { EmojiPopover } from "./emoji-popover";
+import { MemberCard } from "./member-card";
 import { downloadAttachment } from "./messenger-files";
 import { MemberAvatar as AppAvatar } from "./presence";
 
@@ -59,15 +60,31 @@ export function MessageItem({
       {grouped ? (
         <span className="w-9 shrink-0" aria-hidden="true" />
       ) : (
-        <AppAvatar
+        <MemberCard
+          workspaceId={message.workspaceId}
           userId={message.senderId}
           name={message.senderName}
-          src={message.senderImage ?? undefined}
-        />
+          image={message.senderImage}
+        >
+          <AppAvatar
+            userId={message.senderId}
+            name={message.senderName}
+            src={message.senderImage ?? undefined}
+          />
+        </MemberCard>
       )}
       <div className="min-w-0 flex-1">
         <div className="flex min-h-5 flex-wrap items-baseline gap-x-2 pr-8">
-          <strong className={grouped ? "sr-only" : "text-sm"}>{message.senderName}</strong>
+          <strong className={grouped ? "sr-only" : "text-sm"}>
+            <MemberCard
+              workspaceId={message.workspaceId}
+              userId={message.senderId}
+              name={message.senderName}
+              image={message.senderImage}
+            >
+              {message.senderName}
+            </MemberCard>
+          </strong>
           <time
             className="text-xs text-muted-foreground"
             dateTime={message.createdAt}
