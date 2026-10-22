@@ -11,6 +11,7 @@ export async function verifyMessenger(
   peerName: string,
   screenshot: string,
   peer?: Page,
+  inspectThread?: () => Promise<void>,
 ) {
   const origin = page.url().startsWith("lumo:") ? "lumo://app" : "http://localhost:3010",
     root = `${origin}/w/${workspaceId}/messenger`;
@@ -28,7 +29,15 @@ export async function verifyMessenger(
   await dialog.getByRole("button", { name: "Create channel", exact: true }).click();
   await expect(page.getByRole("heading", { name: "# Launch team", exact: true })).toBeVisible();
   const channelId = new URL(page.url()).pathname.split("/").at(-1)!;
-  await page.getByLabel("Message", { exact: true }).fill("Messenger launch hello");
+  const composer = page.getByLabel("Message", { exact: true });
+  await composer.fill("Hello team");
+  await composer.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(6, 10));
+  await page.getByRole("button", { name: "Emoji", exact: true }).click();
+  await page.getByRole("combobox", { name: "Type to search for an emoji" }).fill("fox");
+  await page.getByRole("gridcell", { name: "fox", exact: true }).first().click();
+  await expect(composer).toHaveValue("Hello 🦊");
+  await expect(composer).toBeFocused();
+  await composer.fill("Messenger launch hello");
   await page.getByLabel("Message", { exact: true }).press("Enter");
   const history = page.getByRole("list", { name: "Messages", exact: true });
   await expect(history.getByText("Messenger launch hello", { exact: true })).toBeVisible();
@@ -63,13 +72,29 @@ export async function verifyMessenger(
   await dialog.getByLabel("Edit message body").fill("Messenger launch edited");
   await dialog.getByRole("button", { name: "Save message", exact: true }).click();
   await expect(history.getByText("Messenger launch edited", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Pinned", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Back to messages", exact: true })).toBeVisible();
+  await page.screenshot({ path: screenshot.replace(".png", "-pins.png") });
+  await page.getByRole("button", { name: "View in conversation", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Return to latest messages", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Return to latest messages", exact: true }).click();
   message = history.locator("li[data-message-id]").filter({ hasText: "Messenger launch edited" });
   await message.getByRole("button", { name: "Reply in thread", exact: true }).click();
   const thread = page.getByRole("complementary", { name: "Thread", exact: true });
-  await thread.getByLabel("Message", { exact: true }).fill("Thread decision");
+  await expect(thread.getByText("Original message", { exact: true })).toBeVisible();
+  await expect(thread.getByText("Messenger launch edited", { exact: true })).toBeVisible();
+  await thread.getByLabel("Message", { exact: true }).fill(`@${peerName}`);
+  await page.getByRole("option", { name: new RegExp(peerName) }).click();
+  await thread.getByLabel("Message", { exact: true }).press("End");
+  await thread.getByLabel("Message", { exact: true }).pressSequentially("Thread decision");
   await thread.getByRole("button", { name: "Send message", exact: true }).click();
-  await expect(thread.getByText("Thread decision", { exact: true })).toBeVisible();
+  await expect(thread.getByText("Thread decision", { exact: false })).toBeVisible();
+  await page.screenshot({ path: screenshot.replace(".png", "-thread.png") });
+  await inspectThread?.();
   await thread.getByRole("button", { name: "Close thread", exact: true }).click();
+  await expect(message.getByRole("button", { name: /1 reply/ })).toBeVisible();
   await page.getByRole("button", { name: "Search messages", exact: true }).click();
   await page.getByLabel("Search workspace messages", { exact: true }).fill("launch edited");
   await page.getByRole("button", { name: "Search", exact: true }).click();
@@ -165,5 +190,22 @@ export async function verifyMessenger(
         .getByRole("list", { name: "Messages", exact: true })
         .getByText("Private DM hello", { exact: true }),
     ).toBeVisible();
+  }
+  if (peer) {
+    const peerHistory = peer.getByRole("list", { name: "Messages", exact: true });
+    const authorProfile = peerHistory.getByRole("button", { name: /^View .*'s profile$/ }).first();
+    await authorProfile.focus();
+    await authorProfile.press("Enter");
+    const profile = peer.getByRole("dialog");
+    await expect(profile.getByRole("button", { name: "Message", exact: true })).toBeVisible();
+    await expect(profile.getByText(/@example.com/)).toHaveCount(0);
+    await profile.getByRole("button", { name: "Message", exact: true }).click();
+    await expect(peer).toHaveURL(new RegExp(`/messenger/${dmId}$`));
+    await page.goto(root);
+    await page.getByRole("button", { name: "Set Do Not Disturb", exact: true }).click();
+    await expect(peerHistory.getByTitle("Do Not Disturb", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Do Not Disturb · Change", exact: true }).click();
+    await expect(peerHistory.getByTitle("Online", { exact: true }).first()).toBeVisible();
+    await page.goto(`${root}/${dmId}`);
   }
 }

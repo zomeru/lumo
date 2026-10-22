@@ -9,11 +9,12 @@ import { verifyAvatarPersistence } from "../../profile-flow";
 const apiOrigin = process.env.LUMO_E2E_API_ORIGIN ?? "http://localhost:3011";
 const webOrigin = process.env.LUMO_E2E_WEB_ORIGIN ?? "http://localhost:3010";
 async function signup(context: BrowserContext, name: string) {
+  const email = `${randomUUID()}@example.com`;
   const response = await context.request.post(`${apiOrigin}/api/auth/sign-up/email`, {
     headers: { origin: webOrigin },
     data: {
       name,
-      email: `${randomUUID()}@example.com`,
+      email,
       password: "Messenger-e2e-password!2026",
       confirmPassword: "Messenger-e2e-password!2026",
       consent: {
@@ -24,6 +25,7 @@ async function signup(context: BrowserContext, name: string) {
     },
   });
   expect(response.ok()).toBe(true);
+  return email;
 }
 test("workspace channels, private membership, realtime, threads, search and DMs work through the real API", async ({
   page,
@@ -106,8 +108,27 @@ test("profile photos save, replace, reload and remove in private storage", async
     process.env.LUMO_LIVE_AVATAR_STORAGE !== "1",
     "Requires configured private S3 storage.",
   );
-  await signup(context, "Avatar Persistence");
+  const email = await signup(context, "Avatar Persistence");
   const me = await (await context.request.get(`${apiOrigin}/api/v1/me`)).json();
   await page.goto(`/w/${me.activeWorkspaceId}`);
-  await verifyAvatarPersistence(page);
+  const second = await context.request.post(`${apiOrigin}/api/v1/workspaces`, {
+    headers: { origin: webOrigin },
+    data: { name: "Avatar switching", visibility: "private" },
+  });
+  expect(second.ok()).toBe(true);
+  const other = await second.json();
+  await verifyAvatarPersistence(page, async (current) => {
+    await current.goto(`/w/${other.id}?profile=true`);
+    const profile = current.getByRole("dialog", { name: "Your profile", exact: true });
+    await expect(
+      profile.getByRole("region", { name: "Profile photo", exact: true }).locator("img"),
+    ).toBeVisible();
+    await profile.getByRole("button", { name: "Sign out", exact: true }).click();
+    await expect(current).toHaveURL(/\/login/);
+    await current.getByLabel("Email address").fill(email);
+    await current.getByLabel("Password", { exact: true }).fill("Messenger-e2e-password!2026");
+    await current.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(current).toHaveURL(/\/w\/[a-f0-9-]+/);
+    return current;
+  });
 });

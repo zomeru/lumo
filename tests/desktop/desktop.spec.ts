@@ -540,12 +540,24 @@ test("shared Messenger channels and persisted messages work in Electron", async 
         "Desktop Peer",
         testInfo.outputPath("messenger-desktop.png"),
         peer,
-      );
-      const window = await app.browserWindow(page);
-      await window.evaluate((win) => win.setSize(600, 540));
-      await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-        true,
+        async () => {
+          const window = await app.browserWindow(page);
+          await window.evaluate((win) => win.setSize(600, 540));
+          const thread = page.getByRole("complementary", { name: "Thread", exact: true });
+          await expect(thread.getByText("Messenger launch edited", { exact: true })).toBeVisible();
+          await expect(thread.getByText("Thread decision", { exact: false })).toBeVisible();
+          await page.screenshot({ path: testInfo.outputPath("messenger-compact-light.png") });
+          await page.getByRole("button", { name: "Change appearance", exact: true }).click();
+          await page.getByRole("menuitemcheckbox", { name: "Dark", exact: true }).click();
+          await page.screenshot({ path: testInfo.outputPath("messenger-compact-dark.png") });
+          await expect(thread.getByLabel("Message", { exact: true })).toBeVisible();
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+          ).toBe(true);
+          await page.getByRole("button", { name: "Change appearance", exact: true }).click();
+          await page.getByRole("menuitemcheckbox", { name: "Light", exact: true }).click();
+          await window.evaluate((win) => win.setSize(1280, 850));
+        },
       );
     } finally {
       await peerContext.close();
@@ -563,11 +575,28 @@ test("private avatar persistence works through Electron IPC and reload", async (
     "Requires configured private S3 storage.",
   );
   const dir = await mkdtemp(join(tmpdir(), "lumo-avatar-e2e-"));
-  const app = await launch(dir);
+  let app = await launch(dir);
   try {
     const page = await app.firstWindow();
-    await register(page, "Desktop Avatar", `desktop-avatar-${Date.now()}@example.com`);
-    await verifyAvatarPersistence(page);
+    const email = `desktop-avatar-${Date.now()}@example.com`;
+    await register(page, "Desktop Avatar", email);
+    await verifyAvatarPersistence(page, async () => {
+      await app.close();
+      app = await launch(dir);
+      const reopened = await app.firstWindow();
+      const protectedStore = await app.evaluate(
+        ({ safeStorage }) =>
+          safeStorage.isEncryptionAvailable() &&
+          (process.platform !== "linux" ||
+            safeStorage.getSelectedStorageBackend() !== "basic_text"),
+      );
+      if (!protectedStore) {
+        await expect(reopened.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+        await login(reopened, email);
+      }
+      await expect(reopened.getByRole("heading", { name: /Make yourself at home/ })).toBeVisible();
+      return reopened;
+    });
   } finally {
     await app.close();
     await rm(dir, { recursive: true, force: true });

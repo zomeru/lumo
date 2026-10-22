@@ -29,12 +29,18 @@ export async function verifyProfile(page: Page, screenshot: string) {
 }
 
 /** Live private storage acceptance; called for web and Electron with an isolated test account. */
-export async function verifyAvatarPersistence(page: Page) {
+export async function verifyAvatarPersistence(
+  page: Page,
+  afterSave?: (current: Page) => Promise<Page>,
+) {
+  let current = page;
   const open = async () => {
-    const nav = page.getByRole("button", { name: "Open navigation", exact: true });
-    if (await nav.isVisible()) await nav.click();
-    await page.getByRole("button", { name: /Your profile & account/ }).click();
-    return page.getByRole("dialog", { name: "Your profile", exact: true });
+    await expect(current.locator("[data-app-sidebar]")).toBeAttached();
+    const nav = current.getByRole("button", { name: "Open navigation", exact: true });
+    if ((await nav.isVisible()) && (await nav.getAttribute("aria-expanded")) !== "true")
+      await nav.click();
+    await current.getByRole("button", { name: /Your profile & account/ }).click();
+    return current.getByRole("dialog", { name: "Your profile", exact: true });
   };
   let dialog = await open();
   for (let revision = 0; revision < 2; revision++) {
@@ -51,8 +57,16 @@ export async function verifyAvatarPersistence(page: Page) {
     await expect(
       dialog.getByRole("region", { name: "Profile photo", exact: true }).locator("img"),
     ).toBeVisible();
-    await page.keyboard.press("Escape");
-    await page.reload();
+    await current.keyboard.press("Escape");
+    await current.reload();
+    dialog = await open();
+    await expect(
+      dialog.getByRole("region", { name: "Profile photo", exact: true }).locator("img"),
+    ).toBeVisible();
+  }
+  if (afterSave) {
+    await current.keyboard.press("Escape");
+    current = await afterSave(current);
     dialog = await open();
     await expect(
       dialog.getByRole("region", { name: "Profile photo", exact: true }).locator("img"),
@@ -60,9 +74,9 @@ export async function verifyAvatarPersistence(page: Page) {
   }
   await dialog.getByRole("button", { name: "Remove photo", exact: true }).click();
   await expect(dialog.getByText("Profile photo updated.", { exact: true })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await page.reload();
+  await current.keyboard.press("Escape");
+  await current.reload();
   dialog = await open();
   await expect(dialog.getByRole("button", { name: "Remove photo", exact: true })).toHaveCount(0);
-  await page.keyboard.press("Escape");
+  await current.keyboard.press("Escape");
 }

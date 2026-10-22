@@ -398,3 +398,56 @@ test("member cards expose Message to the keyboard and let Tab leave without stea
   await waitFor(() => expect(reopened).not.toBeInTheDocument());
   expect(author).not.toHaveFocus();
 });
+
+test("own profile cards show public role and title and Shift+Tab returns to their trigger", async () => {
+  messages[0] = {
+    ...messages[0]!,
+    senderId: server.state.user.id,
+    senderName: "Alice",
+    senderJobTitle: "Design lead",
+    senderRole: "owner",
+  };
+  const user = await show(true);
+  await screen.findByText("Launch decision");
+  const author = screen.getAllByRole("button", { name: /View Alice's profile/ })[0]!;
+  author.focus();
+  await user.keyboard(" ");
+  const card = await screen.findByRole("dialog", { name: "Alice profile" });
+  expect(within(card).getByText("Design lead · owner")).toBeVisible();
+  expect(within(card).queryByRole("button", { name: "Message" })).not.toBeInTheDocument();
+  expect(card).toHaveFocus();
+  await user.keyboard("{Shift>}{Tab}{/Shift}");
+  await waitFor(() => expect(card).not.toBeInTheDocument());
+  expect(author).toHaveFocus();
+});
+
+test("member card DM failures remain retryable without exposing private fields", async () => {
+  messages[0] = { ...messages[0]!, senderRole: "member" };
+  server.state.overrides.set(`POST ${base}/conversations`, () =>
+    server.error(503, "Direct messages temporarily unavailable"),
+  );
+  const user = await show(true);
+  await screen.findByText("Launch decision");
+  const author = screen.getAllByRole("button", { name: /View Bob's profile/ })[0]!;
+  author.focus();
+  await user.keyboard("{Enter}");
+  const card = await screen.findByRole("dialog", { name: "Bob profile" });
+  expect(within(card).getByText("member")).toBeVisible();
+  await user.keyboard("{Enter}");
+  expect(await within(card).findByRole("alert")).toHaveTextContent(
+    "Direct messages temporarily unavailable",
+  );
+  expect(within(card).getByRole("button", { name: "Message" })).toBeEnabled();
+  expect(within(card).queryByText(/@example.com/)).not.toBeInTheDocument();
+  server.state.overrides.set(`POST ${base}/conversations`, (body) => {
+    calls.push({ path: "retry-dm", body });
+    return server.json(item({ kind: "direct" }), 201);
+  });
+  await user.click(within(card).getByRole("button", { name: "Message" }));
+  await waitFor(() =>
+    expect(calls).toContainEqual({
+      path: "retry-dm",
+      body: { kind: "direct", name: "Bob", memberIds: [bobId] },
+    }),
+  );
+});
