@@ -33,6 +33,7 @@ import { createDriveService } from "./modules/drive/drive.service";
 import { hrRoutes } from "./modules/hr/hr.routes";
 import { activateOnboarding } from "./modules/hr/onboarding";
 import { documentHr } from "./modules/hr/openapi";
+import { createMessengerHub } from "./modules/messenger/messenger-hub";
 import { messengerRoutes } from "./modules/messenger/messenger.routes";
 import { createMessengerService } from "./modules/messenger/messenger.service";
 import { officeRoutes, officeMachineRoutes } from "./modules/office/office.routes";
@@ -284,6 +285,12 @@ export function createApp({
   app.route("/api/v1", collaborationRoutes(db, workspaces, provider));
   const messenger = createMessengerService(db, workspaces, provider);
   app.route("/api/v1", messengerRoutes(db, messenger));
+  const messengerHub = createMessengerHub(db, auth, workspaces, messenger, env);
+  app.post("/api/v1/workspaces/:workspaceId/messenger/session", async (c) =>
+    c.json(
+      await messengerHub.issue(c.req.param("workspaceId"), c.get("user").id, c.req.raw.headers),
+    ),
+  );
   app.route("/api/v1", driveRoutes(db, workspaces, storage, env, drive));
   app.route(
     "/api/v1",
@@ -355,5 +362,5 @@ export function createApp({
       logger.error({ requestId: c.get("requestId"), errorType: error.name }, "Request failed");
     return c.json({ error: { code, message, requestId: c.get("requestId") } }, status);
   });
-  return Object.assign(app, { wiki });
+  return Object.assign(app, { wiki, messenger: messengerHub });
 }

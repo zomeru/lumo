@@ -16,7 +16,7 @@
 - [x] 0: Read complete plan; audit architecture and document decisions.
 - [x] 1: Additive schema, constraints, migration and populated-data regression.
 - [x] 2: Channel/DM lifecycle, message authorization, history, threads, reactions, pins and search APIs.
-- [ ] 3: Authorized realtime, idempotent sends, reconnect reconciliation and durable unread state.
+- [x] 3: Authorized realtime, idempotent sends, reconnect reconciliation and durable unread state.
 - [ ] 4: Full-space shared responsive layout and reusable conversation UI.
 - [ ] 5: Channel discovery, creation, membership and settings UI.
 - [ ] 6: DM/group UI, search navigation, attachments, mentions and preferences.
@@ -30,3 +30,5 @@ Record milestone checks and remaining limitations here as implementation proceed
 Phase 1: migration 0016 tested twice over populated legacy conversations; IDs, group references and memberships retained. Composite message/thread constraints and channel slug uniqueness verified. Database typecheck and scoped lint/format pass.
 
 Phase 2: seven request/integration scenarios cover sessions, two-workspace ID substitution, public read/join-to-post, private admin denial, concurrency-safe DM and nonce deduplication, immutable DM sets, threads, reactions, pins, edits/deletes, cursor pagination, mentions, search, ownership and archive controls. Existing 25 collaboration tests still pass. Scoped API/contracts typecheck, lint and formatting pass. Attachment endpoints follow in phase 6.
+
+Phase 3: ws gateway reuses the Wiki LISTEN connection and authenticates short-lived, session-bound tickets. Durable invalidations contain no private resource IDs or previews. Typing checks sender and recipient authorization. Migration 0017 invalidates on workspace membership deletion/demotion. Two live clients, Postgres notifications, durable resync, workspace removal, reauthorization and sign-out pass integration checks. Client reconciliation and optimistic sends are completed with the UI phase.

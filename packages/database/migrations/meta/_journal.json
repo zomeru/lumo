@@ -120,6 +120,13 @@
       "when": 1792628368563,
       "tag": "0016_left_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792628726160,
+      "tag": "0017_messenger_revocation",
+      "breakpoints": true
     }
   ]
 }

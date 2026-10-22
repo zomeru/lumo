@@ -44,9 +44,13 @@ const server = serve({ fetch: app.fetch, hostname: env.HOST, port: env.PORT }, (
 );
 if (!(server instanceof Server)) throw new Error("Wiki requires the HTTP upgrade server");
 app.wiki.attach(server);
+app.messenger.attach(server);
 // A dedicated LISTEN connection forwards durable Wiki updates between API instances.
-const notifications = await listenForWiki(pool, app.wiki, () =>
-  logger.error("Wiki notification connection or refresh failed; reconnect will retry"),
+const notifications = await listenForWiki(
+  pool,
+  app.wiki,
+  () => logger.error("Wiki notification connection or refresh failed; reconnect will retry"),
+  app.messenger,
 );
 
 let stopping = false;
@@ -59,7 +63,7 @@ function shutdown() {
     process.exitCode = 1;
   }, 10000);
   timeout.unref();
-  void app.wiki.close().finally(() => {
+  void Promise.all([app.wiki.close(), app.messenger.close()]).finally(() => {
     void notifications.close().finally(() => {
       server.close(() => {
         void pool.end().finally(() => clearTimeout(timeout));

@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { once } from "node:events";
 import { readFileSync } from "node:fs";
+import { Server } from "node:http";
 import { parseEnv } from "node:util";
 
+import { serve } from "@hono/node-server";
 import { createAuth } from "@lumo/auth";
 import type { Conversation } from "@lumo/contracts/collaboration";
 import { legalVersions } from "@lumo/contracts/legal";
@@ -10,8 +13,10 @@ import { membership, messengerMessage, conversationMember } from "@lumo/database
 import { readServerEnv } from "@lumo/env/server";
 import { and, eq } from "drizzle-orm";
 import { beforeAll, afterAll, test, expect } from "vitest";
+import { WebSocket } from "ws";
 
 import { createApp } from "./app";
+import { listenForWiki } from "./modules/office/wiki-notifications";
 import { createTestDatabase } from "./test/database";
 
 const source = {
@@ -37,7 +42,7 @@ let alice: Actor,
   root: MessengerMessage;
 const base = (id = alice.workspaceId) => `/workspaces/${id}`;
 async function req(path: string, actor = alice, method = "GET", body?: unknown) {
-  return app.request(`/api/v1${path}`, {
+  return app.request(path.startsWith("/api/") ? path : `/api/v1${path}`, {
     method,
     headers: { origin: env.WEB_ORIGIN, "content-type": "application/json", cookie: actor.cookie },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -323,4 +328,86 @@ test("1:1 creation is concurrent-safe, group sets are immutable and workspace re
       .from(messengerMessage)
       .where(eq(messengerMessage.conversationId, a.id)),
   ).toHaveLength(1);
+});
+
+test("realtime tickets bind sessions, durable commits invalidate two clients and revocation closes live sockets", async () => {
+  const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 });
+  if (!(server instanceof Server)) throw new Error("Expected HTTP server");
+  if (!server.listening) await once(server, "listening");
+  app.messenger.attach(server);
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Missing port");
+  const notifications = await listenForWiki(database.pool, app.wiki, () => {}, app.messenger),
+    sockets: WebSocket[] = [];
+  const connect = async (actor: Actor) => {
+    const response = await req(`${base()}/messenger/session`, actor, "POST", {});
+    expect(response.status).toBe(200);
+    const { token } = await response.json();
+    const ws = new WebSocket(
+      `ws://127.0.0.1:${address.port}/api/internal/messenger?ticket=${encodeURIComponent(token)}`,
+      { origin: env.WEB_ORIGIN },
+    );
+    sockets.push(ws);
+    const initial = once(ws, "message");
+    await once(ws, "open");
+    await initial;
+    return ws;
+  };
+  try {
+    const a = await connect(alice),
+      b = await connect(bob);
+    const eventA = once(a, "message"),
+      eventB = once(b, "message");
+    const sent = await send(publicChannel.id, "Durable realtime");
+    const [ra, rb] = await Promise.all([eventA, eventB]);
+    expect(JSON.parse(ra[0].toString())).toEqual({ type: "changed", conversationId: null });
+    expect(rb[0].toString()).not.toContain(sent.body);
+    const received = await (
+      await req(
+        `${base()}/conversations/${publicChannel.id}/messages?after=${sent.sequence - 1}`,
+        bob,
+      )
+    ).json();
+    expect(received.messages.map((m: MessengerMessage) => m.id)).toContain(sent.id);
+    const closed = once(b, "close");
+    await database.db
+      .delete(membership)
+      .where(and(eq(membership.workspaceId, alice.workspaceId), eq(membership.userId, bob.id)));
+    expect((await closed)[0]).toBe(1008);
+    expect((await req(`${base()}/messenger/session`, bob, "POST", {})).status).toBe(404);
+    await database.db.insert(membership).values({ workspaceId: alice.workspaceId, userId: bob.id });
+    const renewed = await connect(bob);
+    expect(renewed.readyState).toBe(WebSocket.OPEN);
+    const privateEvents: string[] = [];
+    a.on("message", (data) =>
+      privateEvents.push(
+        (Array.isArray(data)
+          ? Buffer.concat(data)
+          : Buffer.isBuffer(data)
+            ? data
+            : Buffer.from(data)
+        ).toString("utf8"),
+      ),
+    );
+    const dm = await (
+      await req(`${base()}/conversations`, bob, "POST", {
+        kind: "direct",
+        name: "Hidden",
+        memberIds: [admin.id],
+      })
+    ).json();
+    await send(dm.id, "Do not broadcast", bob);
+    expect(
+      privateEvents.every((value) => !value.includes(dm.id) && !value.includes("Do not broadcast")),
+    ).toBe(true);
+    const revoked = once(renewed, "close");
+    await req("/api/auth/sign-out", bob, "POST", {});
+    await app.messenger.refresh(alice.workspaceId);
+    expect((await revoked)[0]).toBe(1008);
+  } finally {
+    for (const ws of sockets) ws.terminate();
+    await app.messenger.close();
+    await notifications.close();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });

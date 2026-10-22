@@ -10,6 +10,7 @@ export async function listenForWiki(
   pool: { connect(): Promise<Connection> },
   wiki: { refresh(id: string): Promise<void>; awareness(payload: string): void },
   failed: () => void,
+  messenger?: { refresh(workspaceId: string): Promise<void>; typing(payload: string): void },
 ) {
   let stopped = false,
     current: Connection | undefined,
@@ -46,9 +47,16 @@ export async function listenForWiki(
         if (stopped || current !== acquired || !message.payload) return;
         if (message.channel === "lumo_wiki") void wiki.refresh(message.payload).catch(failed);
         if (message.channel === "lumo_wiki_awareness") wiki.awareness(message.payload);
+        if (message.channel === "lumo_messenger")
+          void messenger?.refresh(message.payload).catch(failed);
+        if (message.channel === "lumo_messenger_typing") messenger?.typing(message.payload);
       });
       await connection.query("LISTEN lumo_wiki");
       await connection.query("LISTEN lumo_wiki_awareness");
+      if (messenger) {
+        await connection.query("LISTEN lumo_messenger");
+        await connection.query("LISTEN lumo_messenger_typing");
+      }
     } catch {
       if (current === connection && connection) {
         current = undefined;

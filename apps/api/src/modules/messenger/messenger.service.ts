@@ -171,22 +171,20 @@ export function createMessengerService(
     if (!rows.length) return [];
     const ids = rows.map((v) => v.id),
       senderIds = [...new Set(rows.map((v) => v.senderId))];
-    const [senders, reactions, attachments, replies] = await Promise.all([
-      tx
-        .select({ id: user.id, name: user.name, image: user.image })
-        .from(user)
-        .where(inArray(user.id, senderIds)),
-      tx.select().from(reaction).where(inArray(reaction.messageId, ids)),
-      tx
-        .select()
-        .from(attachment)
-        .where(and(inArray(attachment.messageId, ids), eq(attachment.state, "ready"))),
-      tx
-        .select({ parentId: message.parentId, count: sql<number>`count(*)::int` })
-        .from(message)
-        .where(inArray(message.parentId, ids))
-        .groupBy(message.parentId),
-    ]);
+    const senders = await tx
+      .select({ id: user.id, name: user.name, image: user.image })
+      .from(user)
+      .where(inArray(user.id, senderIds));
+    const reactions = await tx.select().from(reaction).where(inArray(reaction.messageId, ids));
+    const attachments = await tx
+      .select()
+      .from(attachment)
+      .where(and(inArray(attachment.messageId, ids), eq(attachment.state, "ready")));
+    const replies = await tx
+      .select({ parentId: message.parentId, count: sql<number>`count(*)::int` })
+      .from(message)
+      .where(inArray(message.parentId, ids))
+      .groupBy(message.parentId);
     return rows.map((row) => {
       const sender = senders.find((v) => v.id === row.senderId)!;
       const ownReactions = row.deletedAt ? [] : reactions.filter((v) => v.messageId === row.id);
@@ -536,6 +534,7 @@ export function createMessengerService(
           if (row.conversationId !== id) missing();
           sequence = Math.max(sequence, row.sequence);
         }
+        if (sequence === member.lastReadSequence) return;
         await tx
           .update(conversationMember)
           .set({ lastReadAt: new Date(), lastReadSequence: sequence })

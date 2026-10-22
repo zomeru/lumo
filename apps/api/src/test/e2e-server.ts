@@ -1,3 +1,4 @@
+import { Server } from "node:http";
 import { resolve } from "node:path";
 
 import { serve } from "@hono/node-server";
@@ -9,6 +10,7 @@ import { chatIdentity } from "@lumo/shared";
 import AgoraToken from "agora-token";
 
 import { createApp } from "../app.ts";
+import { listenForWiki } from "../modules/office/wiki-notifications";
 import { createTestDatabase } from "./database.ts";
 
 const database = await createTestDatabase(process.env.TEST_DATABASE_URL);
@@ -32,8 +34,14 @@ const app = createApp({
 const server = serve({ fetch: app.fetch, port: env.PORT }, () =>
   console.log("E2E API ready on port 3011"),
 );
+if (!(server instanceof Server)) throw new Error("Collaboration requires an HTTP server");
+app.wiki.attach(server);
+app.messenger.attach(server);
+const notifications = await listenForWiki(database.pool, app.wiki, () => {}, app.messenger);
 let stopping = false;
 async function cleanup() {
+  await Promise.all([app.wiki.close(), app.messenger.close()]);
+  await notifications.close();
   if (
     process.env.LUMO_LIVE_AGORA === "1" &&
     env.AGORA_CHAT_REST_ORIGIN &&
