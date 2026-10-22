@@ -9,7 +9,7 @@ import * as databaseSchema from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
 import { eq } from "drizzle-orm";
 import { getTableConfig } from "drizzle-orm/pg-core";
-import { beforeAll, afterAll, describe, test, expect, vi } from "vitest";
+import { beforeAll, afterAll, describe, test, expect } from "vitest";
 
 import { createApp } from "./app";
 import type { CollaborationProvider } from "./integrations/agora";
@@ -29,15 +29,6 @@ const env = readServerEnv({
   MAIL_DIR: "../../.local/collaboration-mail",
 });
 const provider: CollaborationProvider = {
-  chatUser: vi.fn<CollaborationProvider["chatUser"]>(async () => randomUUID()),
-  createGroup: vi.fn<CollaborationProvider["createGroup"]>(async () => randomUUID()),
-  removeMember: vi.fn<CollaborationProvider["removeMember"]>(async () => {}),
-  deactivate: vi.fn<CollaborationProvider["deactivate"]>(async () => {}),
-  chatToken: () => ({
-    appKey: "org#app",
-    token: "provider-chat-token",
-    expiresAt: new Date(Date.now() + 120000).toISOString(),
-  }),
   rtcToken: (channel, uid) => ({
     channel,
     uid,
@@ -149,43 +140,29 @@ describe("conversation isolation and lifecycle", () => {
     expect(
       (
         await req(
-          `/workspaces/${alice.workspaceId}/conversations/${conversationId}/credentials`,
+          `/workspaces/${alice.workspaceId}/conversations/${conversationId}/messages`,
           outsider,
-          "POST",
-          {},
         )
       ).status,
     ).toBe(404);
   });
-  test("provisions provider groups once and credentials never contain server secrets", async () => {
-    const path = `/workspaces/${alice.workspaceId}/conversations/${conversationId}/credentials`;
-    const result = await req(path, alice, "POST", {});
-    expect(result.status).toBe(200);
-    const body = await result.json();
-    expect(body.token).toBe("provider-chat-token");
-    expect(JSON.stringify(body)).not.toContain(env.BETTER_AUTH_SECRET);
-    await req(path, bob, "POST", {});
-    expect(provider.createGroup).toHaveBeenCalledTimes(1);
-    expect(
-      (
-        await req(
-          `/workspaces/${bob.workspaceId}/conversations/${conversationId}/credentials`,
-          bob,
-          "POST",
-          {},
-        )
-      ).status,
-    ).toBe(404);
-    expect(
-      (
-        await req(
-          `/workspaces/${alice.workspaceId}/conversations/${conversationId}/read`,
-          bob,
-          "POST",
-          {},
-        )
-      ).status,
-    ).toBe(200);
+  test("removed credential and timestamp-read endpoints return 404", async () => {
+    for (const action of ["credentials", "read"])
+      expect(
+        (
+          await req(
+            `/workspaces/${alice.workspaceId}/conversations/${conversationId}/${action}`,
+            alice,
+            "POST",
+            {},
+          )
+        ).status,
+      ).toBe(404);
+    const body = await (
+      await req(`/workspaces/${alice.workspaceId}/conversations/${conversationId}`)
+    ).json();
+    expect(body).not.toHaveProperty("providerGroupId");
+    expect(body).not.toHaveProperty("directKey");
   });
   test("supports private groups and bounded pagination", async () => {
     const response = await req(`/workspaces/${alice.workspaceId}/conversations`, alice, "POST", {
@@ -561,7 +538,7 @@ describe("workspace Calendar uses the Meetings lifecycle", () => {
   });
 });
 describe("revocation and security boundaries", () => {
-  test("denies provider access before removing membership and cascades conversation participants", async () => {
+  test("workspace removal denies persisted messages and cascades conversation participants", async () => {
     const response = await req(
       `/workspaces/${alice.workspaceId}/members/${bob.id}`,
       alice,
@@ -569,17 +546,9 @@ describe("revocation and security boundaries", () => {
       {},
     );
     expect(response.status).toBe(200);
-    expect(provider.deactivate).toHaveBeenCalled();
-    expect(provider.removeMember).toHaveBeenCalled();
     expect(
-      (
-        await req(
-          `/workspaces/${alice.workspaceId}/conversations/${conversationId}/credentials`,
-          bob,
-          "POST",
-          {},
-        )
-      ).status,
+      (await req(`/workspaces/${alice.workspaceId}/conversations/${conversationId}/messages`, bob))
+        .status,
     ).toBe(404);
     expect((await req(`/meetings/${meetingId}/token`, bob, "POST", {})).status).toBe(404);
   });
@@ -593,28 +562,6 @@ describe("revocation and security boundaries", () => {
       await req(`/meetings/${meetingId}/token`, alice, "POST", {});
     expect((await req(`/meetings/${meetingId}/token`, alice, "POST", {})).status).toBe(429);
     await database.db.delete(requestLimit);
-  });
-  test("provider outage fails closed and preserves membership", async () => {
-    await database.db.insert(membership).values({ workspaceId: alice.workspaceId, userId: bob.id });
-    // Restore canonical participant mapping via a newly created conversation.
-    const item = await (
-      await req(`/workspaces/${alice.workspaceId}/conversations`, alice, "POST", {
-        kind: "group",
-        name: "New group",
-        memberIds: [bob.id],
-      })
-    ).json();
-    await req(
-      `/workspaces/${alice.workspaceId}/conversations/${item.id}/credentials`,
-      bob,
-      "POST",
-      {},
-    );
-    vi.mocked(provider.deactivate).mockRejectedValueOnce(new Error("Provider offline"));
-    expect(
-      (await req(`/workspaces/${alice.workspaceId}/members/${bob.id}`, alice, "DELETE", {})).status,
-    ).toBe(500);
-    expect((await req(`/workspaces/${alice.workspaceId}/members`, bob)).status).toBe(200);
   });
 });
 
@@ -661,13 +608,6 @@ test("email-bound invitations can be declined once without creating membership",
 });
 
 test("conversation re-creation after revocation does not restore old private history", async () => {
-  const remove = await req(
-    `/workspaces/${alice.workspaceId}/members/${bob.id}`,
-    alice,
-    "DELETE",
-    {},
-  );
-  expect(remove.status).toBe(200);
   await database.db.insert(membership).values({ workspaceId: alice.workspaceId, userId: bob.id });
   const created = await (
     await req(`/workspaces/${alice.workspaceId}/conversations`, alice, "POST", {
@@ -678,14 +618,8 @@ test("conversation re-creation after revocation does not restore old private his
   ).json();
   expect(created.id).not.toBe(conversationId);
   expect(
-    (
-      await req(
-        `/workspaces/${alice.workspaceId}/conversations/${conversationId}/credentials`,
-        bob,
-        "POST",
-        {},
-      )
-    ).status,
+    (await req(`/workspaces/${alice.workspaceId}/conversations/${conversationId}/messages`, bob))
+      .status,
   ).toBe(404);
 });
 test("meeting lists paginate authorized results and reject outsiders", async () => {

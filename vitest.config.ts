@@ -12,7 +12,6 @@ export default defineConfig({
       include: ["apps/*/src/**/*.{ts,tsx}", "packages/*/src/**/*.{ts,tsx}"],
       exclude: [
         "**/routeTree.gen.ts",
-        "**/chat-codec.generated.js",
         "**/main.tsx",
         "apps/api/src/index.ts",
         "apps/desktop/src/main/index.ts",

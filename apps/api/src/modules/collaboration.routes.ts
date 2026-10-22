@@ -7,7 +7,6 @@ import {
   scheduledMeetingInputSchema,
   meetingAvailabilityInputSchema,
   meetingAvailabilitySchema,
-  chatCredentialsSchema,
   conversationInputSchema,
   conversationSchema,
   conversationsSchema,
@@ -38,7 +37,7 @@ export function collaborationRoutes(
         throw new AppError(400, "INVALID_INPUT", "Check the request fields and try again.");
     },
   });
-  const chat = createMessengerService(db, workspaces, provider),
+  const messenger = createMessengerService(db, workspaces),
     meetings = createMeetingService(db, workspaces, provider);
   const security = [{ cookieAuth: [] }];
   const json = (schema: z.ZodType) => ({
@@ -75,7 +74,7 @@ export function collaborationRoutes(
     async (c) => {
       const { offset, limit, q, includeChannels } = c.req.valid("query");
       return c.json(
-        await chat.list(
+        await messenger.list(
           c.req.valid("param").workspaceId,
           c.get("user").id,
           offset,
@@ -106,7 +105,11 @@ export function collaborationRoutes(
     async (c) => {
       await enforceRateLimit(db, `conversation:${c.get("user").id}`, 20);
       return c.json(
-        await chat.create(c.req.valid("param").workspaceId, c.get("user").id, c.req.valid("json")),
+        await messenger.create(
+          c.req.valid("param").workspaceId,
+          c.get("user").id,
+          c.req.valid("json"),
+        ),
         201,
       );
     },
@@ -122,37 +125,7 @@ export function collaborationRoutes(
     }),
     async (c) => {
       const { workspaceId, conversationId } = c.req.valid("param");
-      return c.json(await chat.get(workspaceId, c.get("user").id, conversationId), 200);
-    },
-  );
-  app.openapi(
-    createRoute({
-      method: "post",
-      path: "/workspaces/{workspaceId}/conversations/{conversationId}/credentials",
-      tags: ["Messenger"],
-      security,
-      request: { params: conversationParams },
-      responses: { 200: json(chatCredentialsSchema), ...errors },
-    }),
-    async (c) => {
-      await enforceRateLimit(db, `chat-token:${c.get("user").id}`, 30);
-      const { workspaceId, conversationId } = c.req.valid("param");
-      return c.json(await chat.credentials(workspaceId, c.get("user").id, conversationId), 200);
-    },
-  );
-  app.openapi(
-    createRoute({
-      method: "post",
-      path: "/workspaces/{workspaceId}/conversations/{conversationId}/read",
-      tags: ["Messenger"],
-      security,
-      request: { params: conversationParams },
-      responses: { 200: json(okSchema), ...errors },
-    }),
-    async (c) => {
-      const { workspaceId, conversationId } = c.req.valid("param");
-      await chat.read(workspaceId, c.get("user").id, conversationId);
-      return c.json({ ok: true as const }, 200);
+      return c.json(await messenger.get(workspaceId, c.get("user").id, conversationId), 200);
     },
   );
   app.openapi(

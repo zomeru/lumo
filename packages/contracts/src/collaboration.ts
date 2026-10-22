@@ -15,7 +15,6 @@ export const conversationSchema = z.object({
   name: z.string(),
   createdAt: z.iso.datetime(),
   memberIds: z.array(idSchema),
-  providerGroupId: z.string().nullable().default(null),
   description: z.string().default(""),
   visibility: z.enum(["public", "private"]).default("private"),
   slug: z.string().nullable().default(null),
@@ -32,13 +31,6 @@ export const conversationSchema = z.object({
 export const conversationsSchema = z.object({
   conversations: z.array(conversationSchema),
   nextOffset: z.number().nullable(),
-});
-export const chatCredentialsSchema = z.object({
-  appKey: z.string(),
-  identity: z.string(),
-  token: z.string(),
-  groupId: z.string(),
-  expiresAt: z.iso.datetime(),
 });
 export const meetingInputSchema = z
   .object({

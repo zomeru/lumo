@@ -20,6 +20,17 @@ import { useState } from "react";
 import { api, command, membersQuery, sessionQuery } from "../../lib/api";
 import { messengerKey, messengerPath } from "./messenger-api";
 
+// These controlled dialogs mount without a DialogTrigger; restore the initiating control.
+function useDialogReturnFocus() {
+  const [trigger] = useState(() => document.activeElement);
+  return (event: Event) => {
+    if (trigger instanceof HTMLElement && trigger.isConnected) {
+      event.preventDefault();
+      trigger.focus();
+    }
+  };
+}
+
 function MemberPicker({
   workspaceId,
   selected,
@@ -89,6 +100,7 @@ export function CreateConversationDialog({
   onClose: () => void;
   initialMembers?: string[];
 }) {
+  const returnFocus = useDialogReturnFocus();
   const [selected, setSelected] = useState(initialMembers),
     client = useQueryClient(),
     navigate = useNavigate();
@@ -116,7 +128,7 @@ export function CreateConversationDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent onCloseAutoFocus={returnFocus}>
         <DialogTitle>{channel ? "Create channel" : "New conversation"}</DialogTitle>
         <DialogDescription>
           {channel
@@ -190,6 +202,7 @@ export function ChannelBrowser({
   workspaceId: string;
   onClose: () => void;
 }) {
+  const returnFocus = useDialogReturnFocus();
   const [q, setQ] = useState(""),
     [offset, setOffset] = useState(0),
     client = useQueryClient();
@@ -213,7 +226,7 @@ export function ChannelBrowser({
         if (!open) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent onCloseAutoFocus={returnFocus}>
         <DialogTitle>Browse channels</DialogTitle>
         <DialogDescription>
           Explore channels in this workspace. Join a public channel to send messages.
@@ -281,6 +294,7 @@ export function ConversationSettings({
   onClose: () => void;
   onNewGroup: (ids: string[]) => void;
 }) {
+  const returnFocus = useDialogReturnFocus();
   const client = useQueryClient(),
     navigate = useNavigate(),
     [offset, setOffset] = useState(0),
@@ -330,7 +344,7 @@ export function ConversationSettings({
         if (!open) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent onCloseAutoFocus={returnFocus}>
         <DialogTitle>{item.name} settings</DialogTitle>
         <DialogDescription>
           {item.kind === "channel"

@@ -50,14 +50,6 @@ const serverSchema = z
       .string()
       .regex(/^[a-f0-9]{32}$/)
       .optional(),
-    AGORA_CHAT_APP_KEY: z
-      .string()
-      .regex(/^[a-zA-Z0-9_-]+#[a-zA-Z0-9_-]+$/)
-      .optional(),
-    AGORA_CHAT_REST_ORIGIN: z
-      .url()
-      .refine((value) => new URL(value).protocol === "https:" && new URL(value).origin === value)
-      .optional(),
     LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug"]).default("info"),
     ONLYOFFICE_DOCUMENT_SERVER_URL: officeOrigin.optional(),
     ONLYOFFICE_JWT_SECRET: z.string().min(32).optional(),

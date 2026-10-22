@@ -1,21 +1,6 @@
-/** Stable provider identities, scoped to workspace; no PII or user-controlled names. */
-export const chatIdentity = (workspaceId: string, userId: string) =>
-  `${workspaceId.replaceAll("-", "")}${userId.replaceAll("-", "")}`;
+/** Stable RTC camera and screen identities without user-controlled names. */
 export const rtcIdentity = (userId: string, screen = false) =>
   `${userId}${screen ? "-screen" : ""}`;
-export type ChatMessage = {
-  id: string;
-  text: string;
-  sender: string;
-  time: number;
-  pending?: boolean;
-  failed?: boolean;
-};
-export function mergeMessages(previous: ChatMessage[], incoming: ChatMessage[]) {
-  return [
-    ...new Map([...previous, ...incoming].map((message) => [message.id, message])).values(),
-  ].sort((a, b) => a.time - b.time || a.id.localeCompare(b.id));
-}
 /** Parse only known Lumo destinations, without browser/native URL globals. */
 export function parseLumoLink(
   value: string,

@@ -64,29 +64,17 @@ describe("environment boundaries", () => {
   });
 });
 
-test("provider configuration rejects private values and insecure REST origins without echoing them", () => {
-  for (const AGORA_CHAT_REST_ORIGIN of [
-    "http://a61.chat.agora.io",
-    "https://a61.chat.agora.io/path",
-  ])
-    expect(() => readServerEnv({ ...valid, AGORA_CHAT_REST_ORIGIN })).toThrow(
-      "AGORA_CHAT_REST_ORIGIN",
-    );
+test("RTC configuration validates server-only credentials without echoing them", () => {
+  expect(() =>
+    readServerEnv({ ...valid, AGORA_APP_CERTIFICATE: "private-bad-certificate" }),
+  ).toThrow("AGORA_APP_CERTIFICATE");
   expect(() =>
     readServerEnv({ ...valid, AGORA_APP_CERTIFICATE: "private-bad-certificate" }),
   ).not.toThrow("private-bad-certificate");
-  expect(() => readServerEnv({ ...valid, AGORA_CHAT_APP_KEY: "without-app-name" })).toThrow(
-    "AGORA_CHAT_APP_KEY",
-  );
   expect(
-    readServerEnv({
-      ...valid,
-      AGORA_APP_ID: "a".repeat(32),
-      AGORA_APP_CERTIFICATE: "b".repeat(32),
-      AGORA_CHAT_APP_KEY: "org#app",
-      AGORA_CHAT_REST_ORIGIN: "https://a61.chat.agora.io",
-    }).AGORA_CHAT_APP_KEY,
-  ).toBe("org#app");
+    readServerEnv({ ...valid, AGORA_APP_ID: "a".repeat(32), AGORA_APP_CERTIFICATE: "b".repeat(32) })
+      .AGORA_APP_ID,
+  ).toBe("a".repeat(32));
 });
 
 test("Drive configuration validates paired storage settings and MIME policy without exposing credentials", () => {

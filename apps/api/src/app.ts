@@ -14,7 +14,6 @@ import {
   messengerAudit,
 } from "@lumo/database/schema";
 import type { ServerEnv } from "@lumo/env/server";
-import { chatIdentity } from "@lumo/shared";
 import { Scalar } from "@scalar/hono-api-reference";
 import { and, eq, sql, inArray, ne, asc } from "drizzle-orm";
 import type { Context } from "hono";
@@ -187,29 +186,22 @@ export function createApp({
           targetId: successor?.userId ?? userId,
         });
       }
-      const groups = await tx
-        .select({
-          id: conversation.providerGroupId,
-          conversationId: conversation.id,
-          kind: conversation.kind,
-        })
-        .from(conversation)
-        .innerJoin(conversationMember, eq(conversationMember.conversationId, conversation.id))
+      await tx
+        .update(conversation)
+        .set({ directKey: null })
         .where(
-          and(eq(conversation.workspaceId, workspaceId), eq(conversationMember.userId, userId)),
+          and(
+            eq(conversation.workspaceId, workspaceId),
+            eq(conversation.kind, "direct"),
+            inArray(
+              conversation.id,
+              tx
+                .select({ id: conversationMember.conversationId })
+                .from(conversationMember)
+                .where(eq(conversationMember.userId, userId)),
+            ),
+          ),
         );
-      const direct = groups
-        .filter((group) => group.kind === "direct")
-        .map((group) => group.conversationId);
-      if (direct.length)
-        await tx
-          .update(conversation)
-          .set({ directKey: null })
-          .where(inArray(conversation.id, direct));
-      if (!groups.some((group) => group.id)) return;
-      const identity = chatIdentity(workspaceId, userId);
-      await provider.deactivate(identity);
-      for (const group of groups) if (group.id) await provider.removeMember(group.id, identity);
     },
     disconnectOffice,
     activateOnboarding,
@@ -334,7 +326,7 @@ export function createApp({
   app.route("/api/v1", workspaceRoutes(workspaces));
   app.route("/api/v1", hrRoutes(workspaces, storage));
   app.route("/api/v1", collaborationRoutes(db, workspaces, provider));
-  const messenger = createMessengerService(db, workspaces, provider);
+  const messenger = createMessengerService(db, workspaces);
   app.route("/api/v1", messengerRoutes(db, messenger));
   app.route("/api/v1", messengerFileRoutes(db, messenger, storage));
   const messengerHub = createMessengerHub(db, auth, workspaces, messenger, env);

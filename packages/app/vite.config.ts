@@ -31,19 +31,6 @@ export function appDependencies(): Plugin {
         },
       },
     }),
-    transform: {
-      filter: { id: /[\\/]agora-chat[\\/]Agora-chat\.js$/ },
-      handler(code) {
-        // Agora Chat 1.4.0 bundles protobufjs's optional Node module probe.
-        // Browser renderers have no require; preserve its null fallback without eval.
-        const inquire =
-          'function inquire(moduleName){try{var mod=eval("quire".replace(/^/,"re"))(moduleName);if(mod&&(mod.length||Object.keys(mod).length))return mod}catch(e){}return null}';
-        const parts = code.split(inquire);
-        if (parts.length !== 2)
-          this.error("Review the Agora Chat browser shim against the installed SDK.");
-        return { code: parts.join("function inquire(){return null}"), map: null };
-      },
-    },
   };
 }
 

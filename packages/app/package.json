@@ -5,10 +5,8 @@
   "type": "module",
   "scripts": {
     "routes:generate": "node scripts/generate-routes.mjs",
-    "check-types": "pnpm routes:generate && pnpm chat:check && tsc --noEmit",
-    "build": "pnpm routes:generate",
-    "chat:generate": "node scripts/generate-chat-codec.mjs",
-    "chat:check": "node scripts/generate-chat-codec.mjs --check"
+    "check-types": "pnpm routes:generate && tsc --noEmit",
+    "build": "pnpm routes:generate"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",
@@ -26,10 +24,8 @@
     "@onlyoffice/document-editor-react": "2.3.0",
     "@tanstack/react-query": "5.104.3",
     "@tanstack/react-router": "1.170.44",
-    "agora-chat": "1.4.0",
     "agora-rtc-sdk-ng": "4.24.9",
     "lucide-react": "1.59.0",
-    "protobufjs": "8.8.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-markdown": "10.1.0",
@@ -53,7 +49,6 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "jsdom": "30.1.3",
-    "protobufjs-cli": "2.7.1",
     "typescript": "7.0.2",
     "vite": "8.3.4",
     "vitest": "5.0.5",

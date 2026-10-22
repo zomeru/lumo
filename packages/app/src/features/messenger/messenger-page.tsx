@@ -4,7 +4,7 @@ import { Badge, Button, EmptyState, ErrorMessage, Field, Loading, cn } from "@lu
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, Hash, Lock, MessageSquare, Plus, Search, Settings, X } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 
 import { api, command } from "../../lib/api";
 import { MessageStream } from "./message-stream";
@@ -21,9 +21,6 @@ import {
 } from "./messenger-dialogs";
 import { useMessengerRealtime } from "./messenger-notifications";
 
-const LegacyConversationView = lazy(async () => ({
-  default: (await import("./legacy-conversation")).LegacyConversationView,
-}));
 export function MessengerPage({
   workspaceId,
   conversationId,
@@ -35,8 +32,7 @@ export function MessengerPage({
     [browse, setBrowse] = useState(false),
     [members, setMembers] = useState<string[]>([]),
     [offset, setOffset] = useState(0),
-    [filter, setFilter] = useState(""),
-    [unread, setUnread] = useState<Record<string, number>>({});
+    [filter, setFilter] = useState("");
   const { status: state, typing, sendTyping } = useMessengerRealtime();
   const conversations = useQuery(conversationsQuery(workspaceId, offset, filter));
   const items = conversations.data?.conversations ?? [];
@@ -96,14 +92,7 @@ export function MessengerPage({
                   {items
                     .filter((item) => (item.kind === "channel") === (kind === "channel"))
                     .map((item) => (
-                      <ConversationRow
-                        key={item.id}
-                        workspaceId={workspaceId}
-                        item={item}
-                        providerUnread={
-                          item.providerGroupId ? (unread[item.providerGroupId] ?? 0) : 0
-                        }
-                      />
+                      <ConversationRow key={item.id} workspaceId={workspaceId} item={item} />
                     ))}
                   {kind === "channel" && (
                     <Button
@@ -168,7 +157,6 @@ export function MessengerPage({
             setMembers(ids);
             setCreating("dm");
           }}
-          onUnread={setUnread}
         />
       ) : (
         <div className="hidden min-h-0 min-w-0 flex-1 items-center justify-center md:flex">
@@ -189,21 +177,13 @@ export function MessengerPage({
     </section>
   );
 }
-function ConversationRow({
-  workspaceId,
-  item,
-  providerUnread,
-}: {
-  workspaceId: string;
-  item: Conversation;
-  providerUnread: number;
-}) {
+function ConversationRow({ workspaceId, item }: { workspaceId: string; item: Conversation }) {
   const count =
       item.notifications === "muted"
         ? 0
         : item.notifications === "mentions"
           ? item.mentions
-          : item.unread + providerUnread,
+          : item.unread,
     Icon = item.kind === "channel" ? (item.visibility === "private" ? Lock : Hash) : MessageSquare;
   return (
     <Link
@@ -235,14 +215,12 @@ function ActiveConversation({
   onTyping,
   typing,
   onNewGroup,
-  onUnread,
 }: {
   workspaceId: string;
   conversationId: string;
   onTyping: () => void;
   typing: boolean;
   onNewGroup: (ids: string[]) => void;
-  onUnread: (counts: Record<string, number>) => void;
 }) {
   const item = useQuery(conversationQuery(workspaceId, conversationId)),
     client = useQueryClient(),
@@ -313,16 +291,9 @@ function ActiveConversation({
         >
           <Search aria-hidden="true" />
         </Button>
-        {!conversation.providerGroupId && (
-          <Button
-            size="sm"
-            variant="ghost"
-            aria-pressed={pinned}
-            onClick={() => setPinned(!pinned)}
-          >
-            Pinned
-          </Button>
-        )}
+        <Button size="sm" variant="ghost" aria-pressed={pinned} onClick={() => setPinned(!pinned)}>
+          Pinned
+        </Button>
         <Button
           size="icon"
           variant="ghost"
@@ -360,58 +331,46 @@ function ActiveConversation({
         </div>
       )}
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-        {conversation.providerGroupId ? (
-          <Suspense fallback={<Loading />}>
-            <LegacyConversationView
+        <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", thread && "hidden xl:flex")}>
+          <MessageStream
+            key={`${conversationId}:${around ?? ""}:${pinned}`}
+            workspaceId={workspaceId}
+            conversationId={conversationId}
+            canPost={canPost}
+            lastReadSequence={conversation.lastReadSequence}
+            around={around}
+            pinned={pinned}
+            onReply={setThread}
+            onTyping={onTyping}
+          />
+        </div>
+        {thread && (
+          <aside
+            className="flex min-h-0 min-w-0 flex-1 flex-col border-l xl:max-w-md"
+            aria-label="Thread"
+          >
+            <header className="flex shrink-0 items-center justify-between border-b px-4 py-2">
+              <h3 className="text-sm font-semibold">Thread</h3>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Close thread"
+                onClick={() => setThread(null)}
+              >
+                <X aria-hidden="true" />
+              </Button>
+            </header>
+            <MessageStream
+              key={thread}
               workspaceId={workspaceId}
               conversationId={conversationId}
-              onUnread={onUnread}
+              parentId={thread}
+              canPost={canPost}
+              lastReadSequence={conversation.lastReadSequence}
+              onReply={setThread}
+              onTyping={onTyping}
             />
-          </Suspense>
-        ) : (
-          <>
-            <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", thread && "hidden xl:flex")}>
-              <MessageStream
-                key={`${conversationId}:${around ?? ""}:${pinned}`}
-                workspaceId={workspaceId}
-                conversationId={conversationId}
-                canPost={canPost}
-                lastReadSequence={conversation.lastReadSequence}
-                around={around}
-                pinned={pinned}
-                onReply={setThread}
-                onTyping={onTyping}
-              />
-            </div>
-            {thread && (
-              <aside
-                className="flex min-h-0 min-w-0 flex-1 flex-col border-l xl:max-w-md"
-                aria-label="Thread"
-              >
-                <header className="flex shrink-0 items-center justify-between border-b px-4 py-2">
-                  <h3 className="text-sm font-semibold">Thread</h3>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label="Close thread"
-                    onClick={() => setThread(null)}
-                  >
-                    <X aria-hidden="true" />
-                  </Button>
-                </header>
-                <MessageStream
-                  key={thread}
-                  workspaceId={workspaceId}
-                  conversationId={conversationId}
-                  parentId={thread}
-                  canPost={canPost}
-                  lastReadSequence={conversation.lastReadSequence}
-                  onReply={setThread}
-                  onTyping={onTyping}
-                />
-              </aside>
-            )}
-          </>
+          </aside>
         )}
       </div>
       {typing && (

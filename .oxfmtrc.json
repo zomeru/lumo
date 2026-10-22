@@ -16,7 +16,6 @@
     "playwright-report/**",
     "test-results/**",
     "**/out/**",
-    "**/release/**",
-    "**/chat-codec.generated.*"
+    "**/release/**"
   ]
 }

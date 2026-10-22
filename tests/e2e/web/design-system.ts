@@ -45,9 +45,9 @@ export async function verifyDesignSystem(page: Page, testInfo: TestInfo) {
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("listbox")).toBeVisible();
   await page.keyboard.press("End");
-  await expect(page.getByRole("option", { name: "Private group" })).toBeFocused();
+  await expect(page.getByRole("option", { name: "Group direct message" })).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Private group");
+  await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Group direct message");
   // Exercise the real portaled dialog as its content grows and shrinks.
   await dialog.evaluate((node) => {
     const content = document.createElement("div");

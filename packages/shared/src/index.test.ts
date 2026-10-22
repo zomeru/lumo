@@ -1,25 +1,10 @@
 import { test, expect } from "vitest";
 
-import { chatIdentity, rtcIdentity, mergeMessages } from "./index";
-test("provider identities separate workspaces and camera/screen identities", () => {
-  expect(chatIdentity("one", "user")).not.toBe(chatIdentity("two", "user"));
+import { rtcIdentity } from "./index";
+test("RTC identities separate camera and screen identities", () => {
   expect(rtcIdentity("user")).toBe("user");
   expect(rtcIdentity("user", true)).toBe("user-screen");
 });
-test("reconnect reconciliation replaces optimistic messages and preserves stable ordering", () => {
-  const first = { id: "a", text: "hello", sender: "user", time: 1, pending: true };
-  const second = { ...first, id: "b", time: 2 };
-  expect(
-    mergeMessages(
-      [first, second],
-      [
-        { ...first, pending: false },
-        { ...second, id: "c" },
-      ],
-    ),
-  ).toEqual([{ ...first, pending: false }, second, { ...second, id: "c" }]);
-});
-
 test("pasted invitation and meeting links accept only configured server destinations", async () => {
   const { parseLumoLink } = await import("./index");
   expect(

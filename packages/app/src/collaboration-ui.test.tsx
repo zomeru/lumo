@@ -1,3 +1,4 @@
+import { messengerMessageSchema, type MessengerMessage } from "@lumo/contracts/messenger";
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -11,8 +12,6 @@ import type { mockApi } from "./test/mock-api";
 import { teamId, bobId } from "./test/mock-api";
 import { selectOption } from "./test/select-option";
 const media = vi.hoisted(() => ({
-  send: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
-  history: vi.fn<() => Promise<boolean>>(async () => false),
   close: vi.fn<() => Promise<void>>(async () => {}),
   preview: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
   join: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
@@ -23,21 +22,6 @@ const media = vi.hoisted(() => ({
     cameras: [{ deviceId: "cam", label: "Camera 1" }],
     microphones: [{ deviceId: "mic", label: "Microphone 1" }],
   })),
-}));
-vi.mock("./features/messenger/chat", () => ({
-  connectChat: async (
-    _ws: string,
-    _id: string,
-    messages: (value: unknown) => void,
-    state: (value: string) => void,
-  ) => {
-    messages([
-      { id: "one", text: "Hello team", sender: "other", time: 1 },
-      { id: "failed", text: "Draft", sender: "other", time: 2, failed: true },
-    ]);
-    state("Connected");
-    return { ...media, identity: "user" };
-  },
 }));
 vi.mock("./features/meetings/rtc", () => ({ createMeetingConnection: async () => media }));
 let server: ReturnType<typeof mockApi>, client: QueryClient;
@@ -68,8 +52,47 @@ beforeEach(() => {
     name: "Project team",
     createdAt: new Date().toISOString(),
     memberIds: [bobId],
-    providerGroupId: "legacy",
   }));
+  const rows: MessengerMessage[] = [
+    messengerMessageSchema.parse({
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      nonce: crypto.randomUUID(),
+      sequence: 1,
+      workspaceId: teamId,
+      conversationId: id,
+      senderId: bobId,
+      senderName: "Bob",
+      senderImage: null,
+      body: "Hello team",
+      parentId: null,
+      mentionIds: [],
+      createdAt: new Date().toISOString(),
+      editedAt: null,
+      deletedAt: null,
+      pinnedAt: null,
+      replies: 0,
+      reactions: [],
+      attachments: [],
+    }),
+  ];
+  override(`GET /api/v1/workspaces/${teamId}/conversations/${id}/messages`, () => ({
+    messages: rows,
+    nextBefore: null,
+  }));
+  server.state.overrides.set(
+    `POST /api/v1/workspaces/${teamId}/conversations/${id}/messages`,
+    (body) => {
+      const message = messengerMessageSchema.parse({
+        ...rows[0],
+        id: crypto.randomUUID(),
+        ...body,
+        sequence: 2,
+        senderId: server.state.user.id,
+      });
+      rows.push(message);
+      return server.json(message, 201);
+    },
+  );
   override(`GET /api/v1/workspaces/${teamId}/conversations`, () => ({
     conversations: [
       {
@@ -124,12 +147,7 @@ test("contact actions create authorized DMs and reuse the shared conversation sc
   expect(await screen.findByText("Hello team")).toBeVisible();
   await user.type(screen.getByLabelText("Message"), "New message");
   await user.click(screen.getByRole("button", { name: "Send message" }));
-  expect(media.send).toHaveBeenCalledWith("New message", undefined);
-  await user.click(screen.getByRole("button", { name: "Retry message" }));
-  expect(media.send).toHaveBeenCalledWith("Draft", "failed");
-  await user.click(screen.getByRole("button", { name: "Load older messages" }));
-  expect(media.history).toHaveBeenCalled();
-  await user.click(screen.getByRole("button", { name: "Reconnect" }));
+  expect(await screen.findByText("New message")).toBeVisible();
 });
 test("new private conversations and conversation pagination remain usable", async () => {
   const user = await show(`/w/${teamId}/messenger`);

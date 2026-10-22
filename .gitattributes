@@ -1,4 +1,3 @@
 .agents/** linguist-documentation
 .claude/** linguist-documentation
 .codex/** linguist-documentation
-packages/app/src/features/messenger/chat-codec.generated.js linguist-generated

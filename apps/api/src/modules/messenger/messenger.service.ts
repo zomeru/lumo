@@ -12,7 +12,6 @@ import {
   messengerReaction as reaction,
   messengerAttachment as attachment,
 } from "@lumo/database/schema";
-import { chatIdentity } from "@lumo/shared";
 import {
   and,
   eq,
@@ -32,7 +31,6 @@ import {
 } from "drizzle-orm";
 import type { z } from "zod";
 
-import type { CollaborationProvider } from "../../integrations/agora";
 import { AppError, denied, missing } from "../../lib/errors";
 import type { createWorkspaceService } from "../workspaces/workspace.service";
 
@@ -45,7 +43,6 @@ const slugFor = (name: string) => name.trim().toLowerCase().replace(/[ _]+/g, "-
 export function createMessengerService(
   _db: Database,
   workspaces: ReturnType<typeof createWorkspaceService>,
-  provider: CollaborationProvider,
 ) {
   const visible = (actor: string) =>
     and(
@@ -72,8 +69,6 @@ export function createMessengerService(
   function canPost(item: Conversation, member: Member | undefined) {
     if (!member) denied();
     if (item.archivedAt) conflict("This channel is archived.");
-    if (item.providerGroupId)
-      conflict("Use the existing provider conversation for its preserved history.");
   }
   function manage(item: Conversation, member: Member | undefined) {
     if (item.kind !== "channel" || !member || !["owner", "manager"].includes(member.role)) denied();
@@ -156,7 +151,6 @@ export function createMessengerService(
         unreadStats = stats.find((m) => m.conversationId === item.id);
       return {
         id: item.id,
-        providerGroupId: item.providerGroupId,
         workspaceId: item.workspaceId,
         name: item.name,
         description: item.description,
@@ -440,8 +434,6 @@ export function createMessengerService(
         if (!member) missing();
         if (item.kind === "channel" && member.role === "owner")
           conflict("Transfer channel ownership before leaving.");
-        if (item.providerGroupId)
-          await provider.removeMember(item.providerGroupId, chatIdentity(workspaceId, actor));
         await tx
           .delete(conversationMember)
           .where(
@@ -541,44 +533,12 @@ export function createMessengerService(
         await notify(tx, workspaceId);
       });
     },
-    async credentials(workspaceId: string, actor: string, id: string) {
-      return scoped(workspaceId, actor, id, async (tx, item, member) => {
-        if (!member || item.kind === "channel") missing();
-        const [stored] = await tx
-          .select({ id: message.id })
-          .from(message)
-          .where(eq(message.conversationId, id))
-          .limit(1);
-        if (stored) conflict("Update Lumo to read this conversation’s message history.");
-        const identity = chatIdentity(workspaceId, actor),
-          uuid = await provider.chatUser(identity);
-        let groupId = item.providerGroupId;
-        if (!groupId) {
-          const members = await tx
-            .select({ id: conversationMember.userId })
-            .from(conversationMember)
-            .where(eq(conversationMember.conversationId, id));
-          groupId = await provider.createGroup(
-            item.name,
-            members.map((m) => chatIdentity(workspaceId, m.id)),
-          );
-          await tx
-            .update(conversation)
-            .set({ providerGroupId: groupId })
-            .where(eq(conversation.id, id));
-        }
-        return { ...provider.chatToken(uuid), identity, groupId };
-      });
-    },
-    async read(workspaceId: string, actor: string, id: string, messageId?: string) {
+    async read(workspaceId: string, actor: string, id: string, messageId: string) {
       return scoped(workspaceId, actor, id, async (tx, _item, member) => {
         if (!member) return;
-        let sequence = member.lastReadSequence;
-        if (messageId) {
-          const row = await findMessage(tx, workspaceId, messageId);
-          if (row.conversationId !== id) missing();
-          sequence = Math.max(sequence, row.sequence);
-        }
+        const row = await findMessage(tx, workspaceId, messageId);
+        if (row.conversationId !== id) missing();
+        const sequence = Math.max(member.lastReadSequence, row.sequence);
         if (sequence === member.lastReadSequence) return;
         await tx
           .update(conversationMember)
@@ -595,8 +555,7 @@ export function createMessengerService(
       id: string,
       input: z.infer<typeof contracts.messengerHistoryQuerySchema>,
     ) {
-      return scoped(workspaceId, actor, id, async (tx, item) => {
-        if (item.providerGroupId) conflict("Use the preserved Agora conversation history.");
+      return scoped(workspaceId, actor, id, async (tx) => {
         let before = input.before,
           after = input.after;
         if (input.around) {
