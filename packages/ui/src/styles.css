@@ -17,12 +17,12 @@
   * {
     @apply border-border;
   }
-  /* Prefer color presentation before Chromium accepts monochrome system-font glyphs. */
+  /* Follow Unicode presentation: ordinary digits stay text, keycaps and pictographs use emoji. */
   body,
   button,
   input,
   textarea {
-    font-variant-emoji: emoji;
+    font-variant-emoji: unicode;
   }
   body {
     @apply m-0 min-w-80 bg-background font-sans text-sm text-foreground antialiased;

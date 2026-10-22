@@ -1,5 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
+import { verifyEmojiFonts } from "./emoji-flow";
+
 async function select(page: Page, label: string, value: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();
   await page.getByRole("option", { name: value, exact: true }).click();
@@ -17,6 +19,7 @@ export async function verifyMessenger(
   const origin = page.url().startsWith("lumo:") ? "lumo://app" : "http://localhost:3010",
     root = `${origin}/w/${workspaceId}/messenger`;
   await page.goto(root);
+  await verifyEmojiFonts(page);
   if (peer) {
     await peer.goto(`http://localhost:3010/w/${workspaceId}/messenger`);
     await expect(peer.getByText("Connected", { exact: true })).toBeVisible();

@@ -14,6 +14,7 @@ import {
 
 import { verifyCalendar } from "../calendar-flow";
 import { verifyDrive } from "../drive-flow";
+import { verifyEmojiFonts } from "../emoji-flow";
 import { verifyFileModules } from "../file-modules-flow";
 import { verifyHr } from "../hr-flow";
 import { verifyMessenger } from "../messenger-flow";
@@ -86,6 +87,7 @@ test("frameless chrome, menu removal, drag regions and web isolation", async ({ 
   try {
     const page = await app.firstWindow();
     await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+    await verifyEmojiFonts(page);
     const platform = await app.evaluate(() => process.platform);
     const native = await app.evaluate(({ BrowserWindow, Menu }) => {
       const window = BrowserWindow.getAllWindows()[0]!;
