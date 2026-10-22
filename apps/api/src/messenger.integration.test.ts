@@ -340,6 +340,7 @@ test("nonce retries, thread integrity, reactions, pins, sender edits and tombsto
   await send(publicChannel.id, "Thread reply", bob, { parentId: root.id });
   const reply = await (await req(`${path}?parentId=${root.id}`)).json();
   expect(reply.messages).toHaveLength(1);
+  expect(reply.parent).toMatchObject({ id: root.id, senderId: alice.id });
   expect(
     (
       await req(path, alice, "POST", {
@@ -376,6 +377,7 @@ test("nonce retries, thread integrity, reactions, pins, sender edits and tombsto
     id: root.id,
     reactions: [{ emoji: "👍", count: 1, mine: false }],
     replies: 1,
+    replyParticipants: [{ userId: bob.id, name: expect.any(String), image: null }],
   });
   expect(
     (await req(`${base()}/messages/${root.id}`, bob, "PATCH", { body: "Forged" })).status,

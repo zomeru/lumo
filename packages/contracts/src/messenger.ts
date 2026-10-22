@@ -43,7 +43,21 @@ export const messageInputSchema = z
   });
 export const messageEditSchema = z.object({ body: z.string().trim().min(1).max(4000) }).strict();
 export const messageReactionSchema = z
-  .object({ emoji: z.enum(["👍", "❤️", "😂", "🎉", "👀", "✅"]), active: z.boolean() })
+  .object({
+    emoji: z
+      .string()
+      .max(32)
+      .refine((value) => {
+        const segments = [...new Intl.Segmenter("en", { granularity: "grapheme" }).segment(value)];
+        return (
+          segments.length === 1 &&
+          /^(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*|\u{1F3F4}[\u{E0061}-\u{E007A}]+\u{E007F})$/u.test(
+            value,
+          )
+        );
+      }, "Choose a single emoji."),
+    active: z.boolean(),
+  })
   .strict();
 export const messagePinSchema = z.object({ active: z.boolean() }).strict();
 export const messengerHistoryQuerySchema = z.object({
@@ -102,10 +116,15 @@ export const messengerMessageSchema = z.object({
   deletedAt: z.iso.datetime().nullable(),
   pinnedAt: z.iso.datetime().nullable(),
   replies: z.number(),
+  replyParticipants: z
+    .array(z.object({ userId: idSchema, name: z.string(), image: z.string().nullable() }))
+    .max(3)
+    .default([]),
   reactions: z.array(z.object({ emoji: z.string(), count: z.number(), mine: z.boolean() })),
   attachments: z.array(messengerAttachmentSchema),
 });
 export const messengerMessagesSchema = z.object({
+  parent: messengerMessageSchema.nullable().optional(),
   messages: z.array(messengerMessageSchema),
   nextBefore: z.number().nullable(),
 });

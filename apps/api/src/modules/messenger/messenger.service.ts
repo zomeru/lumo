@@ -232,6 +232,22 @@ export function createMessengerService(
       .from(message)
       .where(inArray(message.parentId, ids))
       .groupBy(message.parentId);
+    // One bounded aggregate for the page, regardless of its message count.
+    const respondents = await tx.execute<{
+      parent_id: string;
+      user_id: string;
+      name: string;
+      image: string | null;
+    }>(sql`
+      select ranked.parent_id, ranked.user_id, u.name, u.image from (
+        select latest.*, row_number() over (partition by parent_id order by last_sequence desc) as rank from (
+          select ${message.parentId} as parent_id, ${message.senderId} as user_id, max(${message.sequence}) as last_sequence
+          from ${message} where ${inArray(message.parentId, ids)} and ${message.deletedAt} is null
+          group by ${message.parentId}, ${message.senderId}
+        ) latest
+      ) ranked join ${user} u on u.id = ranked.user_id
+      where ranked.rank <= 3 order by ranked.parent_id, ranked.last_sequence desc
+    `);
     return rows.map((row) => {
       const sender = senders.find((v) => v.id === row.senderId)!;
       const ownReactions = row.deletedAt ? [] : reactions.filter((v) => v.messageId === row.id);
@@ -246,6 +262,9 @@ export function createMessengerService(
         senderName: sender.name,
         senderImage: sender.image,
         replies: replies.find((v) => v.parentId === row.id)?.count ?? 0,
+        replyParticipants: respondents.rows
+          .filter((v) => v.parent_id === row.id)
+          .map((v) => ({ userId: v.user_id, name: v.name, image: v.image })),
         reactions: [...new Set(ownReactions.map((v) => v.emoji))].map((emoji) => ({
           emoji,
           count: ownReactions.filter((v) => v.emoji === emoji).length,
@@ -591,9 +610,11 @@ export function createMessengerService(
           before = row.sequence + 1;
           after = undefined;
         }
+        let parent: typeof message.$inferSelect | undefined;
         if (input.parentId) {
           const row = await findMessage(tx, workspaceId, input.parentId);
           if (row.conversationId !== id || row.parentId) missing();
+          parent = row;
         }
         const rows = await tx
           .select()
@@ -624,6 +645,7 @@ export function createMessengerService(
         const selected = rows.slice(0, input.limit);
         selected.sort((a, b) => a.sequence - b.sequence);
         return {
+          parent: parent ? (await messageDtos(tx, [parent], actor))[0] : null,
           messages: await messageDtos(tx, selected, actor),
           nextBefore: rows.length > input.limit ? selected[0]!.sequence : null,
         };
