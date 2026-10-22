@@ -127,6 +127,13 @@
       "when": 1792628726160,
       "tag": "0017_messenger_revocation",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792630499217,
+      "tag": "0018_conscious_kitty_pryde",
+      "breakpoints": true
     }
   ]
 }

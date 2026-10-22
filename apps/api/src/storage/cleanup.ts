@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
 
 import type { Database } from "@lumo/database";
-import { driveItem, storageCleanup, workspace, officeVersion } from "@lumo/database/schema";
+import {
+  driveItem,
+  storageCleanup,
+  workspace,
+  officeVersion,
+  messengerAttachment,
+  messengerMessage,
+} from "@lumo/database/schema";
 import { and, asc, eq, inArray, lte, or, sql } from "drizzle-orm";
 
 import type { Storage } from "./storage";
@@ -31,12 +38,26 @@ export async function cleanupStorage(db: Database, storage: Storage) {
             .where(eq(officeVersion.objectKey, candidate.key));
           file = revision?.file;
         }
-        // Match the lock ordering used by Drive and membership mutations.
-        if (file)
+        const messengerKey =
+          /^messenger\/([0-9a-f-]{36})\/([0-9a-f-]{36})\/(staging|content)$/.exec(candidate.key);
+        const [chatFile] = messengerKey
+          ? await tx
+              .select()
+              .from(messengerAttachment)
+              .where(
+                and(
+                  eq(messengerAttachment.workspaceId, messengerKey[1]!),
+                  eq(messengerAttachment.id, messengerKey[2]!),
+                ),
+              )
+          : [];
+        // Match the lock ordering used by Drive, Messenger and membership mutations.
+        const workspaceId = file?.workspaceId ?? chatFile?.workspaceId;
+        if (workspaceId)
           await tx
             .select({ id: workspace.id })
             .from(workspace)
-            .where(eq(workspace.id, file.workspaceId))
+            .where(eq(workspace.id, workspaceId))
             .for("update");
         if (file) [file] = await tx.select().from(driveItem).where(eq(driveItem.id, file.id));
         const [job] = await tx
@@ -47,6 +68,17 @@ export async function cleanupStorage(db: Database, storage: Storage) {
           )
           .for("update", { skipLocked: true });
         if (!job) return;
+        if (chatFile && messengerKey?.[3] === "content") {
+          const [attached] = await tx
+            .select({ deletedAt: messengerMessage.deletedAt })
+            .from(messengerAttachment)
+            .innerJoin(messengerMessage, eq(messengerMessage.id, messengerAttachment.messageId))
+            .where(eq(messengerAttachment.id, chatFile.id));
+          if (attached && !attached.deletedAt) {
+            await tx.delete(storageCleanup).where(eq(storageCleanup.id, job.id));
+            return;
+          }
+        }
         const [retained] = await tx
           .select({ id: officeVersion.id })
           .from(officeVersion)

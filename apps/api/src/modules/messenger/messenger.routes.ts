@@ -52,6 +52,18 @@ export function messengerRoutes(db: Database, chat: MessengerService) {
       );
       return c.json({ ok: true });
     });
+  app.get("/workspaces/:workspaceId/conversations/:id/activity", async (c) => {
+    const { offset, limit } = parse(paginationSchema, c.req.query());
+    return c.json(
+      await chat.auditHistory(
+        c.req.param("workspaceId"),
+        c.get("user").id,
+        parse(idSchema, c.req.param("id")),
+        offset,
+        limit,
+      ),
+    );
+  });
   app.get("/workspaces/:workspaceId/conversations/:id/members", async (c) => {
     const { offset, limit } = parse(paginationSchema, c.req.query());
     return c.json(

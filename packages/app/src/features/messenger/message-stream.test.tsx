@@ -1,12 +1,23 @@
 import { messengerMessageSchema, type MessengerMessage } from "@lumo/contracts/messenger";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, afterEach, expect, test, vi } from "vitest";
 
 import { mockApi, teamId, bobId } from "../../test/mock-api";
 import { MessageStream } from "./message-stream";
 
+const filesMock = vi.hoisted(() => ({
+  upload: vi.fn<(...args: unknown[]) => Promise<{ id: string; name: string }>>(async () => ({
+    id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    name: "notes.txt",
+  })),
+  download: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
+}));
+vi.mock("./messenger-files", () => ({
+  uploadAttachment: filesMock.upload,
+  downloadAttachment: filesMock.download,
+}));
 const conversationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   messageId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
   nonce = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -182,3 +193,103 @@ test.each([{ pinned: true }, { around: messageId }])(
     expect(reads).toEqual([]);
   },
 );
+
+test("older history, thread sends and scroll-to-latest remain usable", async () => {
+  server.state.overrides.set(`GET ${path}/messages`, (_body, url) =>
+    server.json({
+      messages: url.searchParams.has("before")
+        ? [
+            {
+              ...fixture(),
+              id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+              sequence: 0,
+              body: "Older history",
+              createdAt: "2026-10-21T08:00:00.000Z",
+            },
+          ]
+        : rows,
+      nextBefore: url.searchParams.has("before") ? null : 1,
+    }),
+  );
+  const sent: Record<string, unknown>[] = [];
+  server.state.overrides.set(`POST ${path}/messages`, (body) => {
+    sent.push(body);
+    return server.json(
+      { ...fixture(), body: body.body, nonce: body.nonce, parentId: messageId },
+      201,
+    );
+  });
+  const user = show({ parentId: messageId });
+  await screen.findByText("Existing message");
+  const list = screen.getByRole("list", { name: "Thread messages" });
+  Object.defineProperty(list, "scrollTo", { value: () => {} });
+  await user.click(screen.getByRole("button", { name: "Load older messages" }));
+  await screen.findByText("Older history");
+  await user.click(screen.getByRole("button", { name: "Latest messages" }));
+  await user.type(screen.getByLabelText("Message"), "A reply{Shift>}{Enter}{/Shift}Second line");
+  await user.keyboard("{Enter}");
+  await waitFor(() => expect(sent).toHaveLength(1));
+  expect(sent[0]).toMatchObject({ parentId: messageId, body: "A reply\nSecond line" });
+  fireEvent.scroll(list, { target: { scrollTop: 0 } });
+});
+test("attachment selection, removal, download errors, deleted messages and existing reactions have working states", async () => {
+  rows = [
+    {
+      ...fixture(),
+      senderId: bobId,
+      senderName: "Bob",
+      pinnedAt: new Date().toISOString(),
+      editedAt: new Date().toISOString(),
+      mentionIds: [bobId],
+      replies: 2,
+      reactions: [{ emoji: "👍", count: 1, mine: true }],
+      attachments: [
+        {
+          id: messageId,
+          name: "existing.txt",
+          size: 4,
+          mimeType: "text/plain",
+          scanStatus: "unscanned",
+        },
+      ],
+    },
+  ];
+  filesMock.download.mockRejectedValueOnce(new Error("File access removed"));
+  const commands: unknown[] = [];
+  for (const action of ["reaction", "pin"])
+    server.state.overrides.set(
+      `POST /api/v1/workspaces/${teamId}/messages/${messageId}/${action}`,
+      (body) => {
+        commands.push(body);
+        return server.json({ ok: true });
+      },
+    );
+  const user = show();
+  await screen.findByText("Existing message");
+  await user.click(screen.getByRole("button", { name: "existing.txt · Download" }));
+  await screen.findByText("File access removed");
+  await user.click(screen.getByRole("button", { name: "👍 1" }));
+  await user.click(screen.getByText("Message actions"));
+  await user.click(screen.getByRole("button", { name: "Unpin" }));
+  await waitFor(() => expect(commands).toContainEqual({ emoji: "👍", active: false }));
+  await user.upload(
+    screen.getByLabelText("Attach file"),
+    new File(["file"], "notes.txt", { type: "text/plain" }),
+  );
+  await user.click(await screen.findByRole("button", { name: "Remove notes.txt" }));
+  expect(screen.queryByRole("button", { name: "Remove notes.txt" })).not.toBeInTheDocument();
+  rows = [
+    { ...rows[0]!, deletedAt: new Date().toISOString(), body: "", attachments: [], reactions: [] },
+  ];
+  await client.invalidateQueries();
+  await screen.findByText("Message deleted");
+  expect(screen.queryByText("Message actions")).not.toBeInTheDocument();
+});
+test("history authorization failures clear content and keep the error visible", async () => {
+  server.state.overrides.set(`GET ${path}/messages`, () =>
+    server.error(404, "History access removed"),
+  );
+  show();
+  await screen.findByText("History access removed");
+  expect(screen.queryByLabelText("Message")).not.toBeInTheDocument();
+});

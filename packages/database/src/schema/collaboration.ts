@@ -148,6 +148,28 @@ export const messengerReaction = pgTable(
     }).onDelete("cascade"),
   ],
 );
+// Content activity has the same visibility boundary as its conversation, including for admins.
+export const messengerAudit = pgTable(
+  "messenger_audit_events",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id").notNull(),
+    conversationId: uuid("conversation_id").notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => user.id),
+    action: text().notNull(),
+    targetId: uuid("target_id").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.workspaceId, t.conversationId],
+      foreignColumns: [conversation.workspaceId, conversation.id],
+    }).onDelete("cascade"),
+    index("messenger_audit_conversation_idx").on(t.conversationId, t.createdAt, t.id),
+  ],
+);
 export const messengerAttachment = pgTable(
   "messenger_attachments",
   {

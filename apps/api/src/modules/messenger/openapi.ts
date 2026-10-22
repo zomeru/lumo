@@ -41,6 +41,12 @@ export function documentMessenger(app: OpenAPIHono<ApiContext>) {
     })),
     {
       method: "get",
+      path: "/conversations/{id}/activity",
+      response: messenger.messengerAuditSchema,
+      query: paginationSchema,
+    },
+    {
+      method: "get",
       path: "/conversations/{id}/members",
       response: messenger.messengerMembersSchema,
       query: paginationSchema,

@@ -9,14 +9,21 @@ import { createAuth } from "@lumo/auth";
 import type { Conversation } from "@lumo/contracts/collaboration";
 import { legalVersions } from "@lumo/contracts/legal";
 import { messengerMessageSchema, type MessengerMessage } from "@lumo/contracts/messenger";
-import { membership, messengerMessage, conversationMember } from "@lumo/database/schema";
+import {
+  membership,
+  messengerMessage,
+  conversationMember,
+  storageCleanup,
+  conversation,
+} from "@lumo/database/schema";
 import { readServerEnv } from "@lumo/env/server";
 import { and, eq } from "drizzle-orm";
 import { beforeAll, afterAll, test, expect } from "vitest";
-import { WebSocket } from "ws";
+import { WebSocket, type RawData } from "ws";
 
 import { createApp } from "./app";
 import { listenForWiki } from "./modules/office/wiki-notifications";
+import { cleanupStorage } from "./storage/cleanup";
 import { createTestDatabase } from "./test/database";
 import { memoryStorage } from "./test/storage";
 
@@ -242,7 +249,7 @@ test("nonce retries, thread integrity, reactions, pins, sender edits and tombsto
 test("durable cursors advance monotonically and mentions/search only use authorized resources", async () => {
   const first = await send(publicChannel.id, "Hello @Bob", alice, { mentionIds: [bob.id] });
   const last = await send(publicChannel.id, "Searchable launch", alice);
-  const list = await (await req(`${base()}/conversations`, bob)).json();
+  const list = await (await req(`${base()}/conversations?includeChannels=true`, bob)).json();
   expect(list.conversations.find((v: Conversation) => v.id === publicChannel.id)).toMatchObject({
     mentions: 1,
     joined: true,
@@ -383,8 +390,12 @@ test("private attachments validate metadata, immutable content and current downl
       })
     ).status,
   ).toBe(404);
-  const message = await send(channel.id, "File", alice, { attachmentIds: [id] });
+  const message = await send(channel.id, "", alice, { attachmentIds: [id] });
   expect(message.attachments).toMatchObject([{ id, name: "notes.txt", scanStatus: "unscanned" }]);
+  await database.db.insert(storageCleanup).values({ key: content, notBefore: new Date(0) });
+  await cleanupStorage(database.db, files.storage);
+  expect(files.objects.has(content)).toBe(true);
+
   expect(
     (await req(`${base()}/messenger/attachments/${id}/download`, bob, "POST", {})).status,
   ).toBe(200);
@@ -403,6 +414,13 @@ test("private attachments validate metadata, immutable content and current downl
     (await req(`${base()}/messenger/attachments/${id}/download`, bob, "POST", {})).status,
   ).toBe(404);
   expect((await req(`${base()}/messages/${message.id}`, alice, "DELETE", {})).status).toBe(200);
+  await database.db
+    .update(storageCleanup)
+    .set({ notBefore: new Date(0) })
+    .where(eq(storageCleanup.key, content));
+  await cleanupStorage(database.db, files.storage);
+  expect(files.objects.has(content)).toBe(false);
+
   expect(
     (await req(`${base()}/messenger/attachments/${id}/download`, alice, "POST", {})).status,
   ).toBe(404);
@@ -459,6 +477,166 @@ test("notification aggregates apply preferences and never reveal private convers
   expect(docs.paths["/api/v1/workspaces/{workspaceId}/channels"]).toBeDefined();
 });
 
+test("workspace removal transfers channel ownership without granting administrators private access", async () => {
+  const created = await req(`${base()}/channels`, bob, "POST", {
+    name: "Member-owned secret",
+    visibility: "private",
+    memberIds: [admin.id],
+  });
+  expect(created.status).toBe(201);
+  const owned = await created.json();
+  const abandoned = await (
+    await req(`${base()}/channels`, bob, "POST", {
+      name: "Sole private owner",
+      visibility: "private",
+    })
+  ).json();
+  expect((await req(`${base()}/conversations/${owned.id}`, alice)).status).toBe(404);
+  expect((await req(`${base()}/members/${bob.id}`, alice, "DELETE", {})).status).toBe(200);
+  const inherited = await (await req(`${base()}/conversations/${owned.id}`, admin)).json();
+  expect(inherited.role).toBe("owner");
+  expect((await req(`${base()}/conversations/${owned.id}`, alice)).status).toBe(404);
+  const [retained] = await database.db
+    .select()
+    .from(conversation)
+    .where(eq(conversation.id, abandoned.id));
+  expect(retained?.archivedAt).toBeTruthy();
+  await database.db.insert(membership).values({ workspaceId: alice.workspaceId, userId: bob.id });
+});
+
+test("conversation activity is auditable without exposing private resource IDs through workspace activity", async () => {
+  const channel = await createChannel("Private audit", "private", [bob.id]);
+  expect(
+    (
+      await req(`${base()}/channels/${channel.id}`, alice, "PATCH", {
+        description: "Retained topic",
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (await req(`${base()}/channels/${channel.id}`, alice, "PATCH", { archived: true })).status,
+  ).toBe(200);
+  const activity = await (
+    await req(`${base()}/conversations/${channel.id}/activity?limit=1`)
+  ).json();
+  expect(activity.events[0]).toMatchObject({
+    conversationId: channel.id,
+    actorId: alice.id,
+    action: "channel.updated",
+  });
+  expect(activity.nextOffset).toBe(1);
+  const stored = await (await req(`${base()}/conversations/${channel.id}`)).json();
+  expect(stored.description).toBe("Retained topic");
+  expect((await req(`${base()}/conversations/${channel.id}/activity`, bob)).status).toBe(403);
+  expect((await req(`${base()}/conversations/${channel.id}/activity`, admin)).status).toBe(404);
+  expect(
+    (await req(`${base(bob.workspaceId)}/conversations/${channel.id}/activity`, bob)).status,
+  ).toBe(404);
+  expect(JSON.stringify(await (await req(`${base()}/activity`)).json())).not.toContain(channel.id);
+});
+
+test("message mutation and channel edge cases fail closed and preserve visible history", async () => {
+  const channel = await createChannel("Lifecycle edges", "public");
+  const path = `${base()}/conversations/${channel.id}`;
+  expect((await req(`${path}/leave`, bob, "POST", {})).status).toBe(404);
+  expect(
+    (await req(`${base()}/channels/${channel.id}`, alice, "PATCH", { name: "general" })).status,
+  ).toBe(409);
+  expect(
+    (await req(`${base()}/channels/${channel.id}`, alice, "PATCH", { archived: true })).status,
+  ).toBe(200);
+  expect((await req(`${path}/join`, bob, "POST", {})).status).toBe(409);
+  expect(
+    (await req(`${base()}/channels/${channel.id}`, alice, "PATCH", { archived: false })).status,
+  ).toBe(200);
+  const row = await send(channel.id, "Toggle states");
+  for (const [action, body] of [
+    ["reaction", { emoji: "👍", active: false }],
+    ["pin", { active: false }],
+  ] as const)
+    expect((await req(`${base()}/messages/${row.id}/${action}`, alice, "POST", body)).status).toBe(
+      200,
+    );
+  const secret = await createChannel("Hidden parent", "private");
+  const parent = await send(secret.id, "Private parent");
+  for (const query of [`around=${parent.id}`, `parentId=${parent.id}`])
+    expect((await req(`${path}/messages?${query}`)).status).toBe(404);
+  expect((await req(`${path}/messages?limit=0`)).status).toBe(400);
+  expect(
+    (
+      await req(`${path}/messages`, alice, "POST", {
+        nonce: randomUUID(),
+        body: "Spoof",
+        senderId: bob.id,
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await req(`${base()}/conversations/${secret.id}/messages`, alice, "POST", {
+        nonce: randomUUID(),
+        body: "Invalid mention",
+        mentionIds: [bob.id],
+      })
+    ).status,
+  ).toBe(404);
+  expect(
+    (
+      await req(`${path}/messages`, alice, "POST", {
+        nonce: randomUUID(),
+        body: "Foreign mention",
+        mentionIds: [outsider.id],
+      })
+    ).status,
+  ).toBe(404);
+  expect((await req(`${base()}/messages/${row.id}`, alice, "DELETE", {})).status).toBe(200);
+  expect(
+    (await req(`${base()}/messages/${row.id}/pin`, alice, "POST", { active: true })).status,
+  ).toBe(404);
+  expect((await req(`${path}/cursor`, alice, "POST", { messageId: parent.id })).status).toBe(404);
+  const search = await (
+    await req(
+      `${base()}/messenger/search?q=parent&conversationId=${secret.id}&from=2026-01-01T00:00:00Z&to=2027-01-01T00:00:00Z&limit=1`,
+    )
+  ).json();
+  expect(search.results).toHaveLength(1);
+});
+
+test("long histories and large channel directories stay bounded and use stable sequence cursors", async () => {
+  const channel = await createChannel("Scale history", "public", [bob.id]);
+  await database.db.insert(messengerMessage).values(
+    Array.from({ length: 1000 }, (_, index) => ({
+      workspaceId: alice.workspaceId,
+      conversationId: channel.id,
+      senderId: alice.id,
+      nonce: randomUUID(),
+      body: `Scale message ${index}`,
+    })),
+  );
+  const path = `${base()}/conversations/${channel.id}/messages`;
+  const first = await (await req(`${path}?limit=40`, bob)).json();
+  expect(first.messages).toHaveLength(40);
+  expect(first.messages.at(-1).body).toBe("Scale message 999");
+  const second = await (await req(`${path}?limit=40&before=${first.nextBefore}`, bob)).json();
+  expect(second.messages).toHaveLength(40);
+  expect(second.messages.every((m: MessengerMessage) => m.sequence < first.nextBefore)).toBe(true);
+  await database.db.insert(conversation).values(
+    Array.from({ length: 100 }, (_, index) => ({
+      workspaceId: alice.workspaceId,
+      createdBy: alice.id,
+      kind: "channel",
+      name: `Scale directory ${index}`,
+      slug: `scale-directory-${index}`,
+      visibility: "public" as const,
+    })),
+  );
+  const directory = await (await req(`${base()}/channels?limit=20&q=Scale`, bob)).json();
+  expect(directory.conversations).toHaveLength(20);
+  expect(directory.nextOffset).toBe(20);
+  const notifications = await (await req(`${base()}/messenger/notifications`, bob)).json();
+  expect(notifications.totalUnread).toBeGreaterThanOrEqual(1000);
+});
+
 test("realtime tickets bind sessions, durable commits invalidate two clients and revocation closes live sockets", async () => {
   const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 });
   if (!(server instanceof Server)) throw new Error("Expected HTTP server");
@@ -498,6 +676,46 @@ test("realtime tickets bind sessions, durable commits invalidate two clients and
       )
     ).json();
     expect(received.messages.map((m: MessengerMessage) => m.id)).toContain(sent.id);
+
+    const typingFrame = new Promise<{ type: string; conversationId: string; actorId: string }>(
+      (resolve) => {
+        const receive = (raw: RawData) => {
+          const value = JSON.parse(
+            (Array.isArray(raw)
+              ? Buffer.concat(raw)
+              : Buffer.isBuffer(raw)
+                ? raw
+                : Buffer.from(raw)
+            ).toString("utf8"),
+          );
+          if (value.type === "typing") {
+            b.off("message", receive);
+            resolve(value);
+          }
+        };
+        b.on("message", receive);
+      },
+    );
+    a.send(JSON.stringify({ type: "typing", conversationId: publicChannel.id }));
+    expect(await typingFrame).toMatchObject({
+      type: "typing",
+      conversationId: publicChannel.id,
+      actorId: alice.id,
+    });
+    const forbidden = await connect(bob),
+      deniedTyping = once(forbidden, "close");
+    forbidden.send(JSON.stringify({ type: "typing", conversationId: privateChannel.id }));
+    expect((await deniedTyping)[0]).toBe(1008);
+    const malformed = await connect(alice),
+      invalidFrame = once(malformed, "close");
+    malformed.send("invalid-json");
+    expect((await invalidFrame)[0]).toBe(1008);
+    const forged = new WebSocket(
+      `ws://127.0.0.1:${address.port}/api/internal/messenger?ticket=forged`,
+      { origin: env.WEB_ORIGIN },
+    );
+    sockets.push(forged);
+    await once(forged, "error");
     const closed = once(b, "close");
     await database.db
       .delete(membership)

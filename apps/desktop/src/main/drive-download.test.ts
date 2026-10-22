@@ -51,3 +51,17 @@ test("desktop HR downloads retain the authenticated path and storage-host checks
     driveDownload({ path: hrPath.replace("/download", "/complete"), body: {} }, request, save),
   ).rejects.toThrow(/./);
 });
+
+test("Messenger downloads keep the same endpoint and private S3 host restrictions", async () => {
+  const request = vi.fn<() => Promise<{ status: number; body: unknown }>>(async () => ({
+      status: 200,
+      body: { url: "https://bucket.s3.us-east-1.amazonaws.com/messenger/signed" },
+    })),
+    save = vi.fn<(url: string) => void>();
+  const filePath = path.replace("/drive/", "/messenger/attachments/");
+  await driveDownload({ path: filePath, body: {} }, request, save);
+  expect(save).toHaveBeenCalledTimes(1);
+  await expect(
+    driveDownload({ path: filePath.replace("/download", "/complete"), body: {} }, request, save),
+  ).rejects.toThrow(/./);
+});

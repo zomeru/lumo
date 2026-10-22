@@ -138,3 +138,17 @@ export const messengerNotificationsSchema = z.object({
   totalUnread: z.number(),
   nextOffset: z.number().nullable(),
 });
+export const messengerAuditSchema = z.object({
+  events: z.array(
+    z.object({
+      id: idSchema,
+      workspaceId: idSchema,
+      conversationId: idSchema,
+      actorId: idSchema,
+      action: z.string(),
+      targetId: idSchema,
+      createdAt: z.iso.datetime(),
+    }),
+  ),
+  nextOffset: z.number().nullable(),
+});

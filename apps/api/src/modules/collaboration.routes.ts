@@ -65,12 +65,15 @@ export function collaborationRoutes(
       security,
       request: {
         params: workspaceParams,
-        query: paginationSchema.extend({ q: z.string().max(100).default("") }),
+        query: paginationSchema.extend({
+          q: z.string().max(100).default(""),
+          includeChannels: z.enum(["true"]).optional(),
+        }),
       },
       responses: { 200: json(conversationsSchema), ...errors },
     }),
     async (c) => {
-      const { offset, limit, q } = c.req.valid("query");
+      const { offset, limit, q, includeChannels } = c.req.valid("query");
       return c.json(
         await chat.list(
           c.req.valid("param").workspaceId,
@@ -79,6 +82,7 @@ export function collaborationRoutes(
           limit,
           false,
           q,
+          includeChannels === "true",
         ),
         200,
       );

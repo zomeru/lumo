@@ -23,7 +23,7 @@ import { Fragment, useEffect, useId, useRef, useState } from "react";
 
 import { AppAvatar } from "../../components/app-avatar";
 import { api, command, sessionQuery } from "../../lib/api";
-import { messengerKey, messengerPath, messagesQuery } from "./messenger-api";
+import { messengerKey, messengerPath } from "./messenger-api";
 
 const reactions = ["👍", "❤️", "😂", "🎉", "👀", "✅"];
 type Draft = {
@@ -355,7 +355,7 @@ export function MessageStream({
   const list = useRef<HTMLOListElement>(null),
     read = useRef<string | undefined>(undefined);
   const query = useInfiniteQuery({
-    queryKey: messagesQuery(workspaceId, conversationId, parentId, around, pinned).queryKey,
+    queryKey: [...messengerKey(workspaceId), "messages", conversationId, parentId, around, pinned],
     initialPageParam: undefined as number | undefined,
     queryFn: ({ pageParam, signal }) =>
       api(

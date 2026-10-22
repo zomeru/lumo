@@ -11,6 +11,7 @@ import {
   hrDepartment,
   hrEmployee,
   hrAudit,
+  messengerAudit,
 } from "@lumo/database/schema";
 import type { ServerEnv } from "@lumo/env/server";
 import { chatIdentity } from "@lumo/shared";
@@ -178,6 +179,13 @@ export function createApp({
             .update(conversation)
             .set({ archivedAt: new Date() })
             .where(eq(conversation.id, channel.id));
+        await tx.insert(messengerAudit).values({
+          workspaceId,
+          conversationId: channel.id,
+          actorId,
+          action: successor ? "owner.transferred_on_removal" : "channel.archived_on_removal",
+          targetId: successor?.userId ?? userId,
+        });
       }
       const groups = await tx
         .select({

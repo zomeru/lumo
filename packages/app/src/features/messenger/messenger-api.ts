@@ -1,9 +1,5 @@
 import { conversationSchema, conversationsSchema } from "@lumo/contracts/collaboration";
-import {
-  messengerSessionSchema,
-  messengerEventSchema,
-  messengerMessagesSchema,
-} from "@lumo/contracts/messenger";
+import { messengerSessionSchema, messengerEventSchema } from "@lumo/contracts/messenger";
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "../../lib/api";
@@ -17,7 +13,7 @@ export const conversationsQuery = (workspaceId: string, offset = 0, q = "") =>
     queryKey: [...messengerKey(workspaceId), "conversations", offset, q],
     queryFn: ({ signal }) =>
       api(
-        `${messengerPath(workspaceId)}?offset=${offset}&q=${encodeURIComponent(q)}`,
+        `${messengerPath(workspaceId)}?offset=${offset}&includeChannels=true&q=${encodeURIComponent(q)}`,
         conversationsSchema,
         { signal },
       ),
@@ -29,24 +25,6 @@ export const conversationQuery = (workspaceId: string, id: string) =>
     queryFn: ({ signal }) => api(messengerPath(workspaceId, id), conversationSchema, { signal }),
     retry: false,
   });
-export const messagesQuery = (
-  workspaceId: string,
-  id: string,
-  parentId?: string,
-  around?: string,
-  pinned = false,
-) =>
-  queryOptions({
-    queryKey: [...messengerKey(workspaceId), "messages", id, parentId, around, pinned],
-    queryFn: ({ signal }) =>
-      api(
-        `${messengerPath(workspaceId, id)}/messages?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(around ? { around } : {}), ...(pinned ? { pinned: "true" } : {}) })}`,
-        messengerMessagesSchema,
-        { signal },
-      ),
-    retry: false,
-  });
-
 export function connectMessenger(
   workspaceId: string,
   client: QueryClient,

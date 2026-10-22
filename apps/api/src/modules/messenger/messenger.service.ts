@@ -2,7 +2,7 @@ import type { conversationInputSchema } from "@lumo/contracts/collaboration";
 import type * as contracts from "@lumo/contracts/messenger";
 import type { Database, Transaction } from "@lumo/database";
 import {
-  auditEvent,
+  messengerAudit,
   storageCleanup,
   conversation,
   conversationMember,
@@ -84,11 +84,12 @@ export function createMessengerService(
     workspaceId: string,
     actorId: string,
     action: string,
-    _targetId: string,
+    targetId: string,
+    conversationId = targetId,
   ) {
     await tx
-      .insert(auditEvent)
-      .values({ workspaceId, actorId, action: `messenger.${action}`, targetId: undefined });
+      .insert(messengerAudit)
+      .values({ workspaceId, conversationId, actorId, action, targetId });
     await notify(tx, workspaceId);
   }
   async function dtos(tx: Transaction, items: Conversation[], actor: string) {
@@ -123,14 +124,21 @@ export function createMessengerService(
         mentions: sql<number>`count(*) filter (where ${message.senderId} <> ${actor} and ${message.sequence} > coalesce(${conversationMember.lastReadSequence},0) and ${message.deletedAt} is null and ${actor}::uuid = any(${message.mentionIds}))::int`,
       })
       .from(message)
-      .leftJoin(
+      .innerJoin(
         conversationMember,
         and(
           eq(conversationMember.conversationId, message.conversationId),
           eq(conversationMember.userId, actor),
         ),
       )
-      .where(inArray(message.conversationId, ids))
+      .where(
+        and(
+          inArray(message.conversationId, ids),
+          gt(message.sequence, conversationMember.lastReadSequence),
+          ne(message.senderId, actor),
+          isNull(message.deletedAt),
+        ),
+      )
       .groupBy(message.conversationId);
     const latest = await tx
       .selectDistinctOn([message.conversationId], {
@@ -260,6 +268,7 @@ export function createMessengerService(
       limit: number,
       browse = false,
       q = "",
+      includeChannels = true,
     ) {
       return workspaces.withAccess(workspaceId, actor, async (tx) => {
         const rows = await tx
@@ -269,6 +278,7 @@ export function createMessengerService(
             and(
               eq(conversation.workspaceId, workspaceId),
               visible(actor),
+              !browse && !includeChannels ? ne(conversation.kind, "channel") : undefined,
               browse
                 ? eq(conversation.kind, "channel")
                 : sql`exists (select 1 from ${conversationMember} cm where cm.conversation_id = ${conversation.id} and cm.user_id = ${actor})`,
@@ -498,7 +508,7 @@ export function createMessengerService(
                 ),
               );
         }
-        await audit(tx, workspaceId, actor, "channel.membership_changed", id);
+        await audit(tx, workspaceId, actor, role ? `member.${role}` : "member.removed", target, id);
       });
     },
     async preferences(
@@ -526,7 +536,7 @@ export function createMessengerService(
           .from(message)
           .where(eq(message.conversationId, id))
           .limit(1);
-        if (stored) conflict("This conversation uses Lumo messaging.");
+        if (stored) conflict("Update Lumo to read this conversation’s message history.");
         const identity = chatIdentity(workspaceId, actor),
           uuid = await provider.chatUser(identity);
         let groupId = item.providerGroupId;
@@ -755,8 +765,49 @@ export function createMessengerService(
               pinnedBy: input.active ? actor : null,
             })
             .where(eq(message.id, messageId));
-        if (action === "delete") await tx.delete(reaction).where(eq(reaction.messageId, messageId));
-        await audit(tx, workspaceId, actor, `message.${action}`, messageId);
+        if (action === "delete") {
+          await tx.delete(reaction).where(eq(reaction.messageId, messageId));
+          const files = await tx
+            .select({ id: attachment.id })
+            .from(attachment)
+            .where(eq(attachment.messageId, messageId));
+          if (files.length)
+            await tx
+              .insert(storageCleanup)
+              .values(
+                files.map((file) => ({
+                  key: `messenger/${workspaceId}/${file.id}/content`,
+                  notBefore: new Date(Date.now() + 86400000),
+                })),
+              )
+              .onConflictDoNothing();
+        }
+
+        await audit(tx, workspaceId, actor, `message.${action}`, messageId, row.conversationId);
+      });
+    },
+    async auditHistory(
+      workspaceId: string,
+      actor: string,
+      id: string,
+      offset: number,
+      limit: number,
+    ) {
+      return scoped(workspaceId, actor, id, async (tx, item, member) => {
+        if (item.kind === "channel") manage(item, member);
+        const rows = await tx
+          .select()
+          .from(messengerAudit)
+          .where(eq(messengerAudit.conversationId, id))
+          .orderBy(desc(messengerAudit.createdAt), desc(messengerAudit.id))
+          .offset(offset)
+          .limit(limit + 1);
+        return {
+          events: rows
+            .slice(0, limit)
+            .map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })),
+          nextOffset: rows.length > limit ? offset + limit : null,
+        };
       });
     },
     async notifications(workspaceId: string, actor: string, offset: number, limit: number) {

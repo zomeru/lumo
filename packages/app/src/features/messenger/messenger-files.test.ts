@@ -40,6 +40,15 @@ test("attachment uploads use checksums, immutable completion and abortable stora
   expect(fake.api.mock.calls[1]?.[0]).toBe(
     "/workspaces/workspace/messenger/attachments/file-id/complete",
   );
+  const unknownType = new File(["file"], "notes.txt");
+  Object.defineProperty(unknownType, "arrayBuffer", {
+    value: async () => new TextEncoder().encode("file").buffer,
+  });
+  fake.api
+    .mockResolvedValueOnce({ id: "file-id", url: "https://storage.test/upload" })
+    .mockResolvedValueOnce({ id: "file-id", name: "notes.txt" });
+  await uploadAttachment("workspace", "conversation", unknownType, controller.signal);
+  expect(fake.api.mock.calls[2]?.[2]).toMatchObject({ body: { mimeType: "text/plain" } });
   await expect(
     uploadAttachment("workspace", "conversation", new File([], "empty.txt"), controller.signal),
   ).rejects.toThrow("Choose a file between 1 byte and 20 MB.");
