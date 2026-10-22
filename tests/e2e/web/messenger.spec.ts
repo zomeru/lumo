@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { legalVersions } from "@lumo/contracts/legal";
 import { expect, test, type BrowserContext } from "@playwright/test";
 
+import { verifyMedia } from "../../media-flow";
 import { verifyMessenger } from "../../messenger-flow";
 import { verifyAvatarPersistence } from "../../profile-flow";
 import { reserveRegistration } from "../../rate-limits";
@@ -133,4 +134,18 @@ test("profile photos save, replace, reload and remove in private storage", async
     await expect(current).toHaveURL(/\/w\/[a-f0-9-]+/);
     return current;
   });
+});
+
+test("live private media thumbnails, gallery and playback work in both themes", async ({
+  page,
+  context,
+}, info) => {
+  test.skip(
+    process.env.LUMO_LIVE_MESSENGER_STORAGE !== "1",
+    "Requires existing private S3 storage.",
+  );
+  await signup(context, "Media Owner");
+  const me = await (await context.request.get(`${apiOrigin}/api/v1/me`)).json();
+  await page.goto(`/w/${me.activeWorkspaceId}/messenger`);
+  await verifyMedia(page, (name) => info.outputPath(name));
 });

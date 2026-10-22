@@ -34,6 +34,11 @@ export async function verifyMessenger(
   await expect(page.getByRole("heading", { name: "# Launch team", exact: true })).toBeVisible();
   const channelId = new URL(page.url()).pathname.split("/").at(-1)!;
   const composer = page.getByLabel("Message", { exact: true });
+  await expect(composer).toHaveAttribute("placeholder", "Message your team · @ to mention");
+  const attach = page.getByRole("button", { name: "Attach file", exact: true });
+  await expect(attach).toHaveText("");
+  await attach.focus();
+  await expect(page.getByRole("tooltip", { name: "Attach file", exact: true })).toBeVisible();
   await composer.fill("Hello team");
   await composer.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(6, 10));
   await page.getByRole("button", { name: "Emoji", exact: true }).click();
@@ -90,6 +95,11 @@ export async function verifyMessenger(
   await message.getByRole("button", { name: "Reply in thread", exact: true }).click();
   const thread = page.getByRole("complementary", { name: "Thread", exact: true });
   await expect(thread.getByText("Original message", { exact: true })).toBeVisible();
+  await expect(thread.getByLabel("Message", { exact: true })).toHaveAttribute(
+    "placeholder",
+    "Reply...",
+  );
+  await expect(thread.getByRole("button", { name: "Attach file", exact: true })).toHaveText("");
   await expect(thread.getByText("Messenger launch edited", { exact: true })).toBeVisible();
   await thread.getByLabel("Message", { exact: true }).fill(`@${peerName}`);
   await page.getByRole("option", { name: new RegExp(peerName) }).click();

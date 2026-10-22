@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -17,6 +17,7 @@ import { verifyDrive } from "../drive-flow";
 import { verifyEmojiFonts } from "../emoji-flow";
 import { verifyFileModules } from "../file-modules-flow";
 import { verifyHr } from "../hr-flow";
+import { verifyMedia } from "../media-flow";
 import { verifyMessenger } from "../messenger-flow";
 import { verifyAvatarPersistence, verifyProfile } from "../profile-flow";
 import { acknowledgeRegistration } from "../registration-flow";
@@ -54,8 +55,8 @@ async function launch(dir: string, capture = false) {
         }),
     env: {
       ...clientEnv,
-      DESKTOP_API_URL: "http://localhost:3011",
-      DESKTOP_WEB_ORIGIN: "http://localhost:3010",
+      DESKTOP_API_URL: process.env.LUMO_E2E_API_ORIGIN ?? "http://localhost:3011",
+      DESKTOP_WEB_ORIGIN: process.env.LUMO_E2E_WEB_ORIGIN ?? "http://localhost:3010",
     },
     timeout: 30000,
   });
@@ -599,6 +600,60 @@ test("private avatar persistence works through Electron IPC and reload", async (
       await expect(reopened.getByRole("heading", { name: /Make yourself at home/ })).toBeVisible();
       return reopened;
     });
+  } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("private Messenger media plays in the packaged protocol at minimum size", async ({
+  browserName,
+}, info) => {
+  expect(browserName).toBe("chromium");
+  test.skip(
+    process.env.LUMO_LIVE_MESSENGER_STORAGE !== "1",
+    "Requires existing private S3 storage.",
+  );
+  const dir = await mkdtemp(join(tmpdir(), "lumo-media-e2e-")),
+    app = await launch(dir);
+  try {
+    const page = await app.firstWindow();
+    await register(page, "Desktop Media", `desktop-media-${Date.now()}@example.com`);
+    const workspace = new URL(page.url()).pathname.split("/")[2]!;
+    const window = await app.browserWindow(page);
+    await window.evaluate((win) => win.setSize(960, 640));
+    await page.goto(`lumo://app/w/${workspace}/messenger`);
+    await app.evaluate(
+      ({ session }, savePath) => {
+        session.defaultSession.on("will-download", (_event, item) => item.setSavePath(savePath));
+      },
+      join(dir, "Lumo-notes.txt"),
+    );
+    await verifyMedia(
+      page,
+      (name) => info.outputPath(name),
+      async () => {
+        await expect
+          .poll(() => readFile(join(dir, "Lumo-notes.txt"), "utf8").catch(() => null))
+          .toBe("Private Messenger media validation");
+      },
+    );
+    await app.evaluate(({ shell }) => {
+      shell.openExternal = async (url) => {
+        (globalThis as typeof globalThis & { mediaUrl?: string }).mediaUrl = url;
+      };
+    });
+    await page.getByRole("button", { name: "Preview Lumo-photo.png", exact: true }).click();
+    await page.getByRole("button", { name: "Open externally", exact: true }).click();
+    await expect
+      .poll(() =>
+        app.evaluate(() =>
+          (globalThis as typeof globalThis & { mediaUrl?: string }).mediaUrl?.startsWith(
+            "https://",
+          ),
+        ),
+      )
+      .toBe(true);
   } finally {
     await app.close();
     await rm(dir, { recursive: true, force: true });
