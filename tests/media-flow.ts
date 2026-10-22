@@ -33,8 +33,9 @@ function animatedGif() {
 export async function verifyMedia(
   page: Page,
   screenshot: (name: string) => string,
-  verifyNativeDownload?: () => Promise<void>,
+  verifyNativeDownload?: (file: { name: string; buffer: Buffer }) => Promise<void>,
 ) {
+  await expect(page.getByText("Connected", { exact: true })).toBeVisible();
   const recordVideo = (mimeType: string) =>
     page.evaluate(async (mimeType) => {
       const canvas = document.createElement("canvas");
@@ -80,6 +81,22 @@ export async function verifyMedia(
       buffer: Buffer.from("Private Messenger media validation"),
     },
   ];
+  const verifyDownload = async (
+    file: { name: string; buffer: Buffer },
+    action: () => Promise<void>,
+  ) => {
+    if (verifyNativeDownload) {
+      await action();
+      await verifyNativeDownload(file);
+    } else {
+      const downloadEvent = page.waitForEvent("download");
+      await action();
+      const download = await downloadEvent;
+      expect(download.suggestedFilename()).toBe(file.name);
+      await download.saveAs(screenshot(file.name));
+      expect(await download.failure()).toBeNull();
+    }
+  };
   await page.getByRole("button", { name: "Create channel", exact: true }).click();
   const create = page.getByRole("dialog", { name: "Create channel", exact: true });
   await create.getByLabel("Channel name").fill("Media validation");
@@ -100,6 +117,20 @@ export async function verifyMedia(
     const image = history.getByAltText(`${file.name} thumbnail`, { exact: true });
     await expect
       .poll(() => image.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBeGreaterThan(0);
+  }
+  for (const file of files.filter((file) => file.mimeType.startsWith("video/"))) {
+    const thumbnail = history.getByRole("button", { name: `Preview ${file.name}`, exact: true });
+    await thumbnail.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        thumbnail.locator("video").evaluate((video: HTMLVideoElement) => video.readyState),
+      )
+      .toBeGreaterThanOrEqual(2);
+    await expect
+      .poll(() =>
+        thumbnail.locator("video").evaluate((video: HTMLVideoElement) => video.videoWidth),
+      )
       .toBeGreaterThan(0);
   }
   await expect(history.getByText("Text file · 34 B", { exact: true })).toBeVisible();
@@ -126,6 +157,10 @@ export async function verifyMedia(
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
     expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
     await page.screenshot({ path: screenshot(`gallery-${theme}.png`) });
+    if (theme === "light")
+      await verifyDownload(files[0]!, () =>
+        dialog.getByRole("button", { name: "Download", exact: true }).click(),
+      );
     await dialog.getByRole("button", { name: "Next attachment", exact: true }).click();
     await expect(dialog).toHaveAccessibleName("Lumo-animation.gif");
     await expect
@@ -160,18 +195,8 @@ export async function verifyMedia(
       await trigger.click();
     }
   }
-  const action = () =>
-    history.getByRole("button", { name: "Lumo-notes.txt · Download", exact: true }).click();
-  if (verifyNativeDownload) {
-    await action();
-    await verifyNativeDownload();
-  } else {
-    const downloadEvent = page.waitForEvent("download");
-    await action();
-    const download = await downloadEvent;
-    expect(download.suggestedFilename()).toBe("Lumo-notes.txt");
-    await download.saveAs(screenshot("Lumo-notes.txt"));
-    expect(await download.failure()).toBeNull();
-  }
+  await verifyDownload(files.at(-1)!, () =>
+    history.getByRole("button", { name: "Lumo-notes.txt · Download", exact: true }).click(),
+  );
   await page.screenshot({ path: screenshot("attachments-dark.png") });
 }

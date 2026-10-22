@@ -624,19 +624,22 @@ test("private Messenger media plays in the packaged protocol at minimum size", a
     const window = await app.browserWindow(page);
     await window.evaluate((win) => win.setSize(960, 640));
     await page.goto(`lumo://app/w/${workspace}/messenger`);
-    await app.evaluate(
-      ({ session }, savePath) => {
-        session.defaultSession.on("will-download", (_event, item) => item.setSavePath(savePath));
-      },
-      join(dir, "Lumo-notes.txt"),
-    );
+    await app.evaluate(({ session }, saveDir) => {
+      session.defaultSession.on("will-download", (_event, item) =>
+        item.setSavePath(`${saveDir}/${item.getFilename()}`),
+      );
+    }, dir);
     await verifyMedia(
       page,
       (name) => info.outputPath(name),
-      async () => {
+      async (file) => {
         await expect
-          .poll(() => readFile(join(dir, "Lumo-notes.txt"), "utf8").catch(() => null))
-          .toBe("Private Messenger media validation");
+          .poll(() =>
+            readFile(join(dir, file.name))
+              .then((saved) => saved.equals(file.buffer))
+              .catch(() => false),
+          )
+          .toBe(true);
       },
     );
     await app.evaluate(({ shell }) => {
