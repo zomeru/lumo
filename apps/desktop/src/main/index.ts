@@ -213,8 +213,8 @@ void app.whenReady().then(async () => {
       minimizable: true,
       width: 1280,
       height: 850,
-      minWidth: 600,
-      minHeight: 540,
+      minWidth: 960,
+      minHeight: 640,
       backgroundColor: "#0b1425",
       icon: join(app.getAppPath(), "resources/icon.png"),
       webPreferences: {

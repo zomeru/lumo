@@ -103,7 +103,7 @@ test("frameless chrome, menu removal, drag regions and web isolation", async ({ 
     expect(native.resizable).toBe(true);
     expect(native.maximizable).toBe(true);
     expect(native.minimizable).toBe(true);
-    expect(native.minimum).toEqual([600, 540]);
+    expect(native.minimum).toEqual([960, 640]);
     if (platform !== "darwin") {
       expect(native.bounds.height).toBe(native.content.height);
       expect(native.bounds.width).toBe(native.content.width);
@@ -130,8 +130,8 @@ test("frameless chrome, menu removal, drag regions and web isolation", async ({ 
       await expect(page.getByRole("group", { name: "Window controls" })).toHaveCount(0);
     }
     const window = await app.browserWindow(page);
-    await window.evaluate((win) => win.setSize(600, 540));
-    await expect.poll(() => window.evaluate((win) => win.getSize())).toEqual([600, 540]);
+    await window.evaluate((win) => win.setSize(250, 200));
+    await expect.poll(() => window.evaluate((win) => win.getSize())).toEqual([960, 640]);
     await page.getByLabel("Email address").fill("window@example.com");
     await expect(page.getByLabel("Email address")).toHaveValue("window@example.com");
     await page.goto(new URL("/about", page.url()).href);
@@ -295,13 +295,13 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
     await verifyDesktopScrolling(app, page, testInfo);
     await page.getByRole("link", { name: /Messenger/ }).click();
     const desktopWindow = await app.browserWindow(page);
-    await desktopWindow.evaluate((win) => win.setSize(600, 540));
+    await desktopWindow.evaluate((win) => win.setSize(960, 640));
     await page.getByRole("button", { name: "New conversation" }).click();
     const dialog = page.getByRole("dialog", { name: "New conversation" });
     await expect(dialog).toHaveCSS("scrollbar-width", "thin");
     const dialogBounds = await dialog.boundingBox();
     expect(dialogBounds!.y).toBeGreaterThanOrEqual(0);
-    expect(dialogBounds!.y + dialogBounds!.height).toBeLessThanOrEqual(540);
+    expect(dialogBounds!.y + dialogBounds!.height).toBeLessThanOrEqual(640);
     await dialog.getByRole("combobox", { name: "Type" }).click();
     await page.getByRole("option", { name: "Group direct message" }).click();
     await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Group direct message");
@@ -542,7 +542,7 @@ test("shared Messenger channels and persisted messages work in Electron", async 
         peer,
         async () => {
           const window = await app.browserWindow(page);
-          await window.evaluate((win) => win.setSize(600, 540));
+          await window.evaluate((win) => win.setSize(960, 640));
           const thread = page.getByRole("complementary", { name: "Thread", exact: true });
           await expect(thread.getByText("Messenger launch edited", { exact: true })).toBeVisible();
           await expect(thread.getByText("Thread decision", { exact: false })).toBeVisible();
