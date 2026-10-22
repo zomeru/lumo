@@ -7,6 +7,7 @@ import { verifyCalendar } from "../../calendar-flow";
 import { verifyDrive } from "../../drive-flow";
 import { verifyFileModules } from "../../file-modules-flow";
 import { verifyProfile } from "../../profile-flow";
+import { apiBudgetCheckpoint } from "../../rate-limits";
 import { acknowledgeRegistration } from "../../registration-flow";
 
 async function selectOption(page: Page, label: string, option: string) {
@@ -66,6 +67,8 @@ test("account, setup, Drive, invitations, switching and revocation work with the
   page,
   browser,
 }, testInfo) => {
+  test.setTimeout(240000);
+  const checkpoint = apiBudgetCheckpoint(page.context());
   const suffix = `${testInfo.project.name}-${Date.now()}`;
   const ownerEmail = `owner-${suffix}@example.com`;
   const colleagueEmail = `colleague-${suffix}@example.com`;
@@ -82,6 +85,7 @@ test("account, setup, Drive, invitations, switching and revocation work with the
   await page.goto(personalHome);
   await expect(page.getByRole("heading", { name: "Make yourself at home, Alice" })).toBeVisible();
   await verifyDesignSystem(page, testInfo);
+  await checkpoint();
   await page.getByRole("link", { name: "New workspace" }).click();
   await page.getByLabel("Company or team name").fill("Acme Studio");
   await page.getByLabel("Description").fill("Our browser-tested team");
@@ -124,6 +128,7 @@ test("account, setup, Drive, invitations, switching and revocation work with the
   await expect(colleague.getByRole("heading", { name: "Alice Chen" })).toBeVisible();
   await expect(colleague.getByRole("link", { name: /Settings/ })).toHaveCount(0);
 
+  await checkpoint();
   await page.reload();
   await expect(page.getByText("Bob Rivera", { exact: true })).toBeVisible();
   await selectOption(page, "Role for Bob Rivera", "moderator");

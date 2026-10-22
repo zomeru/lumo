@@ -1,5 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
+import { reserveRegistration } from "./rate-limits";
+
 /** Complete the same legal review required of a person registering on web or desktop. */
 export async function acknowledgeRegistration(page: Page, password: string) {
   await page.getByLabel("Confirm Password", { exact: true }).fill(password);
@@ -13,4 +15,5 @@ export async function acknowledgeRegistration(page: Page, password: string) {
     await expect(dialog).not.toBeVisible();
   }
   await page.getByRole("checkbox").check();
+  await reserveRegistration();
 }

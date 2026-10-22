@@ -5,10 +5,12 @@ import { expect, test, type BrowserContext } from "@playwright/test";
 
 import { verifyMessenger } from "../../messenger-flow";
 import { verifyAvatarPersistence } from "../../profile-flow";
+import { reserveRegistration } from "../../rate-limits";
 
 const apiOrigin = process.env.LUMO_E2E_API_ORIGIN ?? "http://localhost:3011";
 const webOrigin = process.env.LUMO_E2E_WEB_ORIGIN ?? "http://localhost:3010";
 async function signup(context: BrowserContext, name: string) {
+  await reserveRegistration();
   const email = `${randomUUID()}@example.com`;
   const response = await context.request.post(`${apiOrigin}/api/auth/sign-up/email`, {
     headers: { origin: webOrigin },

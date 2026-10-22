@@ -27,7 +27,8 @@ export default defineConfig({
       gracefulShutdown: { signal: "SIGTERM", timeout: 10000 },
     },
     {
-      command: `pnpm --filter @lumo/web dev --host ::1 --port ${new URL(webOrigin).port}`,
+      command: `pnpm --filter @lumo/web build && pnpm --filter @lumo/web preview --host ::1 --port ${new URL(webOrigin).port}`,
+      timeout: 120000,
       url: `http://[::1]:${new URL(webOrigin).port}`,
       env: { VITE_API_URL: apiOrigin },
       reuseExistingServer: false,

@@ -13,6 +13,7 @@ export async function verifyMessenger(
   peer?: Page,
   inspectThread?: () => Promise<void>,
 ) {
+  const touch = await page.evaluate(() => navigator.maxTouchPoints > 0);
   const origin = page.url().startsWith("lumo:") ? "lumo://app" : "http://localhost:3010",
     root = `${origin}/w/${workspaceId}/messenger`;
   await page.goto(root);
@@ -66,7 +67,9 @@ export async function verifyMessenger(
   await expect(message.getByRole("button", { name: "🎉 1", exact: true })).toBeVisible();
   await message.getByRole("button", { name: "Pin", exact: true }).click();
   await expect(message.getByText("Pinned", { exact: true })).toBeVisible();
-  await message.getByRole("button", { name: "More message actions", exact: true }).click();
+  const more = message.getByRole("button", { name: "More message actions", exact: true });
+  if (touch) await more.tap();
+  else await more.click();
   await page.getByRole("menuitem", { name: "Edit message", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "Edit message", exact: true });
   await dialog.getByLabel("Edit message body").fill("Messenger launch edited");
