@@ -758,3 +758,63 @@ test("realtime tickets bind sessions, durable commits invalidate two clients and
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });
+
+test("retired conversations are inaccessible and a fresh DM does not reuse their identity", async () => {
+  const directKey = [alice.id, bob.id].sort().join(":");
+  const [retired] = await database.db
+    .insert(conversation)
+    .values({
+      workspaceId: alice.workspaceId,
+      createdBy: alice.id,
+      kind: "direct",
+      name: "Retired history",
+      providerGroupId: "archived-reference",
+      retiredAt: new Date(),
+      archivedAt: new Date(),
+    })
+    .returning();
+  await database.db.insert(conversationMember).values(
+    [alice, bob].map((actor) => ({
+      workspaceId: alice.workspaceId,
+      conversationId: retired!.id,
+      userId: actor.id,
+    })),
+  );
+  await database.db.insert(messengerMessage).values({
+    workspaceId: alice.workspaceId,
+    conversationId: retired!.id,
+    senderId: bob.id,
+    nonce: randomUUID(),
+    body: "retirementuniqueterm",
+  });
+  for (const suffix of ["", "/messages", "/members", "/activity"])
+    expect((await req(`${base()}/conversations/${retired!.id}${suffix}`)).status).toBe(404);
+  expect(
+    (await (await req(`${base()}/conversations?includeChannels=true`)).json()).conversations.some(
+      (item: Conversation) => item.id === retired!.id,
+    ),
+  ).toBe(false);
+  expect(
+    (await (await req(`${base()}/messenger/search?q=retirementuniqueterm`)).json()).results,
+  ).toEqual([]);
+  expect(
+    (await (await req(`${base()}/messenger/notifications`)).json()).conversations.some(
+      (item: { id: string }) => item.id === retired!.id,
+    ),
+  ).toBe(false);
+  // Free any earlier modern DM from this suite before testing recreation.
+  await database.db
+    .update(conversation)
+    .set({ directKey: null })
+    .where(eq(conversation.directKey, directKey));
+  const response = await req(`${base()}/conversations`, alice, "POST", {
+    kind: "direct",
+    name: "Fresh",
+    memberIds: [bob.id],
+  });
+  expect(response.status).toBe(201);
+  const fresh = await response.json();
+  expect(fresh.id).not.toBe(retired!.id);
+  expect(fresh).not.toHaveProperty("retiredAt");
+  expect(fresh).not.toHaveProperty("directKey");
+});

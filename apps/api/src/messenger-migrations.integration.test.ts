@@ -34,7 +34,7 @@ test("Messenger upgrade preserves populated provider history references and reje
       .where(eq(workspace.personalOwnerId, actor!.id));
     const id = randomUUID();
     await database.db.execute(
-      sql`INSERT INTO conversations (id, workspace_id, kind, name, created_by, provider_group_id) VALUES (${id}, ${ws!.id}, 'group', 'Existing private', ${actor!.id}, 'preserved-provider-group')`,
+      sql`INSERT INTO conversations (id, workspace_id, kind, name, created_by, provider_group_id, direct_key) VALUES (${id}, ${ws!.id}, 'direct', 'Existing private', ${actor!.id}, 'preserved-provider-group', 'old-dm-key')`,
     );
     await database.db.execute(
       sql`INSERT INTO conversation_members (workspace_id, conversation_id, user_id) VALUES (${ws!.id}, ${id}, ${actor!.id})`,
@@ -43,7 +43,16 @@ test("Messenger upgrade preserves populated provider history references and reje
     await database.migrateRemaining();
     expect(
       await database.db.select().from(conversation).where(eq(conversation.id, id)),
-    ).toMatchObject([{ id, providerGroupId: "preserved-provider-group", visibility: "private" }]);
+    ).toMatchObject([
+      {
+        id,
+        providerGroupId: "preserved-provider-group",
+        visibility: "private",
+        directKey: null,
+        retiredAt: expect.any(Date),
+        archivedAt: expect.any(Date),
+      },
+    ]);
     expect(
       await database.db
         .select()

@@ -32,7 +32,9 @@ export const conversation = pgTable(
     visibility: text().$type<"public" | "private">().notNull().default("private"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     directKey: text("direct_key"),
+    // Retained only as an archival reference after removal of the old Messenger.
     providerGroupId: text("provider_group_id").unique(),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => user.id),

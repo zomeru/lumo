@@ -48,9 +48,12 @@ export function createMessengerService(
   provider: CollaborationProvider,
 ) {
   const visible = (actor: string) =>
-    or(
-      eq(conversation.visibility, "public"),
-      sql`exists (select 1 from ${conversationMember} cm where cm.conversation_id = ${conversation.id} and cm.user_id = ${actor})`,
+    and(
+      isNull(conversation.retiredAt),
+      or(
+        eq(conversation.visibility, "public"),
+        sql`exists (select 1 from ${conversationMember} cm where cm.conversation_id = ${conversation.id} and cm.user_id = ${actor})`,
+      ),
     )!;
   async function access(tx: Transaction, workspaceId: string, actor: string, id: string) {
     const [item] = await tx
@@ -152,7 +155,13 @@ export function createMessengerService(
       const own = members.find((m) => m.conversationId === item.id && m.userId === actor),
         unreadStats = stats.find((m) => m.conversationId === item.id);
       return {
-        ...item,
+        id: item.id,
+        providerGroupId: item.providerGroupId,
+        workspaceId: item.workspaceId,
+        name: item.name,
+        description: item.description,
+        slug: item.slug,
+        visibility: item.visibility,
         kind: item.kind as "direct" | "group" | "channel",
         createdAt: item.createdAt.toISOString(),
         archivedAt: item.archivedAt?.toISOString() ?? null,
@@ -317,7 +326,11 @@ export function createMessengerService(
             .select()
             .from(conversation)
             .where(
-              and(eq(conversation.workspaceId, workspaceId), eq(conversation.directKey, directKey)),
+              and(
+                eq(conversation.workspaceId, workspaceId),
+                eq(conversation.directKey, directKey),
+                isNull(conversation.retiredAt),
+              ),
             );
           if (existing) return (await dtos(tx, [existing], actor))[0]!;
         }
@@ -840,6 +853,7 @@ export function createMessengerService(
           .where(
             and(
               eq(conversation.workspaceId, workspaceId),
+              isNull(conversation.retiredAt),
               ne(conversationMember.notifications, "muted"),
               ne(message.senderId, actor),
               isNull(message.deletedAt),

@@ -134,6 +134,13 @@
       "when": 1792630499217,
       "tag": "0018_conscious_kitty_pryde",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792631752776,
+      "tag": "0019_majestic_the_professor",
+      "breakpoints": true
     }
   ]
 }
