@@ -21,6 +21,7 @@ import { verifyMedia } from "../media-flow";
 import { verifyMessenger } from "../messenger-flow";
 import { verifyAvatarPersistence, verifyProfile } from "../profile-flow";
 import { acknowledgeRegistration } from "../registration-flow";
+import { desktopApiOrigin } from "./api-origin";
 import { verifyDesktopScrolling } from "./scrollbars";
 
 const require = createRequire(import.meta.url);
@@ -55,7 +56,7 @@ async function launch(dir: string, capture = false) {
         }),
     env: {
       ...clientEnv,
-      DESKTOP_API_URL: process.env.LUMO_E2E_API_ORIGIN ?? "http://localhost:3011",
+      DESKTOP_API_URL: desktopApiOrigin(),
       DESKTOP_WEB_ORIGIN: process.env.LUMO_E2E_WEB_ORIGIN ?? "http://localhost:3010",
     },
     timeout: 30000,

@@ -15,6 +15,9 @@ import { createTestDatabase } from "./database.ts";
 
 const apiOrigin = process.env.LUMO_E2E_API_ORIGIN ?? "http://localhost:3011";
 const webOrigin = process.env.LUMO_E2E_WEB_ORIGIN ?? "http://localhost:3010";
+const apiHost = process.env.LUMO_E2E_API_HOST ?? "::1";
+if (!["::1", "127.0.0.1"].includes(apiHost))
+  throw new Error("E2E API requires a loopback listener.");
 const database = await createTestDatabase(process.env.TEST_DATABASE_URL);
 const env = readServerEnv({
   ...process.env,
@@ -33,7 +36,7 @@ const app = createApp({
   env,
   clientIp: (c) => getConnInfo(c).remote.address ?? "unknown",
 });
-const server = serve({ fetch: app.fetch, hostname: "::1", port: env.PORT }, () =>
+const server = serve({ fetch: app.fetch, hostname: apiHost, port: env.PORT }, () =>
   console.log(`E2E API ready on port ${env.PORT}`),
 );
 if (!(server instanceof Server)) throw new Error("Collaboration requires an HTTP server");
