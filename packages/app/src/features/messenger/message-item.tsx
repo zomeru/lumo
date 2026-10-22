@@ -170,10 +170,7 @@ export function MessageItem({
         )}
       </div>
       {!context && (
-        <div
-          className="message-toolbar absolute top-0 right-2 z-10 flex items-center rounded-md border bg-elevated shadow-sm"
-          aria-label="Message toolbar"
-        >
+        <div className="message-toolbar absolute top-0 right-2 z-10 flex items-center rounded-md border bg-elevated shadow-sm">
           {canPost && !message.deletedAt && (
             <div className="contextual-action">
               <EmojiPopover
