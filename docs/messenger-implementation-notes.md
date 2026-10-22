@@ -14,7 +14,7 @@
 ## Phase checklist
 
 - [x] 0: Read complete plan; audit architecture and document decisions.
-- [ ] 1: Additive schema, constraints, migration and populated-data regression.
+- [x] 1: Additive schema, constraints, migration and populated-data regression.
 - [ ] 2: Channel/DM lifecycle, message authorization, history, threads, reactions, pins and search APIs.
 - [ ] 3: Authorized realtime, idempotent sends, reconnect reconciliation and durable unread state.
 - [ ] 4: Full-space shared responsive layout and reusable conversation UI.
@@ -26,3 +26,5 @@
 ## Verification and rollout
 
 Record milestone checks and remaining limitations here as implementation proceeds. Integration tests use generated schemas in the dedicated `_test` database, never reset the development database. Deploy additive migrations before the new API/UI. Keep old provider credentials and history until a separately verified provider export is available. Rollback application code without dropping added columns/tables.
+
+Phase 1: migration 0016 tested twice over populated legacy conversations; IDs, group references and memberships retained. Composite message/thread constraints and channel slug uniqueness verified. Database typecheck and scoped lint/format pass.
