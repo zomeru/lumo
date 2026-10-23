@@ -62,7 +62,7 @@ const serverSchema = z
     WEB_ORIGIN: origin.default("http://localhost:3000"),
     PORT: z.coerce.number().int().min(1).max(65535).default(3001),
     HOST: z.string().default("0.0.0.0"),
-    RESEND_API_KEY: z.string().trim().min(1).optional(),
+    RESEND_API_KEY: z.string().trim().optional(),
     EMAIL_FROM: z.email().default("hello@lumo.local"),
     EMAIL_FROM_NAME: emailFromName.default("Lumo"),
     MAIL_DIR: z.string().min(1).default("../../.local/mail"),
@@ -136,7 +136,7 @@ const serverSchema = z
     return value;
   })
   .superRefine((value, ctx) => {
-    if (value.STORAGE_PROVIDER === "digitalocean") {
+    if (value.NODE_ENV === "production" && value.STORAGE_PROVIDER === "digitalocean") {
       for (const field of [
         "AWS_REGION",
         "AWS_S3_BUCKET",

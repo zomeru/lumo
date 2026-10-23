@@ -42,7 +42,7 @@ Keep existing root-domain MX records for your mailbox provider. Sending does not
 
 ## Development, previews, and tests
 
-No Resend account or key is needed locally. `MAIL_DIR` defaults to `../../.local/mail`, resolved relative to the API working directory (`apps/api`). Directories are created with mode `0700` and files with mode `0600` on POSIX. Each email gets a timestamp/UUID JSON filename. Previews retain `to`, `subject` and the action `url` used by existing debugging and acceptance tests, and also include `from`, `text`, and optional `html`.
+No Resend account or key is needed in development, test or CI; an unused blank key is also allowed. Sender-domain restrictions apply only when `NODE_ENV=production`; local previews can use any valid sender email address. `MAIL_DIR` defaults to `../../.local/mail`, resolved relative to the API working directory (`apps/api`). Directories are created with mode `0700` and files with mode `0600` on POSIX. Each email gets a timestamp/UUID JSON filename. Previews retain `to`, `subject` and the action `url` used by existing debugging and acceptance tests, and also include `from`, `text`, and optional `html`.
 
 Read a JSON file in that directory to preview the content and open its `url` to complete verification. The outbox is never served by HTTP and contains live tokens, so keep it private and out of source control. Filesystem failures report `MAIL_DIR`/permission guidance without echoing content.
 

@@ -75,6 +75,49 @@ describe("production email configuration", () => {
 });
 
 describe("environment boundaries", () => {
+  test.each([
+    {},
+    { NODE_ENV: "development" },
+    { NODE_ENV: "test" },
+    { NODE_ENV: "test", CI: "true" },
+  ])("does not require production email or Spaces settings outside production: %j", (source) => {
+    const env = readServerEnv({ ...valid, ...source, STORAGE_PROVIDER: "digitalocean" });
+    expect(env).toMatchObject({
+      EMAIL_FROM: "hello@lumo.local",
+      API_ORIGIN: "http://localhost:3001",
+    });
+    expect(env.S3_ENDPOINT).toBeUndefined();
+    expect(env.RESEND_API_KEY).toBeUndefined();
+  });
+  test.each(["development", "test"])(
+    "%s allows local storage and email settings with an unused blank Resend key",
+    (NODE_ENV) => {
+      expect(
+        readServerEnv({
+          ...valid,
+          NODE_ENV,
+          STORAGE_PROVIDER: "digitalocean",
+          AWS_REGION: "us-east-1",
+          AWS_S3_BUCKET: "local-bucket",
+          S3_ENDPOINT: "http://localhost:9000",
+          EMAIL_FROM: "hello@example.com",
+          RESEND_API_KEY: "",
+        }),
+      ).toMatchObject({
+        S3_ENDPOINT: "http://localhost:9000",
+        EMAIL_FROM: "hello@example.com",
+        RESEND_API_KEY: "",
+      });
+    },
+  );
+  test("CI does not bypass production validation when NODE_ENV is production", () => {
+    expect(() => readServerEnv({ ...production, CI: "true", RESEND_API_KEY: undefined })).toThrow(
+      "RESEND_API_KEY",
+    );
+    expect(() =>
+      readServerEnv({ ...production, CI: "true", STORAGE_PROVIDER: "digitalocean" }),
+    ).toThrow("Required for DigitalOcean Spaces");
+  });
   test("provides local defaults and coerces ports", () => {
     expect(readServerEnv({ ...valid, PORT: "3101" })).toMatchObject({
       PORT: 3101,
@@ -292,11 +335,11 @@ test("production S3 endpoints require HTTPS", () => {
   ).toThrow("S3_ENDPOINT: HTTPS is required");
 });
 
-test("storage provider defaults to AWS and Spaces requires its origin and dedicated credentials", () => {
+test("storage provider defaults to AWS and production Spaces requires its origin and dedicated credentials", () => {
   expect(readServerEnv(valid).STORAGE_PROVIDER).toBe("aws");
   expect(() => readServerEnv({ ...valid, STORAGE_PROVIDER: "other" })).toThrow("STORAGE_PROVIDER");
   const spaces = {
-    ...valid,
+    ...production,
     STORAGE_PROVIDER: "digitalocean",
     AWS_REGION: "us-east-1",
     AWS_S3_BUCKET: "private-space",
