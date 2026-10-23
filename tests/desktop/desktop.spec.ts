@@ -1,4 +1,5 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -26,7 +27,7 @@ import { verifyDesktopScrolling } from "./scrollbars";
 
 const require = createRequire(import.meta.url);
 const password = "Strong-desktop-password-2026!";
-async function launch(dir: string, capture = false) {
+async function launch(dir: string, capture = false, apiOrigin = desktopApiOrigin()) {
   const executable = process.env.LUMOLYNK_PACKAGED_DESKTOP;
   const clientEnv = { ...process.env };
   for (const key of [
@@ -56,7 +57,7 @@ async function launch(dir: string, capture = false) {
         }),
     env: {
       ...clientEnv,
-      DESKTOP_API_URL: desktopApiOrigin(),
+      DESKTOP_API_URL: apiOrigin,
       DESKTOP_WEB_ORIGIN: process.env.LUMOLYNK_E2E_WEB_ORIGIN ?? "http://localhost:3010",
     },
     timeout: 30000,
@@ -83,6 +84,55 @@ async function login(page: Page, email: string) {
     page.getByRole("heading", { level: 1, name: /Make yourself at home/ }),
   ).toBeVisible();
 }
+test("Office script permissions recover when the API comes online after desktop startup", async () => {
+  let ready = false;
+  let origin = "";
+  const server = createServer((request, response) => {
+    if (request.url === "/web-apps/apps/api/documents/api.js") {
+      response.setHeader("Content-Type", "application/javascript");
+      response.end("window.DocsAPI = { DocEditor: function () {} };");
+      return;
+    }
+    response.setHeader("Content-Type", "application/json");
+    if (request.url === "/api/config/office") {
+      response.statusCode = ready ? 200 : 503;
+      response.end(JSON.stringify(ready ? { documentServerUrl: origin } : { error: "Starting" }));
+      return;
+    }
+    response.statusCode = 401;
+    response.end(JSON.stringify({ error: { code: "UNAUTHENTICATED", message: "Sign in" } }));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Missing fixture API port");
+  origin = `http://127.0.0.1:${address.port}`;
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-office-policy-"));
+  let app: ElectronApplication | undefined;
+  try {
+    app = await launch(dir, false, origin);
+    const page = await app.firstWindow();
+    await expect(page.getByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
+    const url = `${origin}/web-apps/apps/api/documents/api.js`;
+    const blocked = await page.addScriptTag({ url }).then(
+      () => false,
+      () => true,
+    );
+    expect(blocked).toBe(true);
+    ready = true;
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
+    await page.addScriptTag({ url });
+    expect(await page.evaluate(() => Object.hasOwn(window, "DocsAPI"))).toBe(true);
+    expect(
+      await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require),
+    ).toBe("undefined");
+  } finally {
+    await app?.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await rm(dir, { recursive: true, force: true });
+  }
+});
 test("frameless chrome, menu removal, drag regions and web isolation", async ({ page: web }) => {
   const dir = await mkdtemp(join(tmpdir(), "lumolynk-window-e2e-"));
   const app = await launch(dir);

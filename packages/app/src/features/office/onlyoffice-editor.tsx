@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { api } from "../../lib/api";
+import { getPlatform } from "../../platform";
 import { officePath } from "./office-api";
 export default function OnlyofficeEditor({
   workspaceId,
@@ -45,6 +46,11 @@ export default function OnlyofficeEditor({
         </p>
         <Button
           onClick={() => {
+            if (getPlatform()?.kind === "desktop") {
+              // Electron's response-header policy is applied when the page loads.
+              window.location.reload();
+              return;
+            }
             setError(null);
             setReady(false);
             void config.refetch();

@@ -60,6 +60,8 @@ Official references: [Cloud setup](https://api.onlyoffice.com/docs/docs-api/get-
 - **Shared UI:** Documents reuses Drive uploads, views, list/grid, search, filters, sharing, favorites, copy/move, trash/restore and native downloads. Docs/Sheets/Slides and Wiki have shared routes and enabled navigation. Editors load lazily into a bounded full-height shell. The title, persisted revision/time, access, share and history controls surround the genuine editor. History closes the editor before restore and exposes restoration only to file managers. Editor configuration is static for a generation/permission so ordinary rename/share/query invalidation cannot recreate an active iframe.
 - **Electron:** the main process retrieves only the public configured provider origin for exact script/frame CSP allowances. The existing sandbox, context isolation, main-frame-only IPC and external-navigation policy remain. Revision downloads use the restricted native S3 download bridge. Copied document links use the configured web origin, not `lumolynk://app`.
 
+  Desktop resolves that provider origin for each top-level HTML load, with bounded retries while the API starts. A failed startup lookup no longer leaves the session permanently unable to load Office scripts: **Retry editor** reloads the desktop page and refreshes its exact provider permissions. The last approved host is retained during temporary API outages; arbitrary script hosts and runtime evaluation remain blocked. The API must still provide publicly reachable document-download and save-callback URLs for actual editing.
+
 ## Runtime architecture
 
 ```mermaid

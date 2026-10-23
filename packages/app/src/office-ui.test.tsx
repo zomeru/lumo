@@ -294,6 +294,28 @@ test("API denial removes the embedded editor; missing provider config has retry 
   await screen.findByRole("heading", { name: "Document unavailable" });
   expect(screen.queryByText("Office provider surface")).not.toBeInTheDocument();
 });
+
+test("desktop editor retry reloads the page so Electron can refresh document-service permissions", async () => {
+  const { user } = await show();
+  await user.click(await screen.findByRole("button", { name: "Provider load error" }));
+  await screen.findByRole("alert");
+  const reload = vi.fn<() => void>();
+  const originalWindow = window;
+  vi.stubGlobal(
+    "window",
+    new Proxy(originalWindow, {
+      get: (target, property) =>
+        property === "location" ? { reload } : Reflect.get(target, property, target),
+    }),
+  );
+  configurePlatform({
+    kind: "desktop",
+    webOrigin: "http://localhost:3000",
+    transport: async () => ({ status: 500, body: null }),
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Retry editor" }));
+  expect(reload).toHaveBeenCalledOnce();
+});
 test("Wiki landing and hierarchical navigation render a shared page, create a child and move parent", async () => {
   doc = detail("wiki", id, "Root.md");
   const { user } = await show("wiki");

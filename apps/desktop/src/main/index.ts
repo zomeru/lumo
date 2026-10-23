@@ -16,6 +16,7 @@ import {
 
 import { driveDownload, openMessengerAttachment } from "./drive-download";
 import { remoteOrigin, trustedRenderer, externalUrl, rendererCsp } from "./policy";
+import { createRendererPolicy } from "./renderer-policy";
 import { createSessionTransport } from "./transport";
 import { registerWindowControls, synchronizeWindowState } from "./window-controls";
 
@@ -83,19 +84,7 @@ void app.whenReady().then(async () => {
     await shell.openExternal(externalUrl(url, webOrigin));
   });
   const rendererRoot = resolve(dirname, "../renderer");
-  const officeConfig = await fetch(`${apiOrigin}/api/config/office`, {
-    redirect: "error",
-    signal: AbortSignal.timeout(10000),
-  })
-    .then(async (response) =>
-      response.ok ? ((await response.json()) as { documentServerUrl?: unknown }) : undefined,
-    )
-    .catch(() => undefined);
-  const officeOrigin =
-    typeof officeConfig?.documentServerUrl === "string"
-      ? remoteOrigin(officeConfig.documentServerUrl)
-      : undefined;
-  const csp = rendererCsp(undefined, undefined, officeOrigin, apiOrigin);
+  const loadPackagedPolicy = createRendererPolicy(apiOrigin);
   protocol.handle("lumolynk", async (req) => {
     const url = new URL(req.url);
     if (url.hostname !== "app" || req.method !== "GET") return new Response(null, { status: 403 });
@@ -117,6 +106,10 @@ void app.whenReady().then(async () => {
       ".woff2": "font/woff2",
     };
     try {
+      const csp =
+        extname(path) === ".html"
+          ? await loadPackagedPolicy()
+          : rendererCsp(undefined, undefined, undefined, apiOrigin);
       return new Response(await readFile(path), {
         headers: {
           "Content-Type": types[extname(path)] ?? "application/octet-stream",
@@ -133,17 +126,26 @@ void app.whenReady().then(async () => {
     // Electron's native save dialog keeps file contents outside the renderer.
     item.setSaveDialogOptions({ title: "Save LumoLynk download" });
   });
-  if (devOrigin)
+  if (devOrigin) {
+    const loadDevelopmentPolicy = createRendererPolicy(
+      apiOrigin,
+      devOrigin,
+      import.meta.env.LUMOLYNK_CSP_NONCE,
+    );
     ses.webRequest.onHeadersReceived({ urls: [`${devOrigin}/*`] }, (details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          "Content-Security-Policy": [
-            rendererCsp(devOrigin, import.meta.env.LUMOLYNK_CSP_NONCE, officeOrigin, apiOrigin),
-          ],
-        },
-      });
+      if (details.resourceType !== "mainFrame") {
+        callback({ responseHeaders: details.responseHeaders });
+        return;
+      }
+      void loadDevelopmentPolicy().then(
+        (csp) =>
+          callback({
+            responseHeaders: { ...details.responseHeaders, "Content-Security-Policy": [csp] },
+          }),
+        () => callback({ cancel: true }),
+      );
     });
+  }
   ses.setPermissionCheckHandler(
     (contents, permission, origin) =>
       contents === window?.webContents &&
