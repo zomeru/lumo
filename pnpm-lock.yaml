@@ -485,6 +485,9 @@ importers:
       '@lumo/env':
         specifier: workspace:*
         version: link:../env
+      '@lumo/ui':
+        specifier: workspace:*
+        version: link:../ui
       better-auth:
         specifier: 1.7.10
         version: 1.7.10(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5)(vue@3.5.44(typescript@7.0.2))

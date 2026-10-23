@@ -7,6 +7,7 @@ import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 
 import { createEmailProvider } from "./email.ts";
+import { createVerificationEmail } from "./verification-email.ts";
 
 export function createAuth(db: Database, env: ServerEnv) {
   const email = createEmailProvider(env);
@@ -66,12 +67,7 @@ export function createAuth(db: Database, env: ServerEnv) {
         const verificationUrl = new URL(url);
         verificationUrl.searchParams.set("callbackURL", `${env.WEB_ORIGIN}/workspaces`);
         const link = verificationUrl.toString();
-        await email.send({
-          to: user.email,
-          subject: "Verify your Lumo email",
-          text: `Verify your email to accept workspace invitations:\n${link}`,
-          url: link,
-        });
+        await email.send(createVerificationEmail({ to: user.email, name: user.name, url: link }));
       },
     },
     advanced: {

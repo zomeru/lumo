@@ -60,7 +60,10 @@ describe("authentication email delivery", () => {
         const delivered = production
           ? JSON.parse(fetch.mock.calls[0]![1]!.body as string)
           : JSON.parse(await readFile(join(mailDir, files[0]!), "utf8"));
-        expect(delivered).toEqual(production ? content : { ...content, url: link });
+        expect(delivered).toMatchObject(production ? content : { ...content, url: link });
+        expect(delivered.html).toContain("Verify email address");
+        expect(delivered.html).toContain("Hi Alice,");
+        expect(delivered.html).toContain(link.replaceAll("&", "&amp;"));
         expect(auth.options.advanced?.defaultCookieAttributes).toMatchObject({
           httpOnly: true,
           secure: NODE_ENV === "production",

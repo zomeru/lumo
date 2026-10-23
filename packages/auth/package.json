@@ -14,6 +14,7 @@
     "@lumo/contracts": "workspace:*",
     "@lumo/database": "workspace:*",
     "@lumo/env": "workspace:*",
+    "@lumo/ui": "workspace:*",
     "better-auth": "1.7.10",
     "pino": "10.4.0",
     "resend": "6.34.1"
