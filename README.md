@@ -36,7 +36,7 @@ The shared package boundaries follow [Fidescript](https://github.com/zomeru/fide
 
 ## Local development in WSL
 
-Use Node **24.21.0+**, pnpm **11.25.0**, and PostgreSQL **18** (other supported modern PostgreSQL releases should also work). No Neon, Docker, Redis, Agora, or SMTP account is needed for this foundation.
+Use Node **24.21.0+**, pnpm **11.25.0**, and PostgreSQL **18** (other supported modern PostgreSQL releases should also work). No Neon, Docker, Redis, Agora, or Resend account is needed for local development.
 
 Install dependencies:
 
@@ -139,7 +139,7 @@ The web and desktop renderers share dependency handling in `packages/app/vite.co
 
 For the browser frontend, follow the [Cloudflare Workers deployment guide](docs/deployment-web.md). It covers local preview, Wrangler deployment, custom domains, and web-only CI builds. Run `pnpm web:deploy` from the repository root after configuring the public API origin.
 
-Set a strong `BETTER_AUTH_SECRET`, PostgreSQL `DATABASE_URL`, exact HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `SMTP_URL`, a deliverable `MAIL_FROM`, and `HOST` as appropriate for the runtime. SMTP transport requires TLS in production. Development mail spooling is disabled in production. The server validates its environment before listening and closes HTTP and PostgreSQL connections during shutdown.
+Set `NODE_ENV=production`, a strong `BETTER_AUTH_SECRET`, PostgreSQL `DATABASE_URL`, exact HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `RESEND_API_KEY`, and `EMAIL_FROM` at the verified `lumolynk.com` domain. `EMAIL_FROM_NAME` defaults to `Lumo`; set `HOST` as appropriate for the runtime. Production email uses the official Resend SDK exclusively and fails explicitly on invalid configuration or delivery failure. Development and test environments always save private JSON previews under `MAIL_DIR`, even if a Resend key is configured. See [email configuration and DNS setup](docs/email.md) for provider behavior, retries, and deployment steps. The server validates its environment before listening and closes HTTP and PostgreSQL connections during shutdown.
 
 Serve the web build with an SPA fallback to `index.html`. Use a same-origin `/api` reverse proxy, or build with an explicit HTTPS `VITE_API_URL` and configure the API's exact `WEB_ORIGIN`. Turbo hashes browser configuration and forwards required server environment variables to development tasks. The environment example explicitly binds loopback; set `HOST=0.0.0.0` for WSL host access or containers.
 
