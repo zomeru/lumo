@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from "node:url";
 
+import { cloudflare } from "@cloudflare/vite-plugin";
 import { appDependencies, appRoutes } from "@lumo/app/vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -11,5 +12,11 @@ export default defineConfig(({ mode }) => ({
     strictPort: true,
     proxy: { "/api": { target: "http://127.0.0.1:3001", changeOrigin: false } },
   },
-  plugins: [appRoutes(mode === "test"), appDependencies(), react(), tailwindcss()],
+  plugins: [
+    appRoutes(mode === "test"),
+    appDependencies(),
+    react(),
+    tailwindcss(),
+    mode !== "test" && cloudflare(),
+  ],
 }));

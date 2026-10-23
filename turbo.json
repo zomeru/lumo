@@ -26,6 +26,9 @@
     "@lumo/app#build": {
       "outputs": ["src/routeTree.gen.ts"]
     },
+    "@lumo/web#build": {
+      "outputs": ["dist/**", ".wrangler/deploy/**"]
+    },
     "package": {
       "dependsOn": ["build"],
       "cache": false

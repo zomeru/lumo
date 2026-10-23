@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "lumo-web",
+  "compatibility_date": "2026-10-23",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "lumolynk.com", "custom_domain": true }],
+  "assets": {
+    "not_found_handling": "single-page-application",
+  },
+}

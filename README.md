@@ -137,6 +137,8 @@ The web and desktop renderers share dependency handling in `packages/app/vite.co
 
 ## Production configuration
 
+For the browser frontend, follow the [Cloudflare Workers deployment guide](docs/deployment-web.md). It covers local preview, Wrangler deployment, custom domains, and web-only CI builds. Run `pnpm web:deploy` from the repository root after configuring the public API origin.
+
 Set a strong `BETTER_AUTH_SECRET`, PostgreSQL `DATABASE_URL`, exact HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `SMTP_URL`, a deliverable `MAIL_FROM`, and `HOST` as appropriate for the runtime. SMTP transport requires TLS in production. Development mail spooling is disabled in production. The server validates its environment before listening and closes HTTP and PostgreSQL connections during shutdown.
 
 Serve the web build with an SPA fallback to `index.html`. Use a same-origin `/api` reverse proxy, or build with an explicit HTTPS `VITE_API_URL` and configure the API's exact `WEB_ORIGIN`. Turbo hashes browser configuration and forwards required server environment variables to development tasks. The environment example explicitly binds loopback; set `HOST=0.0.0.0` for WSL host access or containers.
