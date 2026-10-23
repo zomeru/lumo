@@ -8,12 +8,10 @@ const emailFromName = z
   .regex(/^[^<>"\\\r\n]+$/, "Use a plain sender name without header characters");
 const productionEmailSchema = z.object({
   RESEND_API_KEY: z.string().trim().min(1, "Set RESEND_API_KEY for production email"),
-  EMAIL_FROM: z
-    .email()
-    .refine(
-      (value) => value.split("@")[1]?.toLowerCase() === "lumolynk.com",
-      "Set EMAIL_FROM to an address at the verified lumolynk.com domain",
-    ),
+  EMAIL_FROM: z.email().refine((value) => {
+    const domain = value.split("@")[1]?.toLowerCase();
+    return domain === "lumolynk.com" || Boolean(domain?.endsWith(".lumolynk.com"));
+  }, "Set EMAIL_FROM to an address at lumolynk.com or a subdomain verified for sending"),
   EMAIL_FROM_NAME: emailFromName,
 });
 
@@ -30,6 +28,8 @@ const origin = z.url().refine((value) => {
   const url = new URL(value);
   return ["http:", "https:"].includes(url.protocol) && url.origin === value;
 }, "Use an exact HTTP(S) origin without a trailing slash");
+
+const regionalSpacesOriginPattern = /^https:\/\/[a-z0-9-]+\.digitaloceanspaces\.com$/;
 
 const officeOrigin = origin.refine((value) => {
   const url = new URL(value);
@@ -122,6 +122,19 @@ const serverSchema = z
       )
       .default("*"),
   })
+  .transform((value) => {
+    const bucketPrefix = `https://${value.AWS_S3_BUCKET}.`;
+    if (
+      value.STORAGE_PROVIDER === "digitalocean" &&
+      value.AWS_S3_BUCKET &&
+      value.S3_ENDPOINT?.startsWith(bucketPrefix)
+    ) {
+      // The SDK adds the bucket when addressing requests; pass only the regional origin.
+      const endpoint = `https://${value.S3_ENDPOINT.slice(bucketPrefix.length)}`;
+      if (regionalSpacesOriginPattern.test(endpoint)) return { ...value, S3_ENDPOINT: endpoint };
+    }
+    return value;
+  })
   .superRefine((value, ctx) => {
     if (value.STORAGE_PROVIDER === "digitalocean") {
       for (const field of [
@@ -137,14 +150,12 @@ const serverSchema = z
             path: [field],
             message: "Required for DigitalOcean Spaces",
           });
-      if (
-        value.S3_ENDPOINT &&
-        !/^https:\/\/[a-z0-9-]+\.digitaloceanspaces\.com$/.test(value.S3_ENDPOINT)
-      )
+      if (value.S3_ENDPOINT && !regionalSpacesOriginPattern.test(value.S3_ENDPOINT))
         ctx.addIssue({
           code: "custom",
           path: ["S3_ENDPOINT"],
-          message: "Use the regional Spaces HTTPS origin, e.g. https://nyc3.digitaloceanspaces.com",
+          message:
+            "Use a regional Spaces HTTPS origin or a bucket origin matching AWS_S3_BUCKET, e.g. https://sgp1.digitaloceanspaces.com",
         });
     }
     const officeFields = [

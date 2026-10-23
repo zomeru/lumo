@@ -142,6 +142,23 @@ describe("file delivery and environment selection", () => {
 });
 
 describe("Resend delivery", () => {
+  test("sends from the configured notification subdomain", async () => {
+    const { fetch, logger } = mockResend();
+    const provider = new ResendEmailProvider(
+      readServerEnv({
+        ...base,
+        NODE_ENV: "production",
+        EMAIL_FROM: "noreply@notify.lumolynk.com",
+      }),
+      logger,
+    );
+    await provider.send(message);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(JSON.parse(fetch.mock.calls[0]![1]?.body as string).from).toBe(
+      "Lumo <noreply@notify.lumolynk.com>",
+    );
+  });
+
   test("uses the official SDK with the configured sender and content", async () => {
     const { fetch, provider, logger } = mockResend();
     await provider.send(message);

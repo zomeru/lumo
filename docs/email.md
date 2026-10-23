@@ -15,17 +15,17 @@ Set these variables only in the API runtime's secret/environment configuration:
 ```dotenv
 NODE_ENV=production
 RESEND_API_KEY=<your sending API key>
-EMAIL_FROM=hello@lumolynk.com
+EMAIL_FROM=noreply@notify.lumolynk.com
 EMAIL_FROM_NAME=Lumo
 ```
 
-`RESEND_API_KEY` must be nonempty and `EMAIL_FROM` must be a plain email address at `lumolynk.com`. The display name defaults to `Lumo` and rejects header characters. HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `DATABASE_URL`, and `BETTER_AUTH_SECRET` remain required. `MAIL_DIR` is ignored in production. Credentials are read at runtime and must never be placed in `VITE_*` variables, frontend/desktop environment files, source code, logs, or committed `.env` files. Create a sending-only Resend key scoped to the verified domain when possible.
+`RESEND_API_KEY` must be nonempty and `EMAIL_FROM` must be a plain email address at `lumolynk.com` or one of its subdomains, such as `noreply@notify.lumolynk.com`. Verify the actual sending domain in Resend; local validation only checks the address and domain boundary, not provider verification status. The display name defaults to `Lumo` and rejects header characters. HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `DATABASE_URL`, and `BETTER_AUTH_SECRET` remain required. `MAIL_DIR` is ignored in production. Credentials are read at runtime and must never be placed in `VITE_*` variables, frontend/desktop environment files, source code, logs, or committed `.env` files. Create a sending-only Resend key scoped to the verified domain when possible.
 
 The API bundles the pinned Resend SDK; only `@lumo/auth` declares it as a runtime dependency. The Turbo API development task allows the new server variables through without exposing them to frontend tasks.
 
 ## Domain and DNS setup
 
-1. Open the [Resend Domains dashboard](https://resend.com/domains) for the production team and confirm that `lumolynk.com` is verified for **sending**. If it is not already present, add the domain in your chosen region.
+1. Open the [Resend Domains dashboard](https://resend.com/domains) for the production team and confirm that the actual sender domain (`notify.lumolynk.com` for the example above, or `lumolynk.com` for a root-domain sender) is verified for **sending**. If it is not already present, add the domain in your chosen region.
 2. In the domain's **Records** tab, copy every required record exactly into the authoritative DNS provider, including its type, host, value, TTL and MX priority where shown. Values depend on your domain, region and account; do not substitute example keys or endpoints.
 3. Verify the records in Resend and wait until sending is verified. Create a sending API key for that domain and configure the API runtime. Verification is an operator step; startup validation checks local configuration and sending errors reveal revoked keys or domain issues.
 4. Deploy and perform a controlled signup/verification smoke test with an inbox you own. Confirm delivery and the callback to `/workspaces`. Check the Resend dashboard for acceptance and delivery; API acceptance alone does not guarantee inbox delivery.

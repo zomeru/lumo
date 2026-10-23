@@ -185,3 +185,24 @@ test("path-style addressing and object-key encoding use the configured endpoint"
   expect(url.pathname).toBe("/lumo-test-bucket/drive/workspace/a%20b%2B%E5%90%8D.txt");
   expect(url.searchParams.get("response-cache-control")).toBe("no-store");
 });
+
+test.each(["false", "true"])(
+  "bucket endpoint signs URLs with the bucket exactly once (path style: %s)",
+  async (S3_FORCE_PATH_STYLE) => {
+    const env = readServerEnv({
+      ...spacesEnv,
+      AWS_S3_BUCKET: "lumo-prod",
+      S3_ENDPOINT: "https://lumo-prod.sgp1.digitaloceanspaces.com",
+      S3_FORCE_PATH_STYLE,
+    });
+    const url = new URL(await createS3Storage(env).downloadUrl("drive/workspace/file", "file.txt"));
+    expect(url.hostname).toBe(
+      S3_FORCE_PATH_STYLE === "true"
+        ? "sgp1.digitaloceanspaces.com"
+        : "lumo-prod.sgp1.digitaloceanspaces.com",
+    );
+    expect(url.pathname).toBe(
+      S3_FORCE_PATH_STYLE === "true" ? "/lumo-prod/drive/workspace/file" : "/drive/workspace/file",
+    );
+  },
+);

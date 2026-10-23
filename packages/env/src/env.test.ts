@@ -27,11 +27,21 @@ describe("production email configuration", () => {
   test.each([
     undefined,
     "hello@other.com",
-    "hello@sub.lumolynk.com",
+    "hello@evillumolynk.com",
+    "hello@notifylumolynk.com",
     "hello@lumolynk.com.attacker.com",
+    "hello@notify.lumolynk.com.attacker.com",
     "Lumo <hello@lumolynk.com>",
   ])("requires a sender address at the verified domain: %s", (EMAIL_FROM) => {
     expect(() => readServerEnv({ ...production, EMAIL_FROM })).toThrow("EMAIL_FROM");
+  });
+  test.each([
+    "hello@lumolynk.com",
+    "noreply@notify.lumolynk.com",
+    "hello@sub.lumolynk.com",
+    "noreply@NOTIFY.LUMOLYNK.COM",
+  ])("accepts a sender on the root domain or a subdomain: %s", (EMAIL_FROM) => {
+    expect(readServerEnv({ ...production, EMAIL_FROM }).EMAIL_FROM).toBe(EMAIL_FROM);
   });
   test("accepts a configured sender with a default or custom display name", () => {
     expect(readServerEnv(production)).toMatchObject({
@@ -295,6 +305,9 @@ test("storage provider defaults to AWS and Spaces requires its origin and dedica
     S3_SECRET_ACCESS_KEY: "synthetic-secret",
   };
   expect(readServerEnv(spaces).STORAGE_PROVIDER).toBe("digitalocean");
+  expect(readServerEnv({ ...spaces, AWS_S3_BUCKET: "nyc3" }).S3_ENDPOINT).toBe(
+    "https://nyc3.digitaloceanspaces.com",
+  );
   for (const field of [
     "AWS_REGION",
     "AWS_S3_BUCKET",
@@ -305,6 +318,7 @@ test("storage provider defaults to AWS and Spaces requires its origin and dedica
     expect(() => readServerEnv({ ...spaces, [field]: undefined })).toThrow(field);
   for (const S3_ENDPOINT of [
     "https://bucket.nyc3.digitaloceanspaces.com",
+    "https://private-space.nyc3.cdn.digitaloceanspaces.com",
     "https://nyc3.cdn.digitaloceanspaces.com",
     "https://nyc3.digitaloceanspaces.com.evil.test",
     "https://s3.amazonaws.com",
@@ -312,3 +326,25 @@ test("storage provider defaults to AWS and Spaces requires its origin and dedica
   ])
     expect(() => readServerEnv({ ...spaces, S3_ENDPOINT })).toThrow("S3_ENDPOINT");
 });
+
+test.each(["https://sgp1.digitaloceanspaces.com", "https://lumo-prod.sgp1.digitaloceanspaces.com"])(
+  "accepts the production sender and normalizes the Spaces endpoint: %s",
+  (S3_ENDPOINT) => {
+    expect(
+      readServerEnv({
+        ...production,
+        EMAIL_FROM: "noreply@notify.lumolynk.com",
+        STORAGE_PROVIDER: "digitalocean",
+        AWS_REGION: "us-east-1",
+        AWS_S3_BUCKET: "lumo-prod",
+        S3_ENDPOINT,
+        S3_ACCESS_KEY_ID: "spaces-key",
+        S3_SECRET_ACCESS_KEY: "synthetic-secret",
+      }),
+    ).toMatchObject({
+      EMAIL_FROM: "noreply@notify.lumolynk.com",
+      S3_ENDPOINT: "https://sgp1.digitaloceanspaces.com",
+      AWS_S3_BUCKET: "lumo-prod",
+    });
+  },
+);
