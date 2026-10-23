@@ -23,7 +23,7 @@
     "@onlyoffice/doceditor-types": "10.0.1",
     "@onlyoffice/document-editor-react": "2.3.0",
     "@tanstack/react-query": "5.104.3",
-    "@tanstack/react-router": "1.170.44",
+    "@tanstack/react-router": "1.170.45",
     "agora-rtc-sdk-ng": "4.24.9",
     "emoji-picker-react": "5.1.0",
     "lucide-react": "1.59.0",
