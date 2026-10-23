@@ -182,6 +182,16 @@ test("Leave shows ledger, absence visibility, scoped balances and policy actions
 });
 test("Attendance clock controls, CSV, corrections and schedule setup call real transport contracts", async () => {
   const { user } = await show("attendance");
+  const timezone = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+  expect(
+    screen.getByText(`Times are displayed in your timezone (${timezone}).`, { exact: false }),
+  ).toBeVisible();
+  const localTime = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date("2026-10-21T08:00:00Z"));
+  expect(screen.getByRole("cell", { name: localTime, exact: true })).toBeVisible();
   await user.click(await screen.findByRole("button", { name: "Clock in" }));
   await user.click(await screen.findByRole("button", { name: "Start break" }));
   await user.click(await screen.findByRole("button", { name: "End break" }));
@@ -190,11 +200,15 @@ test("Attendance clock controls, CSV, corrections and schedule setup call real t
   await user.click(screen.getByRole("button", { name: "Export CSV" }));
   await waitFor(() => expect(click).toHaveBeenCalled());
   await user.click(screen.getByRole("button", { name: "Correct" }));
-  change("Correct clock in (UTC)", "2026-10-21T00:00");
-  change("Correct clock out (UTC)", "2026-10-21T09:00");
+  change("Correct clock in (local time)", "2026-10-21T00:00");
+  change("Correct clock out (local time)", "2026-10-21T09:00");
   change("Reason", "Missed punch");
   await user.click(screen.getByRole("button", { name: "Submit correction" }));
   await waitFor(() => expect(calls("/requests")).toHaveLength(1));
+  expect(body("/requests").details).toMatchObject({
+    clockIn: new Date("2026-10-21T00:00").toISOString(),
+    clockOut: new Date("2026-10-21T09:00").toISOString(),
+  });
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   await user.click(screen.getByRole("button", { name: "Team attendance" }));
   expect(await screen.findByRole("columnheader", { name: "Person" })).toBeVisible();

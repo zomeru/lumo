@@ -30,6 +30,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { api } from "../../lib/api";
+import { AttendanceClock } from "./attendance-clock";
 import {
   hrAccessQuery,
   hrPath,
@@ -91,7 +92,7 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
         {access.isPending && <Loading />}
       </>
     );
-  const timezone = access.data.timezone,
+  const timezone = new Intl.DateTimeFormat().resolvedOptions().timeZone,
     format = (instant: string | null) => formatTime(instant, timezone);
   const data = attendance.data;
   return (
@@ -101,8 +102,9 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
         eyebrow="People & HR"
         title="Attendance"
       >
-        Clock actions use server time. Times are displayed in {timezone}; late arrival counts after
-        the schedule’s grace period.
+        Times are displayed in your timezone ({timezone}). Schedules and attendance dates follow the
+        workspace timezone ({access.data.timezone}); late arrival counts after the schedule’s grace
+        period.
       </PageHeading>
       <ViewTabs
         tabs={[
@@ -122,10 +124,11 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
           <div className="mb-5 grid gap-4 lg:grid-cols-3">
             {tab === "My attendance" && (
               <Card className="text-center">
-                <p>{data?.serverTime ? formatDate(data.serverTime, timezone) : "Server clock"}</p>
-                <time className="my-3 block text-3xl font-semibold">
-                  {format(data?.serverTime ?? null)}
-                </time>
+                <AttendanceClock
+                  serverTime={data?.serverTime}
+                  updatedAt={attendance.dataUpdatedAt}
+                  timezone={timezone}
+                />
                 <Badge>
                   {data?.state === "out"
                     ? "Not clocked in"
@@ -395,8 +398,8 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
                   details: {
                     type: "attendance_correction",
                     date: correction,
-                    clockIn: new Date(`${formString(data, "clockIn")}Z`).toISOString(),
-                    clockOut: new Date(`${formString(data, "clockOut")}Z`).toISOString(),
+                    clockIn: new Date(formString(data, "clockIn")).toISOString(),
+                    clockOut: new Date(formString(data, "clockOut")).toISOString(),
                     breakMinutes: Number(formString(data, "breakMinutes")),
                   },
                 },
@@ -405,9 +408,21 @@ export function AttendancePage({ workspaceId }: { workspaceId: string }) {
             )
           }
         >
-          <p>{correction} · original punches are preserved after review.</p>
-          <Field label="Correct clock in (UTC)" name="clockIn" type="datetime-local" required />
-          <Field label="Correct clock out (UTC)" name="clockOut" type="datetime-local" required />
+          <p>
+            {correction} · Enter times in {timezone}. Original punches are preserved after review.
+          </p>
+          <Field
+            label="Correct clock in (local time)"
+            name="clockIn"
+            type="datetime-local"
+            required
+          />
+          <Field
+            label="Correct clock out (local time)"
+            name="clockOut"
+            type="datetime-local"
+            required
+          />
           <Field
             label="Unpaid break minutes"
             name="breakMinutes"
