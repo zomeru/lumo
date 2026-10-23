@@ -102,3 +102,40 @@ test("external Messenger media reauthorizes identity paths and rejects untrusted
     "No external browser",
   );
 });
+
+test.each([
+  "https://private-bucket.nyc3.digitaloceanspaces.com/key?signed=yes",
+  "https://sgp1.digitaloceanspaces.com/private-bucket/key?signed=yes",
+])("desktop downloads and external media accept authorized Spaces origin URLs: %s", async (url) => {
+  const request = vi.fn<() => Promise<{ status: number; body: unknown }>>(async () => ({
+    status: 200,
+    body: { url },
+  }));
+  const save = vi.fn<(url: string) => void>();
+  await driveDownload({ path, body: {} }, request, save);
+  expect(save).toHaveBeenCalledWith(url);
+  const previewPath = path
+    .replace("/drive/", "/messenger/attachments/")
+    .replace("/download", "/preview");
+  await openMessengerAttachment(previewPath, request, save);
+  expect(save).toHaveBeenCalledTimes(2);
+});
+
+test.each([
+  "https://bucket.nyc3.digitaloceanspaces.com.evil.test/key",
+  "https://evil-digitaloceanspaces.com/key",
+  "https://bucket.nyc3.cdn.digitaloceanspaces.com/key",
+  "http://bucket.nyc3.digitaloceanspaces.com/key",
+  "https://user:password@bucket.nyc3.digitaloceanspaces.com/key",
+  "https://bucket.nyc3.digitaloceanspaces.com:444/key",
+])("desktop rejects unsafe or non-origin Spaces URLs: %s", async (url) => {
+  const request = vi.fn<() => Promise<{ status: number; body: unknown }>>(async () => ({
+    status: 200,
+    body: { url },
+  }));
+  const save = vi.fn<(url: string) => void>();
+  await expect(driveDownload({ path, body: {} }, request, save)).rejects.toThrow(
+    "Invalid storage download URL",
+  );
+  expect(save).not.toHaveBeenCalled();
+});

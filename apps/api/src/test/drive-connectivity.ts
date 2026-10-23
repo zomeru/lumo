@@ -21,7 +21,7 @@ try {
   }
 } catch {
   console.error(
-    "Unable to check Drive CORS. Check server storage configuration and AWS credentials.",
+    "Unable to check Drive CORS. Check server storage configuration and provider credentials.",
   );
   process.exitCode = 1;
 }

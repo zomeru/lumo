@@ -160,3 +160,96 @@ test("rejects weak ONLYOFFICE secrets and unknown modes without exposing their v
     "ONLYOFFICE_MODE",
   );
 });
+
+test("S3-compatible settings preserve AWS defaults and validate custom endpoints and key pairs", () => {
+  const storage = { ...valid, AWS_REGION: "us-east-1", AWS_S3_BUCKET: "private-bucket" };
+  expect(readServerEnv(storage)).toMatchObject({ S3_FORCE_PATH_STYLE: false });
+  expect(readServerEnv({ ...storage, S3_FORCE_PATH_STYLE: "false" }).S3_FORCE_PATH_STYLE).toBe(
+    false,
+  );
+  expect(readServerEnv({ ...storage, S3_FORCE_PATH_STYLE: "true" }).S3_FORCE_PATH_STYLE).toBe(true);
+  expect(() => readServerEnv({ ...storage, S3_FORCE_PATH_STYLE: "yes" })).toThrow(
+    "S3_FORCE_PATH_STYLE",
+  );
+  expect(
+    readServerEnv({
+      ...storage,
+      S3_ENDPOINT: "https://nyc3.digitaloceanspaces.com",
+      S3_ACCESS_KEY_ID: "spaces-key",
+      S3_SECRET_ACCESS_KEY: "synthetic-secret",
+    }).S3_ENDPOINT,
+  ).toBe("https://nyc3.digitaloceanspaces.com");
+  for (const field of ["S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"]) {
+    expect(() => readServerEnv({ ...storage, [field]: "synthetic-secret" })).toThrow("together");
+    expect(() => readServerEnv({ ...storage, [field]: "synthetic-secret" })).not.toThrow(
+      "synthetic-secret",
+    );
+  }
+  expect(() =>
+    readServerEnv({ ...valid, S3_ENDPOINT: "https://nyc3.digitaloceanspaces.com" }),
+  ).toThrow("AWS_S3_BUCKET");
+});
+
+test.each([
+  "ftp://example.com",
+  "https://nyc3.digitaloceanspaces.com/bucket",
+  "https://nyc3.digitaloceanspaces.com/",
+  "https://example.com?secret=value",
+  "https://example.com#fragment",
+  "https://user:private-password@example.com",
+])("rejects invalid S3 endpoint %s without echoing credentials", (S3_ENDPOINT) => {
+  const source = {
+    ...valid,
+    AWS_REGION: "us-east-1",
+    AWS_S3_BUCKET: "private-bucket",
+    S3_ENDPOINT,
+  };
+  expect(() => readServerEnv(source)).toThrow("S3_ENDPOINT");
+  expect(() => readServerEnv(source)).not.toThrow("private-password");
+});
+
+test("production S3 endpoints require HTTPS", () => {
+  expect(() =>
+    readServerEnv({
+      ...valid,
+      NODE_ENV: "production",
+      API_ORIGIN: "https://api.example.com",
+      WEB_ORIGIN: "https://app.example.com",
+      SMTP_URL: "smtps://smtp.example.com",
+      AWS_REGION: "us-east-1",
+      AWS_S3_BUCKET: "private-bucket",
+      S3_ENDPOINT: "http://nyc3.digitaloceanspaces.com",
+    }),
+  ).toThrow("S3_ENDPOINT: HTTPS is required");
+});
+
+test("storage provider defaults to AWS and Spaces requires its origin and dedicated credentials", () => {
+  expect(readServerEnv(valid).STORAGE_PROVIDER).toBe("aws");
+  expect(() => readServerEnv({ ...valid, STORAGE_PROVIDER: "other" })).toThrow("STORAGE_PROVIDER");
+  const spaces = {
+    ...valid,
+    STORAGE_PROVIDER: "digitalocean",
+    AWS_REGION: "us-east-1",
+    AWS_S3_BUCKET: "private-space",
+    S3_ENDPOINT: "https://nyc3.digitaloceanspaces.com",
+    S3_ACCESS_KEY_ID: "spaces-key",
+    S3_SECRET_ACCESS_KEY: "synthetic-secret",
+  };
+  expect(readServerEnv(spaces).STORAGE_PROVIDER).toBe("digitalocean");
+  for (const field of [
+    "AWS_REGION",
+    "AWS_S3_BUCKET",
+    "S3_ENDPOINT",
+    "S3_ACCESS_KEY_ID",
+    "S3_SECRET_ACCESS_KEY",
+  ])
+    expect(() => readServerEnv({ ...spaces, [field]: undefined })).toThrow(field);
+  for (const S3_ENDPOINT of [
+    "https://bucket.nyc3.digitaloceanspaces.com",
+    "https://nyc3.cdn.digitaloceanspaces.com",
+    "https://nyc3.digitaloceanspaces.com.evil.test",
+    "https://s3.amazonaws.com",
+    "http://nyc3.digitaloceanspaces.com",
+  ])
+    expect(() => readServerEnv({ ...spaces, S3_ENDPOINT })).toThrow("S3_ENDPOINT");
+});

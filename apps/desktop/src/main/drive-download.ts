@@ -47,13 +47,15 @@ async function authorizedStorageUrl(
   }
   const body = z.object({ url: z.url() }).parse(result.body);
   const url = new URL(body.url);
-  // The URL must come from the authenticated API and point to an HTTPS S3 host.
+  // The URL must come from the authenticated API and point to an HTTPS storage origin.
   if (
     url.protocol !== "https:" ||
     url.username ||
     url.password ||
     url.port ||
-    !/^(?:[a-z0-9.-]+\.)?s3[.-][a-z0-9-]+\.amazonaws\.com(?:\.cn)?$/.test(url.hostname)
+    !/^(?:(?:[a-z0-9.-]+\.)?s3[.-][a-z0-9-]+\.amazonaws\.com(?:\.cn)?|(?:[a-z0-9-]+\.)?[a-z0-9-]+\.digitaloceanspaces\.com)$/.test(
+      url.hostname,
+    )
   )
     throw new Error("Invalid storage download URL");
   return url.href;

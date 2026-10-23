@@ -72,5 +72,7 @@ export function rendererCsp(
     .filter((value): value is string => Boolean(value))
     .map((value) => ` ${remoteOrigin(value).replace(/^http/, "ws")}`)
     .join("");
-  return `default-src 'self'; script-src 'self'${scripts}${office}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:${websocket}; media-src 'self' blob: https://*.amazonaws.com https://*.amazonaws.com.cn; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src https://*.amazonaws.com https://*.amazonaws.com.cn${office}; frame-ancestors 'none'; form-action 'self'`;
+  const storage =
+    "https://*.amazonaws.com https://*.amazonaws.com.cn https://*.digitaloceanspaces.com";
+  return `default-src 'self'; script-src 'self'${scripts}${office}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:${websocket}; media-src 'self' blob: ${storage}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src ${storage}${office}; frame-ancestors 'none'; form-action 'self'`;
 }

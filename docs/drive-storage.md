@@ -1,16 +1,68 @@
 # Lumo Drive storage
 
-Drive is implemented in `packages/app` and shared by the web and sandboxed Electron renderer. Hono owns authorization and metadata workflows; PostgreSQL owns the folder tree, workspace-scoped grants, stars, upload state and durable storage cleanup. `apps/api/src/storage/storage.ts` defines the storage interface; the production adapter uses AWS SDK v3 and its default credential provider chain. Other modules can store a Drive item UUID as a file reference and call this service with the authenticated actor. They must not accept object keys or issue S3 URLs independently.
+Drive is implemented in `packages/app` and shared by the web and sandboxed Electron renderer. Hono owns authorization and metadata workflows; PostgreSQL owns the folder tree, workspace-scoped grants, stars, upload state and durable storage cleanup. `apps/api/src/storage/storage.ts` defines the storage interface; the production adapter uses AWS SDK v3 for AWS S3 and DigitalOcean Spaces. Other modules can store a Drive item UUID as a file reference and call this service with the authenticated actor. They must not accept object keys or issue storage URLs independently. The same adapter stores avatars, Messenger attachments, HR files and immutable Office/Wiki revisions.
 
 ## Enable Drive
 
 1. Run `pnpm install` and `pnpm db:migrate`. Migration `0004_shiny_speed.sql` adds the Drive tables and cross-workspace foreign keys. Apply migrations before starting the updated API.
-2. Configure `AWS_REGION` and `AWS_S3_BUCKET` in the API environment. Both are optional together; without them, metadata operations work and storage operations return `STORAGE_UNAVAILABLE`. Static `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (plus `AWS_SESSION_TOKEN` for temporary credentials) remain API-only. Prefer an IAM role in production and SSO/profile credentials locally. Never use `VITE_*` for credentials.
-3. Use a dedicated **private** S3 general-purpose bucket with Block Public Access enabled, Object Ownership set to bucket-owner-enforced, default server-side encryption enabled, and HTTPS-only access. No public read/write policy or object ACL is needed. The service leaves encryption selection to the bucket default; SSE-KMS also needs the role's narrowly scoped KMS permissions.
+2. Select `STORAGE_PROVIDER=aws` (default) or `digitalocean` using the examples below. Both use the existing `AWS_REGION` and `AWS_S3_BUCKET` variable names. In AWS mode these are optional together; without them, metadata operations work and storage operations return `STORAGE_UNAVAILABLE`. DigitalOcean mode requires all connection settings. Never use `VITE_*` for credentials.
+3. Use a dedicated **private** bucket. For AWS S3, enable Block Public Access, bucket-owner-enforced Object Ownership, default server-side encryption and HTTPS-only access. The service leaves encryption selection to the bucket default; SSE-KMS also needs the role's narrowly scoped KMS permissions. For Spaces, restrict listing and object access, create a bucket-scoped Read/Write/Delete key, and use the regional HTTPS origin. AWS IAM roles and bucket-level encryption settings do not apply to Spaces. No public read/write policy or runtime ACL operation is needed for either provider.
 4. Configure the CORS and lifecycle rules below. Set `DRIVE_MAX_FILE_BYTES` if needed (default 1 GiB; configurable up to 5 GiB), and optionally `DRIVE_ALLOWED_MIME_TYPES` as comma-separated MIME types or `image/*` style patterns. `*` accepts attachment formats subject to signature validation. The size limit applies per file; this release has no workspace storage quota.
 5. Start the API with `pnpm --filter @lumo/api dev`, or `pnpm dev`. Storage maintenance runs every minute while the API process is running. Each batch attempts 50 due cleanup intents with exponential backoff. Monitor the `storage_cleanup` backlog and the API's cleanup failure counts; logs exclude filenames, URLs, object contents and credentials.
 
 The bucket can remain unversioned. If versioning is enabled, S3 DeleteObject creates a delete marker: configure noncurrent-version expiration according to your retention policy. This release does not enumerate and erase historical object versions or support Object Lock retention overrides. Do not enable bucket-wide expiration on `drive/` or `office/`, which contain retained files, Office revisions and Trash contents.
+
+## Provider configuration
+
+All settings belong in the API environment (`apps/api/.env` locally). Restart the API after changing them. No frontend credentials or application code changes are needed to select either provider.
+
+AWS S3 (existing configuration continues to work without `STORAGE_PROVIDER`):
+
+```dotenv
+STORAGE_PROVIDER=aws
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=your-private-drive-bucket
+```
+
+Leave `S3_ENDPOINT`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` unset for the SDK's normal AWS endpoint and credential chain: IAM/ECS/web identity roles in production or `AWS_PROFILE`/SSO locally. API-only `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and optional `AWS_SESSION_TOKEN` also continue to work.
+
+DigitalOcean Spaces:
+
+```dotenv
+STORAGE_PROVIDER=digitalocean
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=your-private-space
+S3_ENDPOINT=https://nyc3.digitaloceanspaces.com
+S3_ACCESS_KEY_ID=your-spaces-access-key
+S3_SECRET_ACCESS_KEY=your-spaces-secret-key
+S3_FORCE_PATH_STYLE=false
+```
+
+The Spaces location comes from `S3_ENDPOINT`; `AWS_REGION` is the SDK signing region. Use `us-east-1` as in DigitalOcean's JavaScript SDK example. The legacy `AWS_REGION`/`AWS_S3_BUCKET` names describe S3 protocol settings and are deliberately retained for backward compatibility. Use a Spaces access key, not a DigitalOcean control-plane API token. Dedicated `S3_*` credentials override the AWS chain and exclude unrelated AWS session tokens.
+
+The endpoint must be an origin without a path, credentials, query, fragment or trailing slash. DigitalOcean mode requires a regional HTTPS Spaces origin, not a bucket host, CDN endpoint or website endpoint. URLs are signed against that origin and returned unchanged: for example, `https://your-private-space.nyc3.digitaloceanspaces.com/drive/...`. With `S3_FORCE_PATH_STYLE=true`, URLs use `https://nyc3.digitaloceanspaces.com/your-private-space/drive/...`. The default is virtual-hosted addressing; use a DNS-compatible bucket name without dots for Spaces. Production endpoints require HTTPS.
+
+`STORAGE_PROVIDER` accepts only `aws` and `digitalocean`. Both use the same adapter and integrity checks; the selector validates the provider's configuration rather than introducing separate upload implementations. AWS mode also accepts an explicit endpoint for other S3-compatible services, but their feature support requires separate validation. Electron's native download/external-open host checks and media/PDF CSP currently support AWS and Spaces origin domains; arbitrary custom domains require an explicit desktop policy change.
+
+Selecting a different bucket does not move objects. Existing database references continue to refer to keys in the selected bucket, so their bytes must already exist there to remain readable. This change does not alter the configured provider, provision buckets or migrate files. Rollouts involving existing content need a separately planned migration or routing strategy.
+
+## Compatibility review
+
+The original adapter lacked explicit endpoint/credential configuration, and Electron restricted native downloads, external attachment opens and media/PDF previews to AWS domains. These gaps are fixed. The audit covered every production storage caller, frontend transfers, cleanup and connectivity checks; no additional storage SDK or independent URL builder is used outside this adapter.
+
+| Feature | AWS S3 and Spaces behavior |
+| --- | --- |
+| Single PUT, Messenger/HR attachments | SigV4 URLs bind length, MIME type and SHA-256; finalization checks provider metadata before conditional copy to an immutable key. |
+| Drive multipart | Start, presign parts, paginate ListParts, complete and abort use S3 APIs with SHA-256 checksums. Missing server-derived part checksums fail closed. |
+| Download/preview | Presigned GET includes response MIME, disposition and no-store overrides; range reads support signature validation and previews. No public object URL is constructed. |
+| Copy/delete/cleanup | Copies stay within one configured bucket and use source ETag conditions. DeleteObject and AbortMultipartUpload use the same client/endpoint. Versioned historical objects are not purged. |
+| Avatars, Office/Wiki revisions, ZIPs | Streams use GetObject and SDK-managed uploads, including multipart for larger output. SHA-256 remains enabled. |
+| Access permissions | Application authorization remains in PostgreSQL/API. Objects stay private; no runtime bucket administration, IAM API, ACL mutation, ARN, KMS key or storage class is required. |
+| Bucket operations | Configure CORS, prefix-based expiration and incomplete multipart cleanup outside the application. AWS-specific IAM/encryption examples require the Spaces equivalents. |
+
+DigitalOcean documents the [required S3 commands and checksum headers](https://docs.digitalocean.com/reference/api/spaces/), [SDK endpoints and credentials](https://docs.digitalocean.com/products/spaces/reference/aws-sdks/), and [compatibility restrictions](https://docs.digitalocean.com/products/spaces/reference/s3-compatibility/). Retain the existing SHA-256 contract: an S3-compatible service must validate upload checksums, return SHA-256 from HEAD/ListParts, preserve completion/copy semantics and honor signed GET response overrides. Do not replace checksum verification with client-supplied metadata or treat multipart ETags as whole-file hashes. Current Spaces documentation lists the APIs/headers, but automated mocks cannot establish live response behavior; verify these contracts in an isolated Spaces bucket before production use.
+
+Spaces does not support cross-region/cluster copies; the adapter only copies within its one bucket. Its lifecycle support is time/prefix based; the application does not require tag filters. The compatibility guide does not support AWS bucket-level encryption configuration; this adapter does not implement SSE-C or port AWS KMS policies. Private presigned content should use origin URLs: the Spaces CDN offers no caching benefit for these transfers. See DigitalOcean's [SDK guidance](https://docs.digitalocean.com/products/spaces/reference/aws-sdks/).
 
 ## S3 CORS
 
@@ -32,7 +84,7 @@ See [AWS CORS configuration](https://docs.aws.amazon.com/AmazonS3/latest/usergui
 
 ## IAM scope and lifecycle
 
-Scope the API role to its bucket and these prefixes: `drive/*`, `drive-staging/*`, `drive-archives/*`, and `office/*` for immutable Office/Wiki revisions. Required object actions are `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`, `s3:AbortMultipartUpload`, and `s3:ListMultipartUploadParts`. Copy uses GetObject on the source and PutObject on the destination. No bucket listing, ACL writes, bucket administration or public access is required at runtime. A bucket policy denying requests with `aws:SecureTransport = false` enforces TLS. Configure the bucket separately with an infrastructure operator role.
+For AWS, scope the API role to its bucket and these prefixes: `drive/*`, `drive-staging/*`, `drive-archives/*`, `office/*`, `avatars/*`, `messenger/*` and `hr/*`. Required object actions are `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`, `s3:AbortMultipartUpload`, and `s3:ListMultipartUploadParts`. Copy uses GetObject on the source and PutObject on the destination. No bucket listing, ACL writes, bucket administration or public access is required at runtime. A bucket policy denying requests with `aws:SecureTransport = false` enforces TLS. Configure the bucket separately with an infrastructure operator role. For Spaces, use a key scoped to this private bucket with Read/Write/Delete (Objects); CORS, policy and lifecycle administration require a separate privileged operator key. Apply the same CORS rule above through Spaces' S3-compatible CORS API, and keep all objects private. Keep `avatars/`, `hr/`, `messenger/` and `office/` out of blanket expiration rules because they also contain retained content.
 
 Add lifecycle rules to abort incomplete multipart uploads after one day on both `drive-staging/` and `drive-archives/`. Expire objects under `drive-staging/` after two days and under `drive-archives/` after one day. These rules provide a backstop when the API is stopped or an S3 response is lost before an upload ID can be persisted. PostgreSQL cleanup normally removes completed/canceled staging objects sooner and ZIPs after one hour. Use a lifecycle rule with `Filter.Prefix`, `Status: Enabled`, and `AbortIncompleteMultipartUpload.DaysAfterInitiation: 1` (plus a separate `Expiration.Days` where applicable).
 
@@ -54,6 +106,10 @@ Inline previews allow PNG/JPEG/GIF/WebP, PDF, UTF-8 plain text/CSV and JSON. Tex
 Uploads are in-memory client jobs while the Drive page is mounted; leaving it cancels active work. Retries within that page reuse the session; resuming uploads across reloads is not implemented. Storage errors remain visible with retry actions. Large copy/archive operations run synchronously under the workspace lock; installations needing larger limits should move them to a durable background job queue.
 
 ## Verification
+
+Run `pnpm test --project env --project api --project desktop src/env.test.ts src/storage/s3.test.ts src/main/drive-download.test.ts src/main/policy.test.ts` for both providers' configuration, real SDK presigning/credential isolation, adapter operations and Electron restrictions. These tests use synthetic credentials and intercepted SDK calls, with no provider requests. Run `pnpm lint` and `pnpm check-types` as well.
+
+Before deploying Spaces, use a dedicated non-production bucket to verify small and >16-MiB browser/Electron uploads, rejection of a bad checksum, server-derived HEAD/ListParts SHA-256, conditional copy failure after a source change, Unicode filenames and signed response overrides, range previews, Office saves, avatars, attachments, ZIPs, deletion and multipart abort. Run `pnpm --filter @lumo/api drive:check` against that explicitly configured bucket to verify CORS; it only sends OPTIONS and cannot validate object operations. No live Spaces test or migration was performed as part of this compatibility change.
 
 `pnpm test --project api src/drive.integration.test.ts` exercises real PostgreSQL in an isolated schema on the dedicated `TEST_DATABASE_URL` database, with an in-memory implementation of the production storage interface. Adapter tests intercept AWS calls; no test writes to production S3. Run `pnpm check:all`, `pnpm build`, `pnpm test:e2e`, and `pnpm test:desktop` as applicable. The October 20 Office/Drive acceptance pass additionally exercised the configured development S3 bucket with isolated synthetic files on web and Electron: single PUT and true multipart transfers, previews, native/browser downloads, copying, ZIPs, inherited sharing and Trash/restore. See the [implementation results](onlyoffice-implementation-notes.md). Native save-dialog/window-manager behavior and PDF rendering still require target-machine verification.
 

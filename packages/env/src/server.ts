@@ -55,11 +55,24 @@ const serverSchema = z
     ONLYOFFICE_JWT_SECRET: z.string().min(32).optional(),
     ONLYOFFICE_PUBLIC_API_BASE_URL: officeOrigin.optional(),
     ONLYOFFICE_MODE: z.enum(["cloud", "self-hosted"]).default("cloud"),
+    STORAGE_PROVIDER: z.enum(["aws", "digitalocean"]).default("aws"),
     AWS_REGION: z.string().min(1).optional(),
     AWS_S3_BUCKET: z
       .string()
       .regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
       .optional(),
+    S3_ENDPOINT: origin
+      .refine((value) => {
+        const url = new URL(value);
+        return !url.username && !url.password;
+      }, "Use an HTTP(S) origin without credentials")
+      .optional(),
+    S3_FORCE_PATH_STYLE: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+    S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
     AVATAR_MAX_BYTES: z.coerce
       .number()
       .int()
@@ -86,6 +99,30 @@ const serverSchema = z
       .default("*"),
   })
   .superRefine((value, ctx) => {
+    if (value.STORAGE_PROVIDER === "digitalocean") {
+      for (const field of [
+        "AWS_REGION",
+        "AWS_S3_BUCKET",
+        "S3_ENDPOINT",
+        "S3_ACCESS_KEY_ID",
+        "S3_SECRET_ACCESS_KEY",
+      ] as const)
+        if (!value[field])
+          ctx.addIssue({
+            code: "custom",
+            path: [field],
+            message: "Required for DigitalOcean Spaces",
+          });
+      if (
+        value.S3_ENDPOINT &&
+        !/^https:\/\/[a-z0-9-]+\.digitaloceanspaces\.com$/.test(value.S3_ENDPOINT)
+      )
+        ctx.addIssue({
+          code: "custom",
+          path: ["S3_ENDPOINT"],
+          message: "Use the regional Spaces HTTPS origin, e.g. https://nyc3.digitaloceanspaces.com",
+        });
+    }
     const officeFields = [
       "ONLYOFFICE_DOCUMENT_SERVER_URL",
       "ONLYOFFICE_JWT_SECRET",
@@ -104,6 +141,31 @@ const serverSchema = z
         code: "custom",
         path: ["AWS_S3_BUCKET"],
         message: "Configure AWS_REGION and AWS_S3_BUCKET together",
+      });
+    if (Boolean(value.S3_ACCESS_KEY_ID) !== Boolean(value.S3_SECRET_ACCESS_KEY))
+      ctx.addIssue({
+        code: "custom",
+        path: ["S3_ACCESS_KEY_ID"],
+        message: "Configure S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY together",
+      });
+    if (
+      (value.S3_ENDPOINT || value.S3_ACCESS_KEY_ID || value.S3_FORCE_PATH_STYLE) &&
+      !value.AWS_S3_BUCKET
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["AWS_S3_BUCKET"],
+        message: "Custom storage settings require AWS_REGION and AWS_S3_BUCKET",
+      });
+    if (
+      value.S3_ENDPOINT &&
+      !value.S3_ENDPOINT.startsWith("https://") &&
+      value.NODE_ENV === "production"
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["S3_ENDPOINT"],
+        message: "HTTPS is required in production",
       });
     if (value.NODE_ENV !== "production") return;
     for (const field of ["API_ORIGIN", "WEB_ORIGIN"] as const) {

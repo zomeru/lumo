@@ -60,7 +60,10 @@ test("development and packaged policies deny runtime script evaluation and scope
   expect(production).toContain("script-src 'self';");
   expect(production).not.toContain("unsafe-eval");
   expect(production).toContain(
-    "media-src 'self' blob: https://*.amazonaws.com https://*.amazonaws.com.cn;",
+    "media-src 'self' blob: https://*.amazonaws.com https://*.amazonaws.com.cn https://*.digitaloceanspaces.com;",
+  );
+  expect(production).toContain(
+    "frame-src https://*.amazonaws.com https://*.amazonaws.com.cn https://*.digitaloceanspaces.com;",
   );
   expect(production).not.toContain("ws://");
   const development = rendererCsp("http://127.0.0.1:5174", "random-nonce");

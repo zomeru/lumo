@@ -21,9 +21,20 @@ import { AppError } from "../lib/errors";
 import { URL_TTL_SECONDS, type Storage, type StoragePart } from "./storage";
 
 export function createS3Storage(env: ServerEnv): Storage {
-  // No explicit credentials: the SDK resolves environment, SSO, ECS and IAM roles.
+  // Preserve the AWS credential chain unless a dedicated S3 key pair is supplied.
+  // Explicit credentials keep Spaces independent of AWS profiles/session tokens.
   const client = new S3Client({
     region: env.AWS_REGION,
+    endpoint: env.S3_ENDPOINT,
+    forcePathStyle: env.S3_FORCE_PATH_STYLE,
+    ...(env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY
+      ? {
+          credentials: {
+            accessKeyId: env.S3_ACCESS_KEY_ID,
+            secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+          },
+        }
+      : {}),
     maxAttempts: 3,
     requestChecksumCalculation: "WHEN_REQUIRED",
   });

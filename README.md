@@ -213,7 +213,7 @@ Provider-dependent tests are gated and reported as skipped without explicit opt-
 
 Drive is available in the shared workspace navigation on web and Electron. It supports private S3 uploads with progress/cancel/retry, nested folders, inherited viewer/editor sharing, previews, search/sort/filter, grid/list views, stars, Trash/restore, recursive copy/move and ZIP downloads. PostgreSQL stores file references and permissions; object keys and AWS credentials stay on the API. API owners/admins manage workspace content through the existing roles.
 
-Apply migration `0004_shiny_speed.sql` with `pnpm db:migrate`, set API-only `AWS_REGION`/`AWS_S3_BUCKET`, and configure the private bucket's IAM, encryption, CORS and lifecycle rules. See [Drive setup, permissions and operational limits](docs/drive-storage.md) for deployment instructions and test commands. Signature validation is implemented; comprehensive antivirus scanning and upload resume across page reloads are not included.
+Apply migration `0004_shiny_speed.sql` with `pnpm db:migrate` and configure API-only storage settings. `STORAGE_PROVIDER=aws` (default) preserves AWS S3 configuration; `STORAGE_PROVIDER=digitalocean` uses a private Spaces bucket with its regional endpoint and dedicated key pair. Both use the existing `AWS_REGION`/`AWS_S3_BUCKET` settings. See [Drive setup, provider examples, permissions and operational limits](docs/drive-storage.md) for CORS, lifecycle, credentials and verification. The shared adapter also stores avatars, Messenger/HR attachments and Office revisions. Signature validation is implemented; comprehensive antivirus scanning and upload resume across page reloads are not included.
 
 ## Office and Wiki
 
