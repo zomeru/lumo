@@ -34,6 +34,7 @@
     "test:integration": "vitest run --project api",
     "desktop:package": "turbo run package --filter=@lumo/desktop",
     "web:deploy": "pnpm --filter @lumo/web run deploy",
+    "web:deploy:prod": "VITE_API_URL=https://api.lumolynk.com pnpm --filter @lumo/web build && pnpm --filter @lumo/web exec wrangler deploy",
     "test:desktop": "playwright test --config playwright.desktop.config.ts"
   },
   "lint-staged": {
