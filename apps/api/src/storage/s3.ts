@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 
 import {
@@ -21,6 +22,7 @@ import { AppError } from "../lib/errors";
 import { URL_TTL_SECONDS, type Storage, type StoragePart } from "./storage";
 
 export function createS3Storage(env: ServerEnv): Storage {
+  const spaces = env.STORAGE_PROVIDER === "digitalocean";
   // Preserve the AWS credential chain unless a dedicated S3 key pair is supplied.
   // Explicit credentials keep Spaces independent of AWS profiles/session tokens.
   const client = new S3Client({
@@ -65,7 +67,7 @@ export function createS3Storage(env: ServerEnv): Storage {
         new CreateMultipartUploadCommand({
           ...object(key),
           ContentType: mimeType,
-          ChecksumAlgorithm: "SHA256",
+          ...(!spaces && { ChecksumAlgorithm: "SHA256" }),
         }),
       );
       if (!result.UploadId) throw new Error("Missing multipart upload ID");
@@ -98,13 +100,18 @@ export function createS3Storage(env: ServerEnv): Storage {
           new ListPartsCommand({ ...object(key), UploadId: uploadId, PartNumberMarker: marker }),
         );
         for (const part of result.Parts ?? []) {
-          if (!part.PartNumber || !part.ETag || part.Size === undefined || !part.ChecksumSHA256)
+          if (
+            !part.PartNumber ||
+            !part.ETag ||
+            part.Size === undefined ||
+            (!spaces && !part.ChecksumSHA256)
+          )
             throw new Error("Invalid S3 part metadata");
           parts.push({
             partNumber: part.PartNumber,
             etag: part.ETag,
             size: part.Size,
-            checksum: part.ChecksumSHA256,
+            checksum: part.ChecksumSHA256 ?? null,
           });
         }
         marker = result.IsTruncated ? result.NextPartNumberMarker : undefined;
@@ -120,7 +127,7 @@ export function createS3Storage(env: ServerEnv): Storage {
             Parts: parts.map((part) => ({
               PartNumber: part.partNumber,
               ETag: part.etag,
-              ChecksumSHA256: part.checksum,
+              ...(part.checksum && { ChecksumSHA256: part.checksum }),
             })),
           },
         }),
@@ -135,15 +142,40 @@ export function createS3Storage(env: ServerEnv): Storage {
     },
     async stat(key) {
       const result = await client.send(
-        new HeadObjectCommand({ ...object(key), ChecksumMode: "ENABLED" }),
+        new HeadObjectCommand({ ...object(key), ...(!spaces && { ChecksumMode: "ENABLED" }) }),
       );
       if (result.ContentLength === undefined || !result.ETag)
         throw new Error("Missing S3 metadata");
+      let checksum = result.ChecksumSHA256;
+      if (!checksum) {
+        // Spaces can accept a checksum header without returning it from HEAD.
+        // Hash the stored bytes, bound to this ETag, rather than trusting upload metadata.
+        const { Body } = await client.send(
+          new GetObjectCommand({ ...object(key), IfMatch: result.ETag }),
+        );
+        if (!(Body instanceof Readable)) throw new Error("Missing S3 stream");
+        const hash = createHash("sha256");
+        let size = 0;
+        try {
+          for await (const value of Body) {
+            const chunk = Buffer.from(value as Uint8Array);
+            size += chunk.length;
+            if (size > result.ContentLength)
+              throw new Error("S3 object size changed during verification");
+            hash.update(chunk);
+          }
+          if (size !== result.ContentLength)
+            throw new Error("S3 object size changed during verification");
+          checksum = hash.digest("base64");
+        } finally {
+          Body.destroy();
+        }
+      }
       return {
         size: result.ContentLength,
         mimeType: result.ContentType ?? "application/octet-stream",
         etag: result.ETag,
-        checksum: result.ChecksumSHA256 ?? null,
+        checksum,
       };
     },
     async sample(key, size) {
@@ -161,7 +193,7 @@ export function createS3Storage(env: ServerEnv): Storage {
           ...target,
           CopySource: `${target.Bucket}/${source.split("/").map(encodeURIComponent).join("/")}`,
           CopySourceIfMatch: etag,
-          ChecksumAlgorithm: "SHA256",
+          ...(!spaces && { ChecksumAlgorithm: "SHA256" }),
         }),
       );
     },
@@ -191,7 +223,7 @@ export function createS3Storage(env: ServerEnv): Storage {
           ...object(key),
           Body: stream,
           ContentType: mimeType,
-          ChecksumAlgorithm: "SHA256",
+          ...(!spaces && { ChecksumAlgorithm: "SHA256" }),
         },
         queueSize: 2,
         leavePartsOnError: false,

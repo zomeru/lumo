@@ -9,6 +9,8 @@ export async function checkDriveCors(storage: Storage, origins: string[], fetche
   const results: { origin: string; method: string; allowed: boolean }[] = [];
   for (const origin of origins) {
     for (const method of ["PUT", "GET"]) {
+      const requestedHeaders =
+        method === "PUT" ? ["content-type", "x-amz-checksum-sha256"] : ["range"];
       try {
         const response = await fetcher(url, {
           method: "OPTIONS",
@@ -17,17 +19,22 @@ export async function checkDriveCors(storage: Storage, origins: string[], fetche
           headers: {
             Origin: origin,
             "Access-Control-Request-Method": method,
-            "Access-Control-Request-Headers":
-              method === "PUT" ? "content-type,x-amz-checksum-sha256" : "range",
+            "Access-Control-Request-Headers": requestedHeaders.join(","),
           },
         });
         const allowedOrigin = response.headers.get("access-control-allow-origin");
+        const allowedHeaders = (response.headers.get("access-control-allow-headers") ?? "")
+          .toLowerCase()
+          .split(/,\s*/);
         const allowed =
           response.ok &&
           (allowedOrigin === origin || allowedOrigin === "*") &&
           (response.headers.get("access-control-allow-methods") ?? "")
             .split(/,\s*/)
-            .includes(method);
+            .includes(method) &&
+          requestedHeaders.every(
+            (header) => allowedHeaders.includes("*") || allowedHeaders.includes(header),
+          );
         await response.body?.cancel();
         results.push({ origin, method, allowed });
       } catch {

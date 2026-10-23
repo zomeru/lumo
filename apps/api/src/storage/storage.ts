@@ -6,7 +6,12 @@ type ObjectMetadata = {
   etag: string;
   checksum: string | null;
 };
-export type StoragePart = { partNumber: number; etag: string; size: number; checksum: string };
+export type StoragePart = {
+  partNumber: number;
+  etag: string;
+  size: number;
+  checksum: string | null;
+};
 export interface Storage {
   putUrl(
     this: void,

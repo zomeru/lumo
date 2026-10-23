@@ -1,9 +1,12 @@
+import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 
 import {
   S3Client,
   type CopyObjectCommand,
   CompleteMultipartUploadCommand,
+  type CreateMultipartUploadCommand,
+  PutObjectCommand,
   type GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
@@ -92,6 +95,9 @@ describe.each([
     const storage = createS3Storage(env);
     send.mockResolvedValueOnce({ UploadId: "upload" });
     expect(await storage.startMultipart("key", "text/plain")).toBe("upload");
+    expect((send.mock.calls[0]![0] as CreateMultipartUploadCommand).input.ChecksumAlgorithm).toBe(
+      env.STORAGE_PROVIDER === "digitalocean" ? undefined : "SHA256",
+    );
     send.mockResolvedValueOnce({
       Parts: [{ PartNumber: 1, Size: 8, ETag: "etag1", ChecksumSHA256: hash }],
       IsTruncated: true,
@@ -132,7 +138,7 @@ describe.each([
       ChecksumSHA256: hash,
     });
     expect((await storage.stat("key")).size).toBe(12);
-    send.mockResolvedValueOnce({ ContentLength: 0, ETag: "empty" });
+    send.mockResolvedValueOnce({ ContentLength: 0, ETag: "empty", ChecksumSHA256: hash });
     expect((await storage.stat("empty")).mimeType).toBe("application/octet-stream");
     send.mockResolvedValueOnce({});
     await expect(storage.stat("key")).rejects.toThrow("Missing S3 metadata");
@@ -147,6 +153,9 @@ describe.each([
     send.mockResolvedValueOnce({});
     await storage.copy("source/key", "dest/key", "etag");
     expect((send.mock.calls.at(-1)![0] as CopyObjectCommand).input.CopySourceIfMatch).toBe("etag");
+    expect((send.mock.calls.at(-1)![0] as CopyObjectCommand).input.ChecksumAlgorithm).toBe(
+      env.STORAGE_PROVIDER === "digitalocean" ? undefined : "SHA256",
+    );
     send.mockResolvedValueOnce({});
     await storage.remove("key");
     send.mockResolvedValueOnce({ Body: Readable.from(["contents"]) });
@@ -164,6 +173,90 @@ describe.each([
     const storage = createS3Storage({ ...env, AWS_REGION: undefined, AWS_S3_BUCKET: undefined });
     await expect(storage.stat("key")).rejects.toThrow("Drive storage is not configured.");
   });
+
+  test("server-generated files use provider-compatible upload options", async () => {
+    const send = mockSend();
+    send.mockResolvedValue({ ETag: "etag" });
+    await createS3Storage(env).write(
+      "office/revision",
+      Readable.from([Buffer.from("document")]),
+      "text/plain",
+    );
+    const command = send.mock.calls[0]![0] as PutObjectCommand;
+    expect(command).toBeInstanceOf(PutObjectCommand);
+    expect(command.input.ContentType).toBe("text/plain");
+    expect(command.input.ChecksumAlgorithm).toBe(
+      env.STORAGE_PROVIDER === "digitalocean" ? undefined : "SHA256",
+    );
+  });
+
+  test("hashes stored bytes when HEAD omits SHA-256, binding the read to the verified object", async () => {
+    const send = mockSend();
+    const bytes = Buffer.from("actual uploaded bytes");
+    const stream = Readable.from([bytes.subarray(0, 6), bytes.subarray(6)]);
+    send.mockResolvedValueOnce({
+      ContentLength: bytes.length,
+      ContentType: "text/plain",
+      ETag: '"stored-etag"',
+      Metadata: { checksum: "untrusted-client-value" },
+    });
+    send.mockResolvedValueOnce({ Body: stream });
+    const metadata = await createS3Storage(env).stat("staging");
+    expect(metadata).toEqual({
+      size: bytes.length,
+      mimeType: "text/plain",
+      etag: '"stored-etag"',
+      checksum: createHash("sha256").update(bytes).digest("base64"),
+    });
+    expect((send.mock.calls[1]![0] as GetObjectCommand).input).toMatchObject({
+      Key: "staging",
+      IfMatch: '"stored-etag"',
+    });
+    expect(stream.destroyed).toBe(true);
+  });
+
+  test.each([
+    ["short", "S3 object size changed during verification"],
+    ["long", "S3 object size changed during verification"],
+    ["missing", "Missing S3 stream"],
+    ["changed", "PreconditionFailed"],
+    ["interrupted", "disconnected"],
+  ])("fails closed when checksum verification reads a %s object", async (failure, message) => {
+    const send = mockSend();
+    send.mockResolvedValueOnce({ ContentLength: 4, ETag: "etag" });
+    const stream = Readable.from(failure === "long" ? ["too long"] : ["x"]);
+    if (failure === "missing") send.mockResolvedValueOnce({});
+    else if (failure === "changed") send.mockRejectedValueOnce(new Error("PreconditionFailed"));
+    else if (failure === "interrupted") {
+      send.mockResolvedValueOnce({
+        Body: Readable.from(
+          (async function* () {
+            yield Buffer.from("x");
+            throw new Error("disconnected");
+          })(),
+        ),
+      });
+    } else send.mockResolvedValueOnce({ Body: stream });
+    await expect(createS3Storage(env).stat("key")).rejects.toThrow(message);
+    expect(stream.destroyed).toBe(failure === "short" || failure === "long");
+  });
+});
+
+test("Spaces multipart completion uses server ETags when ListParts omits additional checksums", async () => {
+  const send = mockSend();
+  send.mockResolvedValueOnce({ Parts: [{ PartNumber: 1, Size: 8, ETag: "provider-etag" }] });
+  const storage = createS3Storage(spacesEnv);
+  const parts = await storage.parts("key", "upload");
+  expect(parts).toEqual([{ partNumber: 1, size: 8, etag: "provider-etag", checksum: null }]);
+  send.mockResolvedValueOnce({});
+  await storage.complete("key", "upload", parts);
+  expect(
+    (send.mock.calls[1]![0] as CompleteMultipartUploadCommand).input.MultipartUpload?.Parts,
+  ).toEqual([{ PartNumber: 1, ETag: "provider-etag" }]);
+  send.mockResolvedValueOnce({ Parts: [{ PartNumber: 1, Size: 8, ETag: "provider-etag" }] });
+  await expect(createS3Storage(awsEnv).parts("key", "upload")).rejects.toThrow(
+    "Invalid S3 part metadata",
+  );
 });
 
 test("dedicated S3 credentials override the AWS chain and exclude an unrelated AWS session token", async () => {

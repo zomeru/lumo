@@ -39,7 +39,12 @@ export function putFile(
           ? undefined
           : new Error("S3 upload failed. Check your connection or bucket CORS configuration."),
       );
-    xhr.onerror = () => finish(new Error("Unable to upload to storage. Check your connection."));
+    xhr.onerror = () =>
+      finish(
+        new Error(
+          "Unable to upload to storage. Check your connection or the storage CORS configuration.",
+        ),
+      );
     xhr.ontimeout = () => finish(new Error("The upload timed out."));
     xhr.onabort = () => finish(new DOMException("Upload canceled", "AbortError"));
     signal.addEventListener("abort", abort, { once: true });

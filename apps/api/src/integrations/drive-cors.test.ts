@@ -10,6 +10,7 @@ test("checks actual browser preflight headers without sending object bytes or le
       headers: {
         "Access-Control-Allow-Origin": headers.get("origin")!,
         "Access-Control-Allow-Methods": "GET, HEAD, PUT",
+        "Access-Control-Allow-Headers": "Content-Type, X-Amz-Checksum-Sha256, Range",
       },
     });
   });
@@ -53,7 +54,11 @@ test("denied, missing, foreign origins, missing methods and network failures fai
     ["https://web.example.com"],
     async () =>
       new Response(null, {
-        headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, PUT" },
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, PUT",
+          "Access-Control-Allow-Headers": "*",
+        },
       }),
   );
   expect(wildcard.every((v) => v.allowed)).toBe(true);
@@ -62,4 +67,23 @@ test("denied, missing, foreign origins, missing methods and network failures fai
   });
   expect(broken.every((v) => !v.allowed)).toBe(true);
   expect(JSON.stringify(broken)).not.toContain("sensitive");
+});
+
+test("rejects preflights that allow the origin and method but omit required upload headers", async () => {
+  const results = await checkDriveCors(
+    memoryStorage().storage,
+    ["https://lumolynk.com"],
+    async () =>
+      new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": "https://lumolynk.com",
+          "Access-Control-Allow-Methods": "GET, PUT",
+          "Access-Control-Allow-Headers": "Content-Type, Range",
+        },
+      }),
+  );
+  expect(results).toEqual([
+    { origin: "https://lumolynk.com", method: "PUT", allowed: false },
+    { origin: "https://lumolynk.com", method: "GET", allowed: true },
+  ]);
 });

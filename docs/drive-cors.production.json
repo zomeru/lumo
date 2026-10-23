@@ -1,0 +1,11 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["https://lumolynk.com", "lumo://app"],
+      "AllowedMethods": ["PUT", "GET", "HEAD"],
+      "AllowedHeaders": ["content-type", "content-length", "x-amz-checksum-sha256", "range"],
+      "ExposeHeaders": ["ETag", "x-amz-checksum-sha256", "Content-Length", "Content-Range"],
+      "MaxAgeSeconds": 600
+    }
+  ]
+}
