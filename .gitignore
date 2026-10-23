@@ -1,5 +1,7 @@
 # Dependencies and local caches
 node_modules/
+# Vendored skill examples stay versioned but are not application source.
+**/.agents/skills/**/templates/**
 .turbo/
 .tanstack/
 .wrangler/
