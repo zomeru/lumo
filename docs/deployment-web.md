@@ -13,6 +13,11 @@ does not build, migrate, or deploy the API, database, or Electron app.
 - `apps/web/vite.config.ts` adds the Cloudflare Vite plugin after the framework
   plugins. TanStack route generation stays before React. Test mode excludes the
   Cloudflare plugin.
+- The browser TypeScript configuration uses DOM types. Keep Wrangler-generated
+  `worker-configuration.d.ts` out of `tsconfig.app.json`: Workers runtime globals
+  conflict with browser DOM declarations such as `Element`. This asset-only
+  frontend does not need Worker runtime types; future Worker code should use a
+  separate TypeScript configuration.
 - `vite build` writes the frontend and generated `wrangler.json` to `apps/web/dist`.
   The plugin determines the assets directory; do not add a manually maintained
   `assets.directory` to the source Wrangler config.
@@ -116,6 +121,15 @@ pnpm web:deploy
 builds before running Wrangler. It publishes Worker `lumo-web` and attaches
 `lumolynk.com` using the committed custom domain configuration. Check the reported
 domain and certificate status in Workers & Pages before testing the live site.
+
+The shortcut uses `pnpm --filter @lumo/web run deploy`. Keep the explicit `run`:
+`pnpm --filter @lumo/web deploy` can invoke pnpm's built-in deployment command
+instead and fail with `ERR_PNPM_INVALID_DEPLOY_TARGET`. To validate the complete
+root shortcut without publishing, run:
+
+```sh
+VITE_API_URL=https://api.lumolynk.com pnpm web:deploy --dry-run
+```
 
 ## Cloudflare Workers Builds or another CI system
 

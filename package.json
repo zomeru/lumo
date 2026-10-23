@@ -33,7 +33,7 @@
     "test:e2e": "playwright test",
     "test:integration": "vitest run --project api",
     "desktop:package": "turbo run package --filter=@lumo/desktop",
-    "web:deploy": "pnpm --filter @lumo/web deploy",
+    "web:deploy": "pnpm --filter @lumo/web run deploy",
     "test:desktop": "playwright test --config playwright.desktop.config.ts"
   },
   "lint-staged": {

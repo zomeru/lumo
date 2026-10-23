@@ -8,4 +8,15 @@
   "assets": {
     "not_found_handling": "single-page-application",
   },
+  "compatibility_flags": ["nodejs_compat"],
+  "placement": {
+    "region": "aws:ap-southeast-1",
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "VITE_API_URL": "https://api.lumolynk.com",
+      },
+    },
+  },
 }

@@ -16,6 +16,8 @@
     "playwright-report/**",
     "test-results/**",
     "**/out/**",
-    "**/release/**"
+    "**/release/**",
+    "**/.dev.vars*",
+    "**/worker-configuration.d.ts"
   ]
 }
