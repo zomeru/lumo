@@ -14,8 +14,8 @@ export default defineConfig({
             wait: { stdout: /E2E API ready on port/ },
             env: {
               ...server.env,
-              LUMO_E2E_API_ORIGIN: desktopApiOrigin(),
-              LUMO_E2E_API_HOST: "127.0.0.1",
+              LUMOLYNK_E2E_API_ORIGIN: desktopApiOrigin(),
+              LUMOLYNK_E2E_API_HOST: "127.0.0.1",
             },
           }
         : server,

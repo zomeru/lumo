@@ -63,8 +63,8 @@ const serverSchema = z
     PORT: z.coerce.number().int().min(1).max(65535).default(3001),
     HOST: z.string().default("0.0.0.0"),
     RESEND_API_KEY: z.string().trim().optional(),
-    EMAIL_FROM: z.email().default("hello@lumo.local"),
-    EMAIL_FROM_NAME: emailFromName.default("Lumo"),
+    EMAIL_FROM: z.email().default("hello@lumolynk.local"),
+    EMAIL_FROM_NAME: emailFromName.default("LumoLynk"),
     MAIL_DIR: z.string().min(1).default("../../.local/mail"),
     AGORA_APP_ID: z
       .string()

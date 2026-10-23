@@ -3,8 +3,8 @@ import {
   driveSharesSchema,
   driveUrlSchema,
   type DriveItem,
-} from "@lumo/contracts/drive";
-import { formatDateTime } from "@lumo/shared/date-time";
+} from "@lumolynk/contracts/drive";
+import { formatDateTime } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -16,7 +16,7 @@ import {
   Field,
   Loading,
   SelectField,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, Folder, HardDrive } from "lucide-react";
 import { useEffect, useState } from "react";

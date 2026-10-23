@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 
-import { idSchema } from "@lumo/contracts";
-import type { DriveListInput } from "@lumo/contracts/drive";
-import { officeFormats, officeFileKind, type OfficeKind } from "@lumo/contracts/office";
-import type { Database, Transaction } from "@lumo/database";
+import { idSchema } from "@lumolynk/contracts";
+import type { DriveListInput } from "@lumolynk/contracts/drive";
+import { officeFormats, officeFileKind, type OfficeKind } from "@lumolynk/contracts/office";
+import type { Database, Transaction } from "@lumolynk/database";
 import {
   officeDocument as document,
   officeVersion as version,
@@ -16,8 +16,8 @@ import {
   user,
   auditEvent,
   wikiConnection,
-} from "@lumo/database/schema";
-import type { ServerEnv } from "@lumo/env/server";
+} from "@lumolynk/database/schema";
+import type { ServerEnv } from "@lumolynk/env/server";
 import { and, desc, eq, sql } from "drizzle-orm";
 import * as Y from "yjs";
 
@@ -343,7 +343,7 @@ export function createOfficeService(
             user: { id: actor, name },
             coEditing: { mode: "fast" as const, change: false as const },
             // A cross-origin editor sees the embedding page's CSS color-scheme.
-            // Follow Lumo's light/dark/system preference without replacing its iframe.
+            // Follow LumoLynk's light/dark/system preference without replacing its iframe.
             customization: { forcesave: true as const, uiTheme: "theme-system" as const },
           },
         };

@@ -1,6 +1,6 @@
-import { idSchema, okSchema } from "@lumo/contracts";
-import { hrGrantSchema, hrPageSchema } from "@lumo/contracts/hr";
-import { hrAudit, hrEmployee, hrGrant, hrNotification } from "@lumo/database/schema";
+import { idSchema, okSchema } from "@lumolynk/contracts";
+import { hrGrantSchema, hrPageSchema } from "@lumolynk/contracts/hr";
+import { hrAudit, hrEmployee, hrGrant, hrNotification } from "@lumolynk/database/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { z } from "zod";

@@ -4,9 +4,9 @@ import {
   hrGrantSchema,
   payrollSettingsSchema,
   type HrAccess,
-} from "@lumo/contracts/hr";
-import { formatDate } from "@lumo/shared/date-time";
-import { Button, Card, ErrorMessage, Field, SelectField } from "@lumo/ui";
+} from "@lumolynk/contracts/hr";
+import { formatDate } from "@lumolynk/shared/date-time";
+import { Button, Card, ErrorMessage, Field, SelectField } from "@lumolynk/ui";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 

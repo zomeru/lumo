@@ -1,7 +1,7 @@
-import type { conversationInputSchema } from "@lumo/contracts/collaboration";
-import type * as contracts from "@lumo/contracts/messenger";
-import { canCreateChannel } from "@lumo/contracts/permissions";
-import type { Database, Transaction } from "@lumo/database";
+import type { conversationInputSchema } from "@lumolynk/contracts/collaboration";
+import type * as contracts from "@lumolynk/contracts/messenger";
+import { canCreateChannel } from "@lumolynk/contracts/permissions";
+import type { Database, Transaction } from "@lumolynk/database";
 import {
   messengerAudit,
   storageCleanup,
@@ -13,7 +13,7 @@ import {
   messengerMessage as message,
   messengerReaction as reaction,
   messengerAttachment as attachment,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import {
   and,
   eq,
@@ -77,7 +77,7 @@ export function createMessengerService(
   }
   async function notify(tx: Transaction, workspaceId: string) {
     // No names, IDs of private resources, bodies or previews in notifications.
-    await tx.execute(sql`select pg_notify('lumo_messenger', ${workspaceId})`);
+    await tx.execute(sql`select pg_notify('lumolynk_messenger', ${workspaceId})`);
   }
   async function audit(
     tx: Transaction,

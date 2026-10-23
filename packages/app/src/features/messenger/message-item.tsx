@@ -1,5 +1,5 @@
-import type { MessengerMessage } from "@lumo/contracts/messenger";
-import { formatTime } from "@lumo/shared/date-time";
+import type { MessengerMessage } from "@lumolynk/contracts/messenger";
+import { formatTime } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   cn,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { MessageSquare, MoreHorizontal, Pin } from "lucide-react";
 import { Fragment } from "react";
 

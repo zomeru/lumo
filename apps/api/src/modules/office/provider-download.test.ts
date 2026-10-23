@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { Readable } from "node:stream";
 
-import { readServerEnv } from "@lumo/env/server";
+import { readServerEnv } from "@lumolynk/env/server";
 import { beforeEach, expect, test, vi } from "vitest";
 
 import { createOfficeProvider, OFFICE_MAX_BYTES } from "./provider";

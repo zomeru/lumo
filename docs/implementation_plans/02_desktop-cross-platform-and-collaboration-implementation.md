@@ -1,7 +1,7 @@
-# 02 — Lumo Desktop, Shared Platform Architecture, Messenger, Contacts, Invitations & Meetings
+# 02 — LumoLynk Desktop, Shared Platform Architecture, Messenger, Contacts, Invitations & Meetings
 
 > **Status:** Implementation plan and acceptance criteria for Codex  
-> **Project:** Lumo (workspace-based collaboration platform)  
+> **Project:** LumoLynk (workspace-based collaboration platform)\
 > **Primary deliverable:** Working `apps/desktop` using Electron + electron-vite, with shared web UI and functional collaboration features on **both** web and desktop.  
 > **Future platform:** Expo / React Native, architected for but **not required to build in this iteration**.  
 > **Prerequisite:** Complete and preserve the working foundation from `docs/implementation_plans/01_fullstack-foundation-implementation.md`.
@@ -10,7 +10,7 @@
 
 Implement this plan in the **existing** Turborepo. This is an implementation assignment, not an invitation to scaffold empty folders or replace the product with a demo.
 
-- Preserve the current Lumo web app and its real authentication, database, workspace membership, permissions and API. **Do not rebuild these systems from scratch.** Inspect and extend them.
+- Preserve the current LumoLynk web app and its real authentication, database, workspace membership, permissions and API. **Do not rebuild these systems from scratch.** Inspect and extend them.
 - Read `AGENTS.md` and **the numbered documentation files 2–5 (from TECH_STACK to WHY_HONO?) in `docs/`**, plus `docs/implementation_plans/01_fullstack-foundation-implementation.md`, **before changing code**. Discover actual filenames and read them completely. Documentation defines product behavior; this plan defines the next implementation increment.
 - Inspect all PNGs under `docs/sample_ai_generated_ui_flow_from_claude/` to understand intended flows, but treat them as mockups, not an infallible product specification.
 - Inspect the entire existing `apps/web` UI, especially authentication and workspace navigation. **The desktop app must look and behave like the current web application, not like a new, unrelated theme.** No marketing/landing page is included in desktop.
@@ -49,7 +49,7 @@ Write a brief audit in the implementation notes: current features, reusable comp
 ### 2.1 Suggested monorepo layout (adapt to current reality)
 
 ```text
-lumo/
+lumolynk/
 ├── apps/
 │   ├── api/                        # Hono API; authoritative auth, DB and workspace checks
 │   ├── web/                        # React + Vite + TanStack Router web application
@@ -257,7 +257,7 @@ Before implementation verify that the selected Agora project/account has **Chat 
 - Manage optimistic sends, retries, deduplication, reconnect, offline/connection states and stale channel access.
 - Display sender name/avatar/time, unread counts and clear empty/loading/error states.
 - Conversation membership must be authoritative on the backend. A removed member loses authorization for new messages/history and tokens according to product policy.
-- Use a canonical backend record mapping Lumo conversation IDs/users/memberships to Agora identifiers; never infer access solely from a client-provided Agora channel name.
+- Use a canonical backend record mapping LumoLynk conversation IDs/users/memberships to Agora identifiers; never infer access solely from a client-provided Agora channel name.
 - Store only appropriate metadata and/or canonical message records in PostgreSQL according to a deliberate source-of-truth decision. If Agora Chat holds the message body, document history, retention, deletion, consistency and disaster recovery responsibilities; do not implement two competing message sources of truth without reconciliation.
 - Avoid XSS in rich text/message rendering; sanitize or render text safely. Validate attachments, media types, limits and authorization if attachments are in scope.
 - Typing, read receipts, presence and attachments may be included if supported by product docs and available Agora capabilities; prioritize a fully working send/receive/history flow first.
@@ -316,7 +316,7 @@ Suggested **names to reconcile with existing conventions**:
 
 ```dotenv
 # API/server (reuse existing DB/Auth URLs and secrets; examples only)
-DATABASE_URL=postgresql://<user>:<password>@127.0.0.1:5432/lumo_dev
+DATABASE_URL=postgresql://<user>:<password>@127.0.0.1:5432/lumolynk_dev
 BETTER_AUTH_URL=http://localhost:3001
 BETTER_AUTH_SECRET=<server-only-random-secret>
 API_PORT=3001

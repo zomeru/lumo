@@ -1,4 +1,4 @@
-import { ApiError } from "@lumo/api-client";
+import { ApiError } from "@lumolynk/api-client";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 

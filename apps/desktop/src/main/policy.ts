@@ -27,7 +27,7 @@ export function trustedRenderer(url: string, developmentOrigin?: string) {
     const u = new URL(url);
     return (
       u.origin === developmentOrigin ||
-      (u.protocol === "lumo:" && u.hostname === "app" && !u.username && !u.password && !u.port)
+      (u.protocol === "lumolynk:" && u.hostname === "app" && !u.username && !u.password && !u.port)
     );
   } catch {
     return false;

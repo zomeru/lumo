@@ -1,4 +1,4 @@
-# Lumo Connect: Calendar Implementation Plan
+# LumoLynk Connect: Calendar Implementation Plan
 
 ## Objective
 

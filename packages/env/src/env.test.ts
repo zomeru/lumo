@@ -4,7 +4,7 @@ import { readServerEnv } from "./server.ts";
 import { readWebEnv } from "./web.ts";
 
 const valid = {
-  DATABASE_URL: "postgresql://test:password@localhost/lumo_test",
+  DATABASE_URL: "postgresql://test:password@localhost/lumolynk_test",
   BETTER_AUTH_SECRET: "a".repeat(48),
 };
 
@@ -31,7 +31,7 @@ describe("production email configuration", () => {
     "hello@notifylumolynk.com",
     "hello@lumolynk.com.attacker.com",
     "hello@notify.lumolynk.com.attacker.com",
-    "Lumo <hello@lumolynk.com>",
+    "LumoLynk <hello@lumolynk.com>",
   ])("requires a sender address at the verified domain: %s", (EMAIL_FROM) => {
     expect(() => readServerEnv({ ...production, EMAIL_FROM })).toThrow("EMAIL_FROM");
   });
@@ -46,13 +46,13 @@ describe("production email configuration", () => {
   test("accepts a configured sender with a default or custom display name", () => {
     expect(readServerEnv(production)).toMatchObject({
       EMAIL_FROM: "hello@lumolynk.com",
-      EMAIL_FROM_NAME: "Lumo",
+      EMAIL_FROM_NAME: "LumoLynk",
     });
-    expect(readServerEnv({ ...production, EMAIL_FROM_NAME: "Lumo Support" }).EMAIL_FROM_NAME).toBe(
-      "Lumo Support",
-    );
+    expect(
+      readServerEnv({ ...production, EMAIL_FROM_NAME: "LumoLynk Support" }).EMAIL_FROM_NAME,
+    ).toBe("LumoLynk Support");
   });
-  test.each(["", "Lumo\r\nBcc: other@example.com", "Lumo <other@example.com>"])(
+  test.each(["", "LumoLynk\r\nBcc: other@example.com", "LumoLynk <other@example.com>"])(
     "rejects invalid display names without echoing them",
     (EMAIL_FROM_NAME) => {
       expect(() => readServerEnv({ ...production, EMAIL_FROM_NAME })).toThrow("EMAIL_FROM_NAME");
@@ -83,7 +83,7 @@ describe("environment boundaries", () => {
   ])("does not require production email or Spaces settings outside production: %j", (source) => {
     const env = readServerEnv({ ...valid, ...source, STORAGE_PROVIDER: "digitalocean" });
     expect(env).toMatchObject({
-      EMAIL_FROM: "hello@lumo.local",
+      EMAIL_FROM: "hello@lumolynk.local",
       API_ORIGIN: "http://localhost:3001",
     });
     expect(env.S3_ENDPOINT).toBeUndefined();
@@ -370,24 +370,24 @@ test("storage provider defaults to AWS and production Spaces requires its origin
     expect(() => readServerEnv({ ...spaces, S3_ENDPOINT })).toThrow("S3_ENDPOINT");
 });
 
-test.each(["https://sgp1.digitaloceanspaces.com", "https://lumo-prod.sgp1.digitaloceanspaces.com"])(
-  "accepts the production sender and normalizes the Spaces endpoint: %s",
-  (S3_ENDPOINT) => {
-    expect(
-      readServerEnv({
-        ...production,
-        EMAIL_FROM: "noreply@notify.lumolynk.com",
-        STORAGE_PROVIDER: "digitalocean",
-        AWS_REGION: "us-east-1",
-        AWS_S3_BUCKET: "lumo-prod",
-        S3_ENDPOINT,
-        S3_ACCESS_KEY_ID: "spaces-key",
-        S3_SECRET_ACCESS_KEY: "synthetic-secret",
-      }),
-    ).toMatchObject({
+test.each([
+  "https://sgp1.digitaloceanspaces.com",
+  "https://lumolynk-prod.sgp1.digitaloceanspaces.com",
+])("accepts the production sender and normalizes the Spaces endpoint: %s", (S3_ENDPOINT) => {
+  expect(
+    readServerEnv({
+      ...production,
       EMAIL_FROM: "noreply@notify.lumolynk.com",
-      S3_ENDPOINT: "https://sgp1.digitaloceanspaces.com",
-      AWS_S3_BUCKET: "lumo-prod",
-    });
-  },
-);
+      STORAGE_PROVIDER: "digitalocean",
+      AWS_REGION: "us-east-1",
+      AWS_S3_BUCKET: "lumolynk-prod",
+      S3_ENDPOINT,
+      S3_ACCESS_KEY_ID: "spaces-key",
+      S3_SECRET_ACCESS_KEY: "synthetic-secret",
+    }),
+  ).toMatchObject({
+    EMAIL_FROM: "noreply@notify.lumolynk.com",
+    S3_ENDPOINT: "https://sgp1.digitaloceanspaces.com",
+    AWS_S3_BUCKET: "lumolynk-prod",
+  });
+});

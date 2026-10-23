@@ -1,11 +1,11 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
-import { idSchema, okSchema, errorSchema } from "@lumo/contracts";
-import * as hr from "@lumo/contracts/hr";
+import { idSchema, okSchema, errorSchema } from "@lumolynk/contracts";
+import * as hr from "@lumolynk/contracts/hr";
 import {
   statutoryConfigurationInputSchema,
   statutoryConfigurationsSchema,
-} from "@lumo/contracts/payroll";
+} from "@lumolynk/contracts/payroll";
 
 import type { ApiContext } from "../../lib/context";
 

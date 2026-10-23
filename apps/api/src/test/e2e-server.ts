@@ -3,19 +3,19 @@ import { resolve } from "node:path";
 
 import { serve } from "@hono/node-server";
 import { getConnInfo } from "@hono/node-server/conninfo";
-import { createAuth } from "@lumo/auth";
-import { avatarIdentity } from "@lumo/contracts/avatar";
-import { messengerAttachment, user } from "@lumo/database/schema";
-import { readServerEnv } from "@lumo/env/server";
+import { createAuth } from "@lumolynk/auth";
+import { avatarIdentity } from "@lumolynk/contracts/avatar";
+import { messengerAttachment, user } from "@lumolynk/database/schema";
+import { readServerEnv } from "@lumolynk/env/server";
 
 import { createApp } from "../app.ts";
 import { listenForWiki } from "../modules/office/wiki-notifications";
 import { createS3Storage } from "../storage/s3";
 import { createTestDatabase } from "./database.ts";
 
-const apiOrigin = process.env.LUMO_E2E_API_ORIGIN ?? "http://localhost:3011";
-const webOrigin = process.env.LUMO_E2E_WEB_ORIGIN ?? "http://localhost:3010";
-const apiHost = process.env.LUMO_E2E_API_HOST ?? "::1";
+const apiOrigin = process.env.LUMOLYNK_E2E_API_ORIGIN ?? "http://localhost:3011";
+const webOrigin = process.env.LUMOLYNK_E2E_WEB_ORIGIN ?? "http://localhost:3010";
+const apiHost = process.env.LUMOLYNK_E2E_API_HOST ?? "::1";
 if (!["::1", "127.0.0.1"].includes(apiHost))
   throw new Error("E2E API requires a loopback listener.");
 const database = await createTestDatabase(process.env.TEST_DATABASE_URL);

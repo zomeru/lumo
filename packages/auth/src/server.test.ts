@@ -2,8 +2,8 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createDatabase } from "@lumo/database";
-import { readServerEnv } from "@lumo/env/server";
+import { createDatabase } from "@lumolynk/database";
+import { readServerEnv } from "@lumolynk/env/server";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { createAuth } from "./server.ts";
@@ -14,7 +14,7 @@ describe("authentication email delivery", () => {
   test.each(["production", "development", "test"] as const)(
     "%s preserves verification content and redirects through the selected provider",
     async (NODE_ENV) => {
-      const mailDir = await mkdtemp(join(tmpdir(), "lumo-auth-mail-"));
+      const mailDir = await mkdtemp(join(tmpdir(), "lumolynk-auth-mail-"));
       const database = createDatabase("postgresql://localhost/unused");
       const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({ id: "mail-id" }));
       vi.stubGlobal("fetch", fetch);
@@ -26,7 +26,7 @@ describe("authentication email delivery", () => {
         WEB_ORIGIN: "https://example.com",
         RESEND_API_KEY: "re_synthetic_test_key",
         EMAIL_FROM: "hello@lumolynk.com",
-        EMAIL_FROM_NAME: "Lumo",
+        EMAIL_FROM_NAME: "LumoLynk",
         MAIL_DIR: mailDir,
         LOG_LEVEL: "silent",
       });
@@ -48,9 +48,9 @@ describe("authentication email delivery", () => {
         const link =
           "https://api.example.com/api/auth/verify-email?token=example&callbackURL=https%3A%2F%2Fexample.com%2Fworkspaces";
         const content = {
-          from: "Lumo <hello@lumolynk.com>",
+          from: "LumoLynk <hello@lumolynk.com>",
           to: "alice@example.com",
-          subject: "Verify your Lumo email",
+          subject: "Verify your LumoLynk email",
           text: `Verify your email to accept workspace invitations:\n${link}`,
         };
         const files = await readdir(mailDir);

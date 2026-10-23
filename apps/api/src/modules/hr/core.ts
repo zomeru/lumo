@@ -1,6 +1,12 @@
-import type { HrCapability } from "@lumo/contracts/hr";
-import type { Transaction } from "@lumo/database";
-import { hrGrant, hrEmployee, hrAudit, hrNotification, membership } from "@lumo/database/schema";
+import type { HrCapability } from "@lumolynk/contracts/hr";
+import type { Transaction } from "@lumolynk/database";
+import {
+  hrGrant,
+  hrEmployee,
+  hrAudit,
+  hrNotification,
+  membership,
+} from "@lumolynk/database/schema";
 import { and, eq } from "drizzle-orm";
 
 import { denied, missing } from "../../lib/errors";

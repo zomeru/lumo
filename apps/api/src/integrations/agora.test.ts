@@ -1,10 +1,10 @@
-import { readServerEnv } from "@lumo/env/server";
+import { readServerEnv } from "@lumolynk/env/server";
 import { test, expect } from "vitest";
 
 import { createAgora } from "./agora";
 
 const env = readServerEnv({
-  DATABASE_URL: "postgresql://localhost/lumo_test",
+  DATABASE_URL: "postgresql://localhost/lumolynk_test",
   BETTER_AUTH_SECRET: "test-secret-over-thirty-two-characters",
   AGORA_APP_ID: "a".repeat(32),
   AGORA_APP_CERTIFICATE: "b".repeat(32),

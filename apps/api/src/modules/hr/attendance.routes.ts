@@ -1,5 +1,5 @@
-import { attendanceMonthSchema, punchInputSchema } from "@lumo/contracts/hr";
-import { hrPunch, hrShift } from "@lumo/database/schema";
+import { attendanceMonthSchema, punchInputSchema } from "@lumolynk/contracts/hr";
+import { hrPunch, hrShift } from "@lumolynk/database/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 

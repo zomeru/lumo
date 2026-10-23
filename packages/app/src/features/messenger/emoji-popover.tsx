@@ -1,4 +1,11 @@
-import { Button, Loading, Popover, PopoverContent, PopoverTrigger, ErrorMessage } from "@lumo/ui";
+import {
+  Button,
+  Loading,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  ErrorMessage,
+} from "@lumolynk/ui";
 import { SmilePlus } from "lucide-react";
 import { Component, lazy, Suspense, useState, type ReactNode } from "react";
 
@@ -57,7 +64,7 @@ export function EmojiPopover({
               height={360}
               emojiStyle="native"
               theme={document.documentElement.dataset.theme === "dark" ? "dark" : "light"}
-              className="lumo-emoji-picker"
+              className="lumolynk-emoji-picker"
               autoFocusSearch
               keepSearchFocus
               lazyLoadEmojis

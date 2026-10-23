@@ -1,5 +1,5 @@
-import { wikiSessionSchema } from "@lumo/contracts/office";
-import { Button, ErrorMessage, Loading } from "@lumo/ui";
+import { wikiSessionSchema } from "@lumolynk/contracts/office";
+import { Button, ErrorMessage, Loading } from "@lumolynk/ui";
 import { useEffect, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
 import * as Y from "yjs";
@@ -102,7 +102,7 @@ export default function WikiEditor({ workspaceId, id }: { workspaceId: string; i
     };
   }, [workspaceId, id, attempt]);
   return (
-    <div className="lumo-wiki flex min-h-0 flex-1 flex-col">
+    <div className="lumolynk-wiki flex min-h-0 flex-1 flex-col">
       <output className="flex flex-wrap justify-between gap-2 border-b px-4 py-2 text-xs text-muted-foreground">
         <span>{status}</span>
         <span>{[...new Set(people)].join(", ")}</span>

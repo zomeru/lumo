@@ -5,8 +5,8 @@ import {
   csvResultSchema,
   holidaysSchema,
   schedulesSchema,
-} from "@lumo/contracts/hr";
-import { formatDate, formatTime } from "@lumo/shared/date-time";
+} from "@lumolynk/contracts/hr";
+import { formatDate, formatTime } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -25,7 +25,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 

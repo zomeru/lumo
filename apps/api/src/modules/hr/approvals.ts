@@ -2,14 +2,14 @@ import {
   type approvalInputSchema,
   requestDetailsSchema,
   type RequestDetails,
-} from "@lumo/contracts/hr";
+} from "@lumolynk/contracts/hr";
 import {
   hrRequest,
   hrRequestEvent,
   hrEmployee,
   hrApprovalPolicy,
   hrFile,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { and, eq } from "drizzle-orm";
 import type { z } from "zod";
 

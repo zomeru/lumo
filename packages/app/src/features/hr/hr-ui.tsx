@@ -5,7 +5,7 @@ import {
   DialogDescription,
   DialogTitle,
   ErrorMessage,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import type { ReactNode, FormEvent } from "react";
 export function HrDialog({
   title,

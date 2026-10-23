@@ -1,4 +1,4 @@
-// ONLYOFFICE's documented theme-file keys. Keep Lumo's palette in tokens.ts.
+// ONLYOFFICE's documented theme-file keys. Keep LumoLynk's palette in tokens.ts.
 // These files require deployment to the document server, including on Docs Cloud.
 export function onlyofficeTheme(mode, palette) {
   const colors = {
@@ -75,8 +75,8 @@ export function onlyofficeTheme(mode, palette) {
     colors[`text-toolbar-header-on-background-${kind}`] = palette.foreground;
   }
   return {
-    name: `Lumo ${mode === "dark" ? "Dark" : "Light"}`,
-    id: `theme-lumo-${mode}`,
+    name: `LumoLynk ${mode === "dark" ? "Dark" : "Light"}`,
+    id: `theme-lumolynk-${mode}`,
     type: mode,
     colors,
   };

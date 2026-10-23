@@ -1,5 +1,5 @@
 {
-  "extends": "@lumo/typescript-config/react-library.json",
+  "extends": "@lumolynk/typescript-config/react-library.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "types": ["vite/client", "@testing-library/jest-dom"],

@@ -1,4 +1,4 @@
-import { readServerEnv } from "@lumo/env/server";
+import { readServerEnv } from "@lumolynk/env/server";
 
 import { checkDriveCors } from "../integrations/drive-cors";
 import { createS3Storage } from "../storage/s3";
@@ -6,7 +6,7 @@ try {
   const env = readServerEnv();
   const results = await checkDriveCors(createS3Storage(env), [
     env.WEB_ORIGIN,
-    "lumo://app",
+    "lumolynk://app",
     ...(env.NODE_ENV !== "production" ? ["http://127.0.0.1:5174"] : []),
   ]);
   for (const [index, result] of results.entries())

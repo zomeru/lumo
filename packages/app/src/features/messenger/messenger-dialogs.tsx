@@ -1,6 +1,6 @@
-import type { Conversation } from "@lumo/contracts/collaboration";
-import { conversationSchema } from "@lumo/contracts/collaboration";
-import { messengerMembersSchema } from "@lumo/contracts/messenger";
+import type { Conversation } from "@lumolynk/contracts/collaboration";
+import { conversationSchema } from "@lumolynk/contracts/collaboration";
+import { messengerMembersSchema } from "@lumolynk/contracts/messenger";
 import {
   Button,
   Dialog,
@@ -12,7 +12,7 @@ import {
   Checkbox,
   ErrorMessage,
   Badge,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { X } from "lucide-react";

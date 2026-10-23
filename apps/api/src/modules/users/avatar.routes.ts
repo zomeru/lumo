@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 
-import { idSchema } from "@lumo/contracts";
-import { avatarIdentity, avatarInputSchema } from "@lumo/contracts/avatar";
-import type { Database } from "@lumo/database";
-import { membership, user } from "@lumo/database/schema";
-import type { ServerEnv } from "@lumo/env/server";
+import { idSchema } from "@lumolynk/contracts";
+import { avatarIdentity, avatarInputSchema } from "@lumolynk/contracts/avatar";
+import type { Database } from "@lumolynk/database";
+import { membership, user } from "@lumolynk/database/schema";
+import type { ServerEnv } from "@lumolynk/env/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 
@@ -41,7 +41,7 @@ export function avatarRoutes(db: Database, storage: Storage, env: ServerEnv) {
           .from(membership)
           .where(eq(membership.userId, id));
         for (const space of spaces)
-          await tx.execute(sql`select pg_notify('lumo_messenger', ${space.id})`);
+          await tx.execute(sql`select pg_notify('lumolynk_messenger', ${space.id})`);
       });
     } catch (error) {
       if (data) await storage.remove(key).catch(() => {});

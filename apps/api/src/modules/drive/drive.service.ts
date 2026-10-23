@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 
-import type { Role } from "@lumo/contracts";
-import type { DriveItem, DriveListInput, DriveUploadInput } from "@lumo/contracts/drive";
-import { acceptsOfficeUpload, officeUploadFormat, fileModules } from "@lumo/contracts/files";
-import { officeFormats } from "@lumo/contracts/office";
-import { canManageSettings } from "@lumo/contracts/permissions";
-import type { Database, Transaction } from "@lumo/database";
+import type { Role } from "@lumolynk/contracts";
+import type { DriveItem, DriveListInput, DriveUploadInput } from "@lumolynk/contracts/drive";
+import { acceptsOfficeUpload, officeUploadFormat, fileModules } from "@lumolynk/contracts/files";
+import { officeFormats } from "@lumolynk/contracts/office";
+import { canManageSettings } from "@lumolynk/contracts/permissions";
+import type { Database, Transaction } from "@lumolynk/database";
 import {
   driveItem as item,
   driveShare as share,
@@ -19,8 +19,8 @@ import {
   officeVersion,
   wikiPage,
   wikiConnection,
-} from "@lumo/database/schema";
-import type { ServerEnv } from "@lumo/env/server";
+} from "@lumolynk/database/schema";
+import type { ServerEnv } from "@lumolynk/env/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { ZipFile } from "yazl";
 
@@ -954,7 +954,7 @@ export function createDriveService(
           output.destroy();
           throw error;
         }
-        return { url: await storage.downloadUrl(key, "Lumo Drive.zip"), expiresAt: expiry() };
+        return { url: await storage.downloadUrl(key, "LumoLynk Drive.zip"), expiresAt: expiry() };
       });
     },
   };

@@ -1,11 +1,15 @@
-import { requestDetailsSchema, scheduleInputSchema, type WorkSchedule } from "@lumo/contracts/hr";
+import {
+  requestDetailsSchema,
+  scheduleInputSchema,
+  type WorkSchedule,
+} from "@lumolynk/contracts/hr";
 import {
   hrAttendanceCorrection,
   hrEmployee,
   hrRequest,
   hrShift,
   membership,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { AppError, denied } from "../../lib/errors";

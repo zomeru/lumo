@@ -94,7 +94,7 @@ test("document width is reclaimed after resize, content removal, and page naviga
 }) => {
   await page.setViewportSize({ width: 900, height: 600 });
   await page.goto("/about");
-  await expect(page.getByRole("heading", { name: "About Lumo", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "About LumoLynk", exact: true })).toBeVisible();
   await page.evaluate(() => {
     // Isolate document scrollbar mechanics from the public page's responsive content height.
     document.getElementById("root")!.style.display = "none";
@@ -121,7 +121,7 @@ test("document width is reclaimed after resize, content removal, and page naviga
     await page.evaluate(() => document.documentElement.clientWidth === window.innerWidth),
   ).toBe(true);
   await page.goto("/login");
-  await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
   // The full login page legitimately scrolls at 600px; reclaim width once its content fits.
   await page.setViewportSize({ width: 900, height: 1800 });
   await expect

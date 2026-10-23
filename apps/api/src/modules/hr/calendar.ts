@@ -1,5 +1,5 @@
-import { scheduleInputSchema, type WorkSchedule } from "@lumo/contracts/hr";
-import { hrHoliday, hrSchedule } from "@lumo/database/schema";
+import { scheduleInputSchema, type WorkSchedule } from "@lumolynk/contracts/hr";
+import { hrHoliday, hrSchedule } from "@lumolynk/database/schema";
 import { and, eq } from "drizzle-orm";
 
 import type { HrContext } from "./core";

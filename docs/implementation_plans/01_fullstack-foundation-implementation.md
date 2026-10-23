@@ -89,7 +89,7 @@ Requirements:
 
 ### Security and Scalability
 
-Security is especially important because Lumo is a multi-tenant workspace platform.
+Security is especially important because LumoLynk is a multi-tenant workspace platform.
 
 Ensure:
 
@@ -122,4 +122,4 @@ Verify that:
 
 If some advanced features from the documentation are outside the initial implementation scope, clearly identify them as pending rather than pretending they work.
 
-Implement in logical phases, validate each phase before continuing, and finish with a concise summary of implemented functionality, remaining work, and the commands needed to run Lumo locally.
+Implement in logical phases, validate each phase before continuing, and finish with a concise summary of implemented functionality, remaining work, and the commands needed to run LumoLynk locally.

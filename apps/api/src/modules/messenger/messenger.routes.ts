@@ -1,6 +1,6 @@
-import { idSchema, paginationSchema } from "@lumo/contracts";
-import * as schemas from "@lumo/contracts/messenger";
-import type { Database } from "@lumo/database";
+import { idSchema, paginationSchema } from "@lumolynk/contracts";
+import * as schemas from "@lumolynk/contracts/messenger";
+import type { Database } from "@lumolynk/database";
 import { Hono } from "hono";
 import { z } from "zod";
 

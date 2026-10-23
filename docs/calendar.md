@@ -6,7 +6,7 @@ Calendar is a workspace schedule over the existing Meetings domain. Web and Elec
 
 Discovery found shared Connect navigation in `packages/app/src/features/workspaces/workspace-shell.tsx`, a combined immediate/scheduled form in `features/meetings/meetings-page.tsx`, meeting/participant records in `packages/database`, and Hono collaboration routes backed by `meeting.service.ts`. Workspace writes already serialize through `withAccess`, and workspace switches cancel/remove workspace queries. Calendar reuses those boundaries and the existing title, description, host, start instant, IANA timezone, duration, invitees and access fields.
 
-The established authorization policy allows all current members to create meetings, but only the host can administer them. Calendar follows that policy; admin status alone does not grant editing. Public links have always required a signed-in Lumo account. Anonymous participation remains unsupported. Open-link access never grants workspace membership or Calendar access.
+The established authorization policy allows all current members to create meetings, but only the host can administer them. Calendar follows that policy; admin status alone does not grant editing. Public links have always required a signed-in LumoLynk account. Anonymous participation remains unsupported. Open-link access never grants workspace membership or Calendar access.
 
 ## User flow
 
@@ -59,7 +59,7 @@ External calendar synchronization, recurrence, reminders, automatic email invita
 | `pnpm build` | API, shared routes, web and Electron production builds passed |
 | `pnpm desktop:package` | Linux unpacked application built successfully |
 | `pnpm test:e2e` | 13 passed, 1 expected mobile mouse-drag skip; real Calendar create/edit/cancel flows passed in desktop and mobile Chromium |
-| `LUMO_PACKAGED_DESKTOP=apps/desktop/release/linux-unpacked/lumo xvfb-run -a pnpm test:desktop` | 4 passed, 5 gated skips; Calendar lifecycle passed inside the packaged application |
+| `LUMOLYNK_PACKAGED_DESKTOP=apps/desktop/release/linux-unpacked/lumolynk xvfb-run -a pnpm test:desktop` | 4 passed, 5 gated skips; Calendar lifecycle passed inside the packaged application |
 | `pnpm db:migrate` | Migration applied to the configured local development database; isolated test schemas also applied all migrations successfully |
 
 The five Electron skips are two opt-in native-window tests and three opt-in live Agora/media tests. Live provider calls, physical media quality, native screen capture and Windows/macOS host behavior were not verified by this run. The Chromium mobile mouse-drag skip is unrelated to Calendar. Production builds retain upstream Agora bundle/eval warnings.

@@ -1,11 +1,11 @@
-import type { meSchema } from "@lumo/contracts";
+import type { meSchema } from "@lumolynk/contracts";
 import {
   avatarConfigSchema,
   avatarResultSchema,
   AVATAR_MAX_DIMENSION,
   AVATAR_MAX_PIXELS,
-} from "@lumo/contracts/avatar";
-import { Button, ErrorMessage, Field } from "@lumo/ui";
+} from "@lumolynk/contracts/avatar";
+import { Button, ErrorMessage, Field } from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState } from "react";
 import type { z } from "zod";

@@ -1,5 +1,5 @@
-import { fileOwnership } from "@lumo/contracts/files";
-import { officeDetailSchema } from "@lumo/contracts/office";
+import { fileOwnership } from "@lumolynk/contracts/files";
+import { officeDetailSchema } from "@lumolynk/contracts/office";
 import {
   Badge,
   Button,
@@ -12,7 +12,7 @@ import {
   ErrorMessage,
   Loading,
   EmptyState,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { BookOpen, ChevronRight, Plus, Settings2 } from "lucide-react";

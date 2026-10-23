@@ -1,4 +1,4 @@
-import { AVATAR_MAX_DIMENSION, AVATAR_MAX_PIXELS } from "@lumo/contracts/avatar";
+import { AVATAR_MAX_DIMENSION, AVATAR_MAX_PIXELS } from "@lumolynk/contracts/avatar";
 import sharp from "sharp";
 
 import { AppError } from "../../lib/errors";

@@ -1,4 +1,4 @@
-import { themes, tokens } from "@lumo/ui/tokens";
+import { themes, tokens } from "@lumolynk/ui/tokens";
 import { describe, expect, test } from "vitest";
 
 import { createVerificationEmail } from "./verification-email.ts";
@@ -13,7 +13,7 @@ describe("verification email template", () => {
   test("preserves the subject, plain text and local preview action link", () => {
     expect(createVerificationEmail(input)).toMatchObject({
       to: input.to,
-      subject: "Verify your Lumo email",
+      subject: "Verify your LumoLynk email",
       text: `Verify your email to accept workspace invitations:\n${input.url}`,
       url: input.url,
     });

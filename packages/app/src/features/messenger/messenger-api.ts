@@ -1,5 +1,5 @@
-import { conversationSchema, conversationsSchema } from "@lumo/contracts/collaboration";
-import { messengerSessionSchema, messengerEventSchema } from "@lumo/contracts/messenger";
+import { conversationSchema, conversationsSchema } from "@lumolynk/contracts/collaboration";
+import { messengerSessionSchema, messengerEventSchema } from "@lumolynk/contracts/messenger";
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "../../lib/api";

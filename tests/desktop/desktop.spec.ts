@@ -27,7 +27,7 @@ import { verifyDesktopScrolling } from "./scrollbars";
 const require = createRequire(import.meta.url);
 const password = "Strong-desktop-password-2026!";
 async function launch(dir: string, capture = false) {
-  const executable = process.env.LUMO_PACKAGED_DESKTOP;
+  const executable = process.env.LUMOLYNK_PACKAGED_DESKTOP;
   const clientEnv = { ...process.env };
   for (const key of [
     "AGORA_APP_CERTIFICATE",
@@ -42,7 +42,7 @@ async function launch(dir: string, capture = false) {
     delete clientEnv[key];
   const args = [
     `--user-data-dir=${dir}`,
-    ...(process.env.LUMO_LIVE_AGORA === "1" && !capture
+    ...(process.env.LUMOLYNK_LIVE_AGORA === "1" && !capture
       ? ["--use-fake-device-for-media-stream"]
       : []),
     ...(capture ? ["--disable-gpu", "--disable-dev-shm-usage"] : []),
@@ -57,7 +57,7 @@ async function launch(dir: string, capture = false) {
     env: {
       ...clientEnv,
       DESKTOP_API_URL: desktopApiOrigin(),
-      DESKTOP_WEB_ORIGIN: process.env.LUMO_E2E_WEB_ORIGIN ?? "http://localhost:3010",
+      DESKTOP_WEB_ORIGIN: process.env.LUMOLYNK_E2E_WEB_ORIGIN ?? "http://localhost:3010",
     },
     timeout: 30000,
   });
@@ -84,11 +84,11 @@ async function login(page: Page, email: string) {
   ).toBeVisible();
 }
 test("frameless chrome, menu removal, drag regions and web isolation", async ({ page: web }) => {
-  const dir = await mkdtemp(join(tmpdir(), "lumo-window-e2e-"));
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-window-e2e-"));
   const app = await launch(dir);
   try {
     const page = await app.firstWindow();
-    await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
     await verifyEmojiFonts(page);
     const platform = await app.evaluate(() => process.platform);
     const native = await app.evaluate(({ BrowserWindow, Menu }) => {
@@ -139,7 +139,7 @@ test("frameless chrome, menu removal, drag regions and web isolation", async ({ 
     await page.getByLabel("Email address").fill("window@example.com");
     await expect(page.getByLabel("Email address")).toHaveValue("window@example.com");
     await page.goto(new URL("/about", page.url()).href);
-    await expect(page.getByRole("heading", { name: "About Lumo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "About LumoLynk" })).toBeVisible();
     await expect(page.getByRole("banner", { name: "Application window" })).toBeVisible();
     await page.goto(new URL("/does-not-exist", page.url()).href);
     await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
@@ -150,7 +150,7 @@ test("frameless chrome, menu removal, drag regions and web isolation", async ({ 
       await closed;
     }
     await web.goto("/login");
-    await expect(web.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+    await expect(web.getByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
     await expect(web.getByRole("group", { name: "Window controls" })).toHaveCount(0);
     await expect(web.locator(".desktop-app")).toHaveCount(0);
   } finally {
@@ -161,11 +161,11 @@ test("frameless chrome, menu removal, drag regions and web isolation", async ({ 
 
 test("native window controls synchronize maximize, restore and fullscreen", async () => {
   test.skip(
-    process.platform === "linux" && process.env.LUMO_NATIVE_WINDOW_TESTS !== "1",
-    "Requires a Linux window manager; plain Xvfb cannot process native window states. Set LUMO_NATIVE_WINDOW_TESTS=1 on a managed display.",
+    process.platform === "linux" && process.env.LUMOLYNK_NATIVE_WINDOW_TESTS !== "1",
+    "Requires a Linux window manager; plain Xvfb cannot process native window states. Set LUMOLYNK_NATIVE_WINDOW_TESTS=1 on a managed display.",
   );
   test.skip(process.platform === "darwin", "macOS uses native traffic lights.");
-  const dir = await mkdtemp(join(tmpdir(), "lumo-native-window-e2e-"));
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-native-window-e2e-"));
   const app = await launch(dir);
   try {
     const page = await app.firstWindow();
@@ -203,11 +203,11 @@ test("native window controls synchronize maximize, restore and fullscreen", asyn
 
 test("native minimize control works when the window manager supports minimization", async () => {
   test.skip(
-    process.platform === "linux" && process.env.LUMO_NATIVE_WINDOW_TESTS !== "1",
-    "Requires a managed display with LUMO_NATIVE_WINDOW_TESTS=1.",
+    process.platform === "linux" && process.env.LUMOLYNK_NATIVE_WINDOW_TESTS !== "1",
+    "Requires a managed display with LUMOLYNK_NATIVE_WINDOW_TESTS=1.",
   );
   test.skip(process.platform === "darwin", "macOS uses native traffic lights.");
-  const dir = await mkdtemp(join(tmpdir(), "lumo-minimize-e2e-"));
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-minimize-e2e-"));
   const app = await launch(dir);
   try {
     const page = await app.firstWindow();
@@ -239,12 +239,12 @@ test("native minimize control works when the window manager supports minimizatio
 
 test("desktop login, real API, workspace parity, logout, restart and sandbox boundaries", async () => {
   const testInfo = test.info();
-  const dir = await mkdtemp(join(tmpdir(), "lumo-desktop-e2e-"));
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-desktop-e2e-"));
   let app: ElectronApplication | undefined;
   try {
     app = await launch(dir);
     let page = await app.firstWindow();
-    await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("desktop-login.png") });
     const globals = await page.evaluate(() => {
       const renderer = window as unknown as {
@@ -262,7 +262,7 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
     expect(globals.require).toBe("undefined");
     expect(globals.nodeVersion).toBe("undefined");
     expect(globals.getBuiltinModule).toBe("undefined");
-    if (process.env.LUMO_PACKAGED_DESKTOP || !process.env.ELECTRON_RENDERER_URL)
+    if (process.env.LUMOLYNK_PACKAGED_DESKTOP || !process.env.ELECTRON_RENDERER_URL)
       expect(globals.process).toBe("undefined");
     const preferences = await app.evaluate(({ BrowserWindow }) => {
       const settings = (
@@ -331,17 +331,17 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
         page.getByRole("heading", { name: "Make yourself at home, Desktop" }),
       ).toBeVisible();
     else {
-      await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
       await login(page, email);
     }
     await page.getByRole("button", { name: /Your profile/ }).click();
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
     const result = await page.evaluate(async () => {
       try {
         await (
-          window as unknown as { lumo: { request: (path: string) => Promise<unknown> } }
-        ).lumo.request("https://evil.test/api/v1/me");
+          window as unknown as { lumolynk: { request: (path: string) => Promise<unknown> } }
+        ).lumolynk.request("https://evil.test/api/v1/me");
         return "allowed";
       } catch {
         return "denied";
@@ -355,10 +355,10 @@ test("desktop login, real API, workspace parity, logout, restart and sandbox bou
 });
 async function liveMeeting(browser: Browser, screenCapture: boolean) {
   test.skip(
-    process.env.LUMO_LIVE_AGORA !== "1",
+    process.env.LUMOLYNK_LIVE_AGORA !== "1",
     "Requires explicit live Agora opt-in. Uses synthetic media, not physical devices.",
   );
-  const dir = await mkdtemp(join(tmpdir(), "lumo-rtc-e2e-"));
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-rtc-e2e-"));
   const app = await launch(dir, screenCapture);
   const context = await browser.newContext({ baseURL: "http://localhost:3010" });
   try {
@@ -382,7 +382,7 @@ async function liveMeeting(browser: Browser, screenCapture: boolean) {
     );
     expect(response.ok()).toBe(true);
     const meeting = (await response.json()) as { id: string };
-    await desktop.goto(`lumo://app/meetings/${meeting.id}`);
+    await desktop.goto(`lumolynk://app/meetings/${meeting.id}`);
     await desktop.getByRole("button", { name: "Join meeting", exact: true }).click();
     await expect(desktop.getByRole("button", { name: "Leave meeting", exact: true })).toBeVisible({
       timeout: 30000,
@@ -447,14 +447,14 @@ test("live RTC joins web and desktop, publishes synthetic camera, controls micro
 });
 test("live native screen capture publishes a second track and stops it", async ({ browser }) => {
   test.skip(
-    process.env.LUMO_LIVE_SCREEN_CAPTURE !== "1",
+    process.env.LUMOLYNK_LIVE_SCREEN_CAPTURE !== "1",
     "Requires explicit native capture opt-in and a supported graphical capture host.",
   );
   await liveMeeting(browser, true);
 });
 
 test("packaged-protocol file modules preserve navigation, creation scope and aliases", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "lumo-file-modules-e2e-"));
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-file-modules-e2e-"));
   const app = await launch(dir);
   try {
     const page = await app.firstWindow();
@@ -470,7 +470,7 @@ test("packaged-protocol Drive shares real folder workflows with web", async ({
   browserName,
 }, info) => {
   expect(browserName).toBe("chromium");
-  const dir = await mkdtemp(join(tmpdir(), "lumo-drive-e2e-"));
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-drive-e2e-"));
   const app = await launch(dir);
   try {
     const page = await app.firstWindow();
@@ -489,12 +489,12 @@ test("People and HR share real workflows through the sandboxed Electron transpor
   browser,
 }, info) => {
   test.setTimeout(180000);
-  const dir = await mkdtemp(join(tmpdir(), "lumo-hr-desktop-")),
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-hr-desktop-")),
     app = await launch(dir),
     context = await browser.newContext();
   try {
     const page = await app.firstWindow();
-    await expect(page.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
     await register(page, "Desktop HR Owner", `desktop-hr-${Date.now()}@example.com`);
     const colleague = await context.newPage();
     await verifyHr(page, colleague, (name) => info.outputPath(`desktop-hr-${name}.png`));
@@ -508,7 +508,7 @@ test("People and HR share real workflows through the sandboxed Electron transpor
 test("shared Messenger channels and persisted messages work in Electron", async ({
   browser,
 }, testInfo) => {
-  const dir = await mkdtemp(join(tmpdir(), "lumo-messenger-e2e-")),
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-messenger-e2e-")),
     app = await launch(dir),
     webContext = await browser.newContext({ baseURL: "http://localhost:3010" });
   try {
@@ -537,7 +537,7 @@ test("shared Messenger channels and persisted messages work in Electron", async 
           })
         ).ok(),
       ).toBe(true);
-      await page.goto(`lumo://app/w/${id}/messenger`);
+      await page.goto(`lumolynk://app/w/${id}/messenger`);
       await verifyMessenger(
         page,
         id,
@@ -575,10 +575,10 @@ test("shared Messenger channels and persisted messages work in Electron", async 
 
 test("private avatar persistence works through Electron IPC and reload", async () => {
   test.skip(
-    process.env.LUMO_LIVE_AVATAR_STORAGE !== "1",
+    process.env.LUMOLYNK_LIVE_AVATAR_STORAGE !== "1",
     "Requires configured private S3 storage.",
   );
-  const dir = await mkdtemp(join(tmpdir(), "lumo-avatar-e2e-"));
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-avatar-e2e-"));
   let app = await launch(dir);
   try {
     const page = await app.firstWindow();
@@ -595,7 +595,7 @@ test("private avatar persistence works through Electron IPC and reload", async (
             safeStorage.getSelectedStorageBackend() !== "basic_text"),
       );
       if (!protectedStore) {
-        await expect(reopened.getByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+        await expect(reopened.getByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
         await login(reopened, email);
       }
       await expect(reopened.getByRole("heading", { name: /Make yourself at home/ })).toBeVisible();
@@ -612,10 +612,10 @@ test("private Messenger media plays in the packaged protocol at minimum size", a
 }, info) => {
   expect(browserName).toBe("chromium");
   test.skip(
-    process.env.LUMO_LIVE_MESSENGER_STORAGE !== "1",
+    process.env.LUMOLYNK_LIVE_MESSENGER_STORAGE !== "1",
     "Requires existing private S3 storage.",
   );
-  const dir = await mkdtemp(join(tmpdir(), "lumo-media-e2e-")),
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-media-e2e-")),
     app = await launch(dir);
   try {
     const page = await app.firstWindow();
@@ -623,7 +623,7 @@ test("private Messenger media plays in the packaged protocol at minimum size", a
     const workspace = new URL(page.url()).pathname.split("/")[2]!;
     const window = await app.browserWindow(page);
     await window.evaluate((win) => win.setSize(960, 640));
-    await page.goto(`lumo://app/w/${workspace}/messenger`);
+    await page.goto(`lumolynk://app/w/${workspace}/messenger`);
     await app.evaluate(({ session }, saveDir) => {
       session.defaultSession.on("will-download", (_event, item) =>
         item.setSavePath(`${saveDir}/${item.getFilename()}`),
@@ -647,7 +647,7 @@ test("private Messenger media plays in the packaged protocol at minimum size", a
         (globalThis as typeof globalThis & { mediaUrl?: string }).mediaUrl = url;
       };
     });
-    await page.getByRole("button", { name: "Preview Lumo-photo.png", exact: true }).click();
+    await page.getByRole("button", { name: "Preview LumoLynk-photo.png", exact: true }).click();
     await page.getByRole("button", { name: "Open externally", exact: true }).click();
     await expect
       .poll(() =>

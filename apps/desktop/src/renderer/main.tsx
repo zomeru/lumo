@@ -1,18 +1,18 @@
-import type { Transport } from "@lumo/api-client";
-import { createAppRouter } from "@lumo/app";
-import { configurePlatform } from "@lumo/app/platform";
-import { initializeTheme } from "@lumo/ui/theme";
+import type { Transport } from "@lumolynk/api-client";
+import { createAppRouter } from "@lumolynk/app";
+import { configurePlatform } from "@lumolynk/app/platform";
+import { initializeTheme } from "@lumolynk/ui/theme";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 
-import "@lumo/ui/styles.css";
+import "@lumolynk/ui/styles.css";
 import { createRoot } from "react-dom/client";
 
 import type { WindowApi } from "../window-api";
 import { DesktopChrome } from "./window-chrome";
 declare global {
   interface Window {
-    lumo: {
+    lumolynk: {
       window: WindowApi;
       request: Transport;
       webOrigin: () => Promise<string>;
@@ -25,17 +25,17 @@ declare global {
 initializeTheme();
 configurePlatform({
   kind: "desktop",
-  webOrigin: await window.lumo.webOrigin(),
-  transport: window.lumo.request,
-  download: window.lumo.download,
-  openAttachment: window.lumo.openAttachment,
+  webOrigin: await window.lumolynk.webOrigin(),
+  transport: window.lumolynk.request,
+  download: window.lumolynk.download,
+  openAttachment: window.lumolynk.openAttachment,
 });
 const router = createAppRouter();
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing app root");
 createRoot(root).render(
   <StrictMode>
-    <DesktopChrome api={window.lumo.window}>
+    <DesktopChrome api={window.lumolynk.window}>
       <RouterProvider router={router} />
     </DesktopChrome>
   </StrictMode>,

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
-import type { Database } from "@lumo/database";
-import { requestLimit } from "@lumo/database/schema";
+import type { Database } from "@lumolynk/database";
+import { requestLimit } from "@lumolynk/database/schema";
 import { sql } from "drizzle-orm";
 
 import { AppError } from "../lib/errors.ts";

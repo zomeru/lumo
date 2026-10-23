@@ -2,8 +2,8 @@ import {
   presencePreferenceSchema,
   presenceResultSchema,
   type PresenceStatus,
-} from "@lumo/contracts/presence";
-import { Button, ErrorMessage, cn } from "@lumo/ui";
+} from "@lumolynk/contracts/presence";
+import { Button, ErrorMessage, cn } from "@lumolynk/ui";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createContext,

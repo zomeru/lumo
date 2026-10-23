@@ -1,10 +1,10 @@
-import { idSchema } from "@lumo/contracts";
+import { idSchema } from "@lumolynk/contracts";
 import {
   calendarDateSchema,
   holidayInputSchema,
   leavePolicyInputSchema,
   scheduleInputSchema,
-} from "@lumo/contracts/hr";
+} from "@lumolynk/contracts/hr";
 import {
   hrEmployee,
   hrHoliday,
@@ -13,7 +13,7 @@ import {
   hrRequest,
   hrSchedule,
   membership,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";

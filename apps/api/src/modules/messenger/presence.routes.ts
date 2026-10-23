@@ -1,5 +1,5 @@
-import { idSchema } from "@lumo/contracts";
-import { presenceQuerySchema, presencePreferenceSchema } from "@lumo/contracts/presence";
+import { idSchema } from "@lumolynk/contracts";
+import { presenceQuerySchema, presencePreferenceSchema } from "@lumolynk/contracts/presence";
 import { Hono } from "hono";
 
 import type { ApiContext } from "../../lib/context";

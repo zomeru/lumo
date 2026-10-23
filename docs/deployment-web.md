@@ -7,7 +7,7 @@ does not build, migrate, or deploy the API, database, or Electron app.
 
 ## Configuration
 
-- `apps/web/wrangler.jsonc` defines the Worker `lumo-web`, the custom domain
+- `apps/web/wrangler.jsonc` defines the Worker `lumolynk`, the custom domain
   `lumolynk.com`, and the SPA fallback to `index.html`. There is no Worker API
   entrypoint or server binding. `workers.dev` and version preview URLs are disabled.
 - `apps/web/vite.config.ts` adds the Cloudflare Vite plugin after the framework
@@ -30,7 +30,7 @@ does not build, migrate, or deploy the API, database, or Electron app.
 
 The plugin/Wrangler configuration and build-before-deploy/dry-run commands follow
 the conventions in [zomlab](https://github.com/zomeru/zomlab/tree/main/apps/web),
-adapted to Lumo's client-rendered frontend.
+adapted to LumoLynk's client-rendered frontend.
 
 ## Prerequisites
 
@@ -74,7 +74,7 @@ WEB_ORIGIN=https://lumolynk.com
 
 The API host must serve HTTPS at `api.lumolynk.com` and allow the exact web origin
 with credentials. Keep its existing server secrets and database configuration on
-that host. Both HTTPS hostnames are same-site, so Lumo's `SameSite=Lax`, Secure,
+that host. Both HTTPS hostnames are same-site, so LumoLynk's `SameSite=Lax`, Secure,
 HTTP-only session cookies work with credentialed requests. The API cookie can
 remain host-only; it does not need a shared `.lumolynk.com` domain. The API's
 WebSocket ingress must also support upgrade requests for realtime features.
@@ -85,8 +85,8 @@ provision it. Authentication and data features require that API to be available.
 ## Build and preview locally
 
 ```sh
-pnpm --filter @lumo/web build
-pnpm --filter @lumo/web preview --host 127.0.0.1 --port 4173
+pnpm --filter @lumolynk/web build
+pnpm --filter @lumolynk/web preview --host 127.0.0.1 --port 4173
 ```
 
 Preview runs the built assets locally through Cloudflare's tooling. Check the
@@ -96,12 +96,12 @@ fallbacks. Stop preview with Ctrl+C.
 A production bundle points to the production API. Authentication from the local
 preview origin will be rejected by the production API's exact-origin policy;
 verify authenticated flows on the deployed domain. Normal local development
-continues to use `pnpm --filter @lumo/web dev` and the localhost API proxy.
+continues to use `pnpm --filter @lumolynk/web dev` and the localhost API proxy.
 
 Validate deployment without uploading or changing a Cloudflare deployment:
 
 ```sh
-pnpm --filter @lumo/web cf:deploy:check
+pnpm --filter @lumolynk/web cf:deploy:check
 ```
 
 This command type-checks, builds, and runs `wrangler deploy --dry-run`. It does
@@ -112,18 +112,18 @@ not validate account permissions, DNS ownership, or API reachability.
 Authenticate with the account containing `lumolynk.com`:
 
 ```sh
-pnpm --filter @lumo/web exec wrangler login
-pnpm --filter @lumo/web exec wrangler whoami
+pnpm --filter @lumolynk/web exec wrangler login
+pnpm --filter @lumolynk/web exec wrangler whoami
 pnpm web:deploy
 ```
 
 `web:deploy` invokes the web package's `deploy` script, which type-checks and
-builds before running Wrangler. It publishes Worker `lumo-web` and attaches
+builds before running Wrangler. It publishes Worker `lumolynk` and attaches
 `lumolynk.com` using the committed custom domain configuration. Check the reported
 domain and certificate status in Workers & Pages before testing the live site.
 
-The shortcut uses `pnpm --filter @lumo/web run deploy`. Keep the explicit `run`:
-`pnpm --filter @lumo/web deploy` can invoke pnpm's built-in deployment command
+The shortcut uses `pnpm --filter @lumolynk/web run deploy`. Keep the explicit `run`:
+`pnpm --filter @lumolynk/web deploy` can invoke pnpm's built-in deployment command
 instead and fail with `ERR_PNPM_INVALID_DEPLOY_TARGET`. To validate the complete
 root shortcut without publishing, run:
 
@@ -136,7 +136,7 @@ VITE_API_URL=https://api.lumolynk.com pnpm web:deploy --dry-run
 Connect this repository to **Workers Builds**, select the production branch,
 and keep the build root at the **repository root**, so pnpm can resolve the
 workspace packages and lockfile. The Cloudflare project name must match
-`lumo-web` in `apps/web/wrangler.jsonc`.
+`lumolynk` in `apps/web/wrangler.jsonc`.
 
 | Setting | Value |
 | --- | --- |
@@ -144,8 +144,8 @@ workspace packages and lockfile. The Cloudflare project name must match
 | Node version | `24.21.0` or newer supported Node 24 release |
 | pnpm version | `11.25.0` (from `packageManager`) |
 | Install command | `pnpm install --frozen-lockfile` |
-| Build command | `pnpm --filter @lumo/web build` |
-| Deploy command | `pnpm --filter @lumo/web exec wrangler deploy` |
+| Build command | `pnpm --filter @lumolynk/web build` |
+| Deploy command | `pnpm --filter @lumolynk/web exec wrangler deploy` |
 | Build environment variable | `VITE_API_URL=https://api.lumolynk.com` |
 
 Workers Builds may perform installation automatically; configure its package
@@ -174,7 +174,7 @@ After deployment:
    and receive JSON rather than the SPA document.
 3. Sign in, refresh to restore the session, and sign out. Check that credentialed
    CORS requests and realtime WebSocket connections succeed.
-4. Open an unknown application path. Lumo should show its branded not-found page;
+4. Open an unknown application path. LumoLynk should show its branded not-found page;
    SPA document fallback can return HTTP 200 while the UI displays a 404 view.
 
 For failed sign-in, check the built `VITE_API_URL`, API HTTPS certificate,
@@ -183,7 +183,7 @@ was deployed. For missing generated configuration, rebuild from the workspace
 root before invoking Wrangler from the web package.
 
 To roll back, use the Cloudflare dashboard's deployment history or run
-`pnpm --filter @lumo/web exec wrangler rollback` and review its confirmation.
+`pnpm --filter @lumolynk/web exec wrangler rollback` and review its confirmation.
 Coordinate client/API compatibility when rolling back. Asset-only traffic does
 not execute application Worker code, so browser network tools and API host logs
 are the primary debugging sources for application errors.

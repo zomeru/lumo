@@ -20,7 +20,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo run build --filter=@lumo/desktop
+      - run: pnpm exec turbo run build --filter=@lumolynk/desktop
       - run: pnpm desktop:package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"

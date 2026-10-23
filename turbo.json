@@ -19,21 +19,21 @@
       "persistent": true,
       "env": ["VITE_*"]
     },
-    "@lumo/app#check-types": {
+    "@lumolynk/app#check-types": {
       "dependsOn": ["^check-types"],
       "outputs": ["node_modules/.tmp/*.tsbuildinfo", "src/routeTree.gen.ts"]
     },
-    "@lumo/app#build": {
+    "@lumolynk/app#build": {
       "outputs": ["src/routeTree.gen.ts"]
     },
-    "@lumo/web#build": {
+    "@lumolynk/web#build": {
       "outputs": ["dist/**", ".wrangler/deploy/**"]
     },
     "package": {
       "dependsOn": ["build"],
       "cache": false
     },
-    "@lumo/api#dev": {
+    "@lumolynk/api#dev": {
       "env": [
         "DATABASE_URL",
         "BETTER_AUTH_SECRET",
@@ -77,7 +77,7 @@
       "cache": false,
       "persistent": true
     },
-    "@lumo/desktop#dev": {
+    "@lumolynk/desktop#dev": {
       "env": [
         "MAIN_VITE_*",
         "DESKTOP_API_URL",

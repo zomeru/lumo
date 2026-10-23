@@ -1,5 +1,5 @@
 {
-  "name": "@lumo/web",
+  "name": "@lumolynk/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,18 +10,18 @@
     "deploy": "pnpm build && wrangler deploy --env production",
     "cf:typegen": "wrangler types --env production",
     "cf:deploy:check": "pnpm build && wrangler deploy --dry-run",
-    "check-types": "pnpm --filter @lumo/app routes:generate && tsc -b"
+    "check-types": "pnpm --filter @lumolynk/app routes:generate && tsc -b"
   },
   "dependencies": {
-    "@lumo/app": "workspace:*",
-    "@lumo/ui": "workspace:*",
+    "@lumolynk/app": "workspace:*",
+    "@lumolynk/ui": "workspace:*",
     "@tanstack/react-router": "1.170.44",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.64.0",
-    "@lumo/typescript-config": "workspace:*",
+    "@lumolynk/typescript-config": "workspace:*",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "@types/node": "24.19.2",

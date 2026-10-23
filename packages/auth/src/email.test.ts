@@ -2,7 +2,7 @@ import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { readServerEnv } from "@lumo/env/server";
+import { readServerEnv } from "@lumolynk/env/server";
 import type { Logger } from "pino";
 import { Resend } from "resend";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -24,12 +24,12 @@ const base = {
   WEB_ORIGIN: "https://example.com",
   RESEND_API_KEY: "re_synthetic_secret",
   EMAIL_FROM: "hello@lumolynk.com",
-  EMAIL_FROM_NAME: "Lumo",
+  EMAIL_FROM_NAME: "LumoLynk",
   LOG_LEVEL: "silent",
 };
 const message: EmailMessage = {
   to: "alice@example.com",
-  subject: "Verify your Lumo email",
+  subject: "Verify your LumoLynk email",
   text: "Verify your email: https://example.com/verify?token=sensitive-token",
   html: '<a href="https://example.com/verify?token=sensitive-token">Verify</a>',
   url: "https://example.com/verify?token=sensitive-token",
@@ -43,7 +43,7 @@ afterEach(async () => {
   await Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 async function outbox() {
-  const dir = await mkdtemp(join(tmpdir(), "lumo-email-test-"));
+  const dir = await mkdtemp(join(tmpdir(), "lumolynk-email-test-"));
   dirs.push(dir);
   return dir;
 }
@@ -88,7 +88,7 @@ describe("file delivery and environment selection", () => {
       expect(files).toHaveLength(2);
       for (const file of files) {
         expect(JSON.parse(await readFile(join(dir, file), "utf8"))).toEqual({
-          from: "Lumo <hello@lumolynk.com>",
+          from: "LumoLynk <hello@lumolynk.com>",
           ...message,
         });
       }
@@ -155,7 +155,7 @@ describe("Resend delivery", () => {
     await provider.send(message);
     expect(fetch).toHaveBeenCalledOnce();
     expect(JSON.parse(fetch.mock.calls[0]![1]?.body as string).from).toBe(
-      "Lumo <noreply@notify.lumolynk.com>",
+      "LumoLynk <noreply@notify.lumolynk.com>",
     );
   });
 
@@ -169,7 +169,7 @@ describe("Resend delivery", () => {
       `Bearer ${base.RESEND_API_KEY}`,
     );
     expect(JSON.parse(options?.body as string)).toEqual({
-      from: "Lumo <hello@lumolynk.com>",
+      from: "LumoLynk <hello@lumolynk.com>",
       to: message.to,
       subject: message.subject,
       text: message.text,

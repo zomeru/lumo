@@ -1,4 +1,4 @@
-import type { Person } from "@lumo/contracts/hr";
+import type { Person } from "@lumolynk/contracts/hr";
 import { expect, test } from "vitest";
 
 import { buildOrgTree, layoutOrgTree } from "./org-tree";

@@ -57,7 +57,7 @@ test("downloads use authenticated desktop bridge or a browser download link", as
   const download = vi.fn<(path: string, body: unknown) => Promise<void>>(async () => {});
   configurePlatform({
     kind: "desktop",
-    webOrigin: "https://lumo.test",
+    webOrigin: "https://lumolynk.test",
     transport: async () => ({ status: 200, body: {} }),
     download,
   });

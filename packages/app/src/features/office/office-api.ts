@@ -1,5 +1,9 @@
-import { driveUrlSchema } from "@lumo/contracts/drive";
-import { officeDetailSchema, officeVersionsSchema, wikiTreeSchema } from "@lumo/contracts/office";
+import { driveUrlSchema } from "@lumolynk/contracts/drive";
+import {
+  officeDetailSchema,
+  officeVersionsSchema,
+  wikiTreeSchema,
+} from "@lumolynk/contracts/office";
 import { queryOptions } from "@tanstack/react-query";
 
 import { api } from "../../lib/api";

@@ -4,7 +4,7 @@ import { expect, type Page } from "@playwright/test";
 export async function verifyEmojiFonts(page: Page) {
   await page.evaluate(() => {
     const probe = document.createElement("div");
-    probe.id = "lumo-font-verification";
+    probe.id = "lumolynk-font-verification";
     probe.style.cssText =
       "position:fixed;top:80px;left:20px;background:var(--surface);padding:12px;z-index:99999;font-size:24px";
     for (const [id, text] of [
@@ -12,7 +12,7 @@ export async function verifyEmojiFonts(page: Page) {
       ["emoji", "😀👍🎉☕❤️🇵🇭👩🏽‍💻1️⃣"],
     ]) {
       const span = document.createElement("span");
-      span.id = `lumo-font-${id}`;
+      span.id = `lumolynk-font-${id}`;
       span.textContent = text!;
       probe.append(span);
     }
@@ -26,7 +26,7 @@ export async function verifyEmojiFonts(page: Page) {
     for (const kind of ["digits", "emoji"]) {
       const { nodeId } = await cdp.send("DOM.querySelector", {
         nodeId: root.nodeId,
-        selector: `#lumo-font-${kind}`,
+        selector: `#lumolynk-font-${kind}`,
       });
       const { fonts } = await cdp.send("CSS.getPlatformFontsForNode", { nodeId });
       expect(fonts.length).toBeGreaterThan(0);
@@ -36,6 +36,6 @@ export async function verifyEmojiFonts(page: Page) {
     }
   } finally {
     await cdp.detach();
-    await page.evaluate(() => document.getElementById("lumo-font-verification")?.remove());
+    await page.evaluate(() => document.getElementById("lumolynk-font-verification")?.remove());
   }
 }

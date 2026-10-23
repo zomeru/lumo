@@ -20,9 +20,9 @@ All 16 PNGs were opened and inspected before implementation:
 - `apps/api/src/modules/workspaces/workspace.service.ts` owns membership, invitations, and the shared workspace transaction lock. HR reuses it, including checks after lock acquisition.
 - Hono handles authenticated `/api/v1` routes, JSON/origin validation, no-store responses, sanitized errors and rate limits. HR lives under `/workspaces/:workspaceId/hr` in `apps/api/src/modules/hr`.
 - Drizzle lives in `packages/database`; existing monolithic schema is split with unchanged definitions and exports before feature migrations.
-- Shared Zod inputs/DTOs and capability names live at `@lumo/contracts/hr`. No browser imports server code.
+- Shared Zod inputs/DTOs and capability names live at `@lumolynk/contracts/hr`. No browser imports server code.
 - `packages/app/src/features/hr` owns all six screens and TanStack Query composition. File routes use the existing authenticated workspace layout. Web and Electron consume these same screens and the platform transport.
-- `@lumo/ui` supplies dialogs, fields, selects, tables, cards, progress, avatars, errors, buttons, and theme tokens. Keep the current logo and light/dark blue theme, responsive shell and desktop header.
+- `@lumolynk/ui` supplies dialogs, fields, selects, tables, cards, progress, avatars, errors, buttons, and theme tokens. Keep the current logo and light/dark blue theme, responsive shell and desktop header.
 - Drive storage exposes verified presigned uploads and short-lived downloads. Restricted HR files use isolated keys and independent relationship authorization; they must never enter general Drive listings or inherit workspace-wide sharing.
 - Existing audit events have no before/after payload; a protected HR audit stream adds safe structured change history. There is no general application-notification service (only Wiki invalidation); HR uses durable recipient-scoped inbox records.
 - Integration tests use real PostgreSQL, isolated random schemas on `TEST_DATABASE_URL` ending `_test`; Playwright covers browser and Electron.
@@ -128,7 +128,7 @@ has own/direct-report attendance and balances, never salary access through that 
 | `hr.payroll.runs.manage` | Calculate/manage runs and controlled corrections |
 | `hr.payroll.runs.approve` | Independent verification and run approval; requires run read access for UI review |
 | `hr.payroll.settings.manage` | Effective business policies and statutory rates/tables |
-| `hr.payroll.mark_paid` | Confirm payment recorded outside Lumo |
+| `hr.payroll.mark_paid` | Confirm payment recorded outside LumoLynk |
 | `hr.permissions.manage` | Grant/revoke capabilities for other members; cannot self-grant |
 
 Only team attendance/leave grants support `direct_reports`. Other grants require workspace scope.
@@ -229,7 +229,7 @@ pnpm dev
 pnpm test --project api apps/api/src/hr.integration.test.ts apps/api/src/hr-migrations.integration.test.ts
 pnpm test --project web packages/app/src/hr-ui.test.tsx
 pnpm test:e2e tests/e2e/web/hr.spec.ts
-pnpm --filter @lumo/desktop build
+pnpm --filter @lumolynk/desktop build
 xvfb-run -a pnpm test:desktop --grep 'People and HR'
 ```
 

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 
-import { idSchema } from "@lumo/contracts";
-import { hrFileInputSchema } from "@lumo/contracts/hr";
-import { hrFile, storageCleanup } from "@lumo/database/schema";
+import { idSchema } from "@lumolynk/contracts";
+import { hrFileInputSchema } from "@lumolynk/contracts/hr";
+import { hrFile, storageCleanup } from "@lumolynk/database/schema";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 

@@ -1,6 +1,6 @@
-import { hrNotificationsSchema } from "@lumo/contracts/hr";
-import { formatDateTime } from "@lumo/shared/date-time";
-import { Badge, Button, EmptyState, ErrorMessage } from "@lumo/ui";
+import { hrNotificationsSchema } from "@lumolynk/contracts/hr";
+import { formatDateTime } from "@lumolynk/shared/date-time";
+import { Badge, Button, EmptyState, ErrorMessage } from "@lumolynk/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Bell } from "lucide-react";

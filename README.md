@@ -1,4 +1,6 @@
-# Lumo
+# LumoLynk
+
+For existing deployments, see the [LumoLynk rollout settings](docs/rebranding.md) before publishing the renamed applications.
 
 A workspace collaboration platform built with React, Vite, TanStack Router and Query, Hono, Better Auth, PostgreSQL, and Drizzle. Web and Electron share the account/workspace UI, People directory, invitations, Messenger, meetings, Drive, Office, Wiki and People & HR.
 
@@ -47,9 +49,9 @@ pnpm install
 Create a dedicated local role and databases using your PostgreSQL administrator account. These commands do not change existing databases:
 
 ```sh
-sudo -u postgres createuser --pwprompt lumo
-sudo -u postgres createdb --owner=lumo lumo
-sudo -u postgres createdb --owner=lumo lumo_test
+sudo -u postgres createuser --pwprompt lumolynk
+sudo -u postgres createdb --owner=lumolynk lumolynk
+sudo -u postgres createdb --owner=lumolynk lumolynk_test
 cp apps/api/.env.example apps/api/.env
 ```
 
@@ -60,10 +62,10 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Open [Lumo](http://localhost:3000). The API listens on [port 3001](http://localhost:3001/health). Vite forwards `/api` to `127.0.0.1:3001`, so no browser environment file is required. If a Vite server is already running, start only the API:
+Open [LumoLynk](http://localhost:3000). The API listens on [port 3001](http://localhost:3001/health). Vite forwards `/api` to `127.0.0.1:3001`, so no browser environment file is required. If a Vite server is already running, start only the API:
 
 ```sh
-pnpm --filter @lumo/api dev
+pnpm --filter @lumolynk/api dev
 ```
 
 Register at `/register`. Registration opens the personal workspace immediately; subsequent sign-ins restore the last authorized workspace. Use **New workspace** for team setup or **Browse & create workspaces** for discovery. Account settings and sign-out are available through **Your profile & account**.
@@ -85,7 +87,7 @@ Owners, admins, and moderators can create invitation links in **Members**, subje
 ```sh
 pnpm db:generate
 pnpm db:migrate
-pnpm --filter @lumo/database db:studio
+pnpm --filter @lumolynk/database db:studio
 ```
 
 Review generated SQL before applying it. The custom `0001_personal_workspace.sql` trigger provisions the personal workspace, owner membership, preferences, and initial audit event in the same transaction as the user insert. Do not replace migrations with schema push. The role/visibility enums, membership uniqueness, foreign keys, private-personal-workspace constraint, and one-owner index enforce database invariants.
@@ -127,8 +129,8 @@ pnpm deps:check
 pnpm deps:unused
 pnpm boundaries
 pnpm build
-pnpm --filter @lumo/api start
-pnpm --filter @lumo/web preview
+pnpm --filter @lumolynk/api start
+pnpm --filter @lumolynk/web preview
 ```
 
 Root Vitest discovers package projects. React tests use Testing Library and jsdom; API tests exercise real PostgreSQL. Playwright runs desktop and mobile Chromium flows. CI provides PostgreSQL and runs the complete gate and browser tests on Linux, with tooling, types, unit/UI tests, and builds on Windows.
@@ -139,7 +141,7 @@ The web and desktop renderers share dependency handling in `packages/app/vite.co
 
 For the browser frontend, follow the [Cloudflare Workers deployment guide](docs/deployment-web.md). It covers local preview, Wrangler deployment, custom domains, and web-only CI builds. Run `pnpm web:deploy` from the repository root after configuring the public API origin.
 
-Set `NODE_ENV=production`, a strong `BETTER_AUTH_SECRET`, PostgreSQL `DATABASE_URL`, exact HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `RESEND_API_KEY`, and `EMAIL_FROM` at `lumolynk.com` or a subdomain such as `notify.lumolynk.com`, verified for sending in Resend. `EMAIL_FROM_NAME` defaults to `Lumo`; set `HOST` as appropriate for the runtime. Production email uses the official Resend SDK exclusively and fails explicitly on invalid configuration or delivery failure. Development and test environments always save private JSON previews under `MAIL_DIR`, even if a Resend key is configured. See [email configuration and DNS setup](docs/email.md) for provider behavior, retries, and deployment steps. The server validates its environment before listening and closes HTTP and PostgreSQL connections during shutdown.
+Set `NODE_ENV=production`, a strong `BETTER_AUTH_SECRET`, PostgreSQL `DATABASE_URL`, exact HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `RESEND_API_KEY`, and `EMAIL_FROM` at `lumolynk.com` or a subdomain such as `notify.lumolynk.com`, verified for sending in Resend. `EMAIL_FROM_NAME` defaults to `LumoLynk`; set `HOST` as appropriate for the runtime. Production email uses the official Resend SDK exclusively and fails explicitly on invalid configuration or delivery failure. Development and test environments always save private JSON previews under `MAIL_DIR`, even if a Resend key is configured. See [email configuration and DNS setup](docs/email.md) for provider behavior, retries, and deployment steps. The server validates its environment before listening and closes HTTP and PostgreSQL connections during shutdown.
 
 Serve the web build with an SPA fallback to `index.html`. Use a same-origin `/api` reverse proxy, or build with an explicit HTTPS `VITE_API_URL` and configure the API's exact `WEB_ORIGIN`. Turbo hashes browser configuration and forwards required server environment variables to development tasks. The environment example explicitly binds loopback; set `HOST=0.0.0.0` for WSL host access or containers.
 
@@ -155,21 +157,21 @@ The repository includes pinned Intent tooling for local skills. Before substanti
 
 ## Desktop and collaboration
 
-`apps/desktop` builds Electron main, a sandbox-compatible preload, and a renderer with electron-vite. `packages/app` owns the shared TanStack router, views and query composition; `packages/ui` owns the shared Radix components, Tailwind v4 theme/styles and a DOM-free token export (see [Lumo UI](packages/ui/README.md)); `packages/api-client` provides an injectable, schema-validating transport; `packages/shared` contains platform-neutral identities, link validation and message reconciliation. Expo should reuse contracts/client/domain code and implement native presentation/media adapters; no empty mobile app has been created.
+`apps/desktop` builds Electron main, a sandbox-compatible preload, and a renderer with electron-vite. `packages/app` owns the shared TanStack router, views and query composition; `packages/ui` owns the shared Radix components, Tailwind v4 theme/styles and a DOM-free token export (see [LumoLynk UI](packages/ui/README.md)); `packages/api-client` provides an injectable, schema-validating transport; `packages/shared` contains platform-neutral identities, link validation and message reconciliation. Expo should reuse contracts/client/domain code and implement native presentation/media adapters; no empty mobile app has been created.
 
 Desktop windows use frameless custom controls on Windows/Linux and a hidden title bar with native traffic lights on macOS. The application menu is removed. The minimum window size is 960 × 640. Desktop-only composition mounts controls in the shared `AppHeader`; routes without a header get a compact 32px drag strip. Window actions and state subscriptions pass through the sandboxed preload, with main-frame/origin validation in the main process. Header links, menus and controls are excluded from drag regions using Electron’s [custom window interaction guidance](https://www.electronjs.org/docs/latest/tutorial/custom-window-interactions).
 
 Start PostgreSQL in WSL (`sudo service postgresql start` where supported), configure `apps/api/.env`, and run `pnpm db:migrate`. Start API, web and desktop together with `pnpm dev`, or independently:
 
 ```sh
-pnpm --filter @lumo/api dev
-pnpm --filter @lumo/web dev
-pnpm --filter @lumo/desktop dev
+pnpm --filter @lumolynk/api dev
+pnpm --filter @lumolynk/web dev
+pnpm --filter @lumolynk/desktop dev
 pnpm build
 pnpm desktop:package
 ```
 
-Desktop packaging produces an unpacked app under `apps/desktop/release/`. `pnpm --filter @lumo/desktop dist` builds the configured native installer (Linux AppImage, Windows NSIS, macOS DMG). Run Windows/macOS builds on their respective native runners. Releases still require signing/notarization credentials and a configured update service. No unsigned artifact is described as a signed release.
+Desktop packaging produces an unpacked app under `apps/desktop/release/`. `pnpm --filter @lumolynk/desktop dist` builds the configured native installer (Linux AppImage, Windows NSIS, macOS DMG). Run Windows/macOS builds on their respective native runners. Releases still require signing/notarization credentials and a configured update service. No unsigned artifact is described as a signed release.
 
 Copy `apps/desktop/.env.example` to its `.env` to set public main-process build origins. Runtime main-process overrides are `DESKTOP_API_URL` and `DESKTOP_WEB_ORIGIN`. Use exact HTTPS origins in deployment; loopback HTTP is allowed for development. No API/Agora server secrets belong in desktop environment files or `VITE_*` variables. The desktop starts at Login, restores a session when an OS-protected key store is available, and restores the last authorized workspace through `/me`. Unavailable key stores use memory only. Paste invitation/meeting links from the configured web origin into the workspace picker to open them in desktop.
 
@@ -196,16 +198,16 @@ pnpm test --project desktop --project shared --project api-client
 pnpm test:desktop
 # Headless Linux/WSL: xvfb-run -a pnpm test:desktop
 # Managed Linux display: also exercise native maximize/restore/fullscreen and minimize.
-LUMO_NATIVE_WINDOW_TESTS=1 pnpm test:desktop
+LUMOLYNK_NATIVE_WINDOW_TESTS=1 pnpm test:desktop
 # Explicit RTC signing smoke (prints no credentials):
-LUMO_LIVE_AGORA=1 pnpm --filter @lumo/api exec tsx --env-file=.env src/test/live-provider.ts
+LUMOLYNK_LIVE_AGORA=1 pnpm --filter @lumolynk/api exec tsx --env-file=.env src/test/live-provider.ts
 # Explicit browser/Electron live Meetings integration:
-LUMO_LIVE_AGORA=1 xvfb-run -a pnpm test:desktop
+LUMOLYNK_LIVE_AGORA=1 xvfb-run -a pnpm test:desktop
 # Native screen capture: a supported graphical host must expose capture sources.
-LUMO_LIVE_AGORA=1 LUMO_LIVE_SCREEN_CAPTURE=1 xvfb-run -a --server-args="-screen 0 1280x1024x24 +extension RANDR +extension RENDER" pnpm test:desktop
+LUMOLYNK_LIVE_AGORA=1 LUMOLYNK_LIVE_SCREEN_CAPTURE=1 xvfb-run -a --server-args="-screen 0 1280x1024x24 +extension RANDR +extension RENDER" pnpm test:desktop
 ```
 
-Native window state tests need a window manager; bare Xvfb skips them. The minimize test probes Electron directly and skips when the compositor ignores minimization (including the local WSLg host). Use `LUMO_PACKAGED_DESKTOP=apps/desktop/release/linux-unpacked/lumo` to run the same suite against the unpacked Linux build. Native drag/double-click behavior, Windows snapping and macOS traffic lights still need verification on their target desktops; custom maximize buttons do not provide Windows’ native Snap Layout hover menu.
+Native window state tests need a window manager; bare Xvfb skips them. The minimize test probes Electron directly and skips when the compositor ignores minimization (including the local WSLg host). Use `LUMOLYNK_PACKAGED_DESKTOP=apps/desktop/release/linux-unpacked/lumolynk` to run the same suite against the unpacked Linux build. Native drag/double-click behavior, Windows snapping and macOS traffic lights still need verification on their target desktops; custom maximize buttons do not provide Windows’ native Snap Layout hover menu.
 
 Provider-dependent tests are gated and reported as skipped without explicit opt-in. Live tests distinguish synthetic camera/audio from native virtual-display capture. Capture tests report a skip when the graphical host exposes no sources. These checks do not prove physical device quality or Windows/macOS permissions. See [implementation evidence and limitations](docs/desktop-implementation-notes.md).
 
@@ -217,9 +219,9 @@ Apply migration `0004_shiny_speed.sql` with `pnpm db:migrate` and configure API-
 
 ## Office and Wiki
 
-Office editor appearance follows Lumo's Light/Dark/System mode without reopening active documents. Exact brand-color theme files and the Docs Cloud provisioning limitation are described in [Office theming](docs/onlyoffice-theming.md).
+Office editor appearance follows LumoLynk's Light/Dark/System mode without reopening active documents. Exact brand-color theme files and the Docs Cloud provisioning limitation are described in [Office theming](docs/onlyoffice-theming.md).
 
-Configure the server-only ONLYOFFICE settings in `apps/api/.env.example`, apply `pnpm db:migrate`, and include `office/*` in the existing bucket role's object permissions. No second bucket or storage credentials are used. Hosted Docs Cloud requires publicly reachable HTTPS callbacks and source URLs; keep development tunnel addresses out of commits. Run `pnpm --filter @lumo/api onlyoffice:check` for a safe reachability diagnostic.
+Configure the server-only ONLYOFFICE settings in `apps/api/.env.example`, apply `pnpm db:migrate`, and include `office/*` in the existing bucket role's object permissions. No second bucket or storage credentials are used. Hosted Docs Cloud requires publicly reachable HTTPS callbacks and source URLs; keep development tunnel addresses out of commits. Run `pnpm --filter @lumolynk/api onlyoffice:check` for a safe reachability diagnostic.
 
 Docs, Sheets and Slides reuse Drive uploads, sharing, copy, trash and restore. All Files unifies the authorized inventory; My Files includes owned and shared items with ownership filters. Dedicated modules constrain creation and uploads to their own formats. Wiki provides Edit, Preview and Split modes with a formatting toolbar. See [file management and Markdown editor results](docs/file-management-improvements.md). Wiki shares parent-page access through its Drive container. Close all editors before moving, deleting or restoring active content; history restoration creates a new revision. See [implementation, verification and operations](docs/onlyoffice-implementation-notes.md) for the tested Cloud version, trial limits, Wiki fallback evidence, migration/recovery procedures and self-hosted cutover.
 
@@ -254,12 +256,12 @@ in the documents. The privacy draft references the Philippine National Privacy C
 [data subject rights](https://privacy.gov.ph/data-subject-rights/).
 
 Published document text is versioned in `packages/app/src/features/public/legal-documents/` and the
-current identifiers live in `@lumo/contracts/legal`. For a revision, retain the prior file, add a new
+current identifiers live in `@lumolynk/contracts/legal`. For a revision, retain the prior file, add a new
 versioned file, update the active content and identifiers together, and deploy API and clients together.
 Stale registration payloads fail with a review message. Never relabel old user records as accepting a
 new version; a future renewed-consent workflow must preserve the initial registration acceptance.
 
-Unknown client routes render Lumo’s branded 404 without redirecting the unknown URL. Authenticated
+Unknown client routes render LumoLynk’s branded 404 without redirecting the unknown URL. Authenticated
 users receive a Dashboard recovery link; anonymous users receive Home. The root unexpected-error view
 uses the same presentation and retries route loading. Workspace permission-denied states already use
 the shared UI primitives, and session-expiry handling continues to hide protected content. This is a

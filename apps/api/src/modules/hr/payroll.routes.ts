@@ -1,4 +1,4 @@
-import { idSchema } from "@lumo/contracts";
+import { idSchema } from "@lumolynk/contracts";
 import {
   calendarDateSchema,
   compensationInputSchema,
@@ -7,8 +7,8 @@ import {
   payrollRunInputSchema,
   payrollSettingsInputSchema,
   payrollVerifySchema,
-} from "@lumo/contracts/hr";
-import { statutoryConfigurationInputSchema } from "@lumo/contracts/payroll";
+} from "@lumolynk/contracts/hr";
+import { statutoryConfigurationInputSchema } from "@lumolynk/contracts/payroll";
 import {
   hrStatutoryConfiguration,
   hrCompensation,
@@ -17,7 +17,7 @@ import {
   hrPayrollRun,
   hrPayrollSetting,
   hrRequest,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -755,7 +755,7 @@ export function payrollRoutes(core: HrCore) {
           throw new AppError(
             409,
             "PAYMENT_CONFIRMATION_REQUIRED",
-            "Confirm recording payment for finalized payroll. Lumo does not transfer funds.",
+            "Confirm recording payment for finalized payroll. LumoLynk does not transfer funds.",
           );
         await ctx.tx.update(hrPayrollRun).set({ status: "paid", paidAt: new Date() }).where(where);
       } else {

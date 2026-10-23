@@ -1,6 +1,6 @@
-import { activeWorkspaceInputSchema, profileInputSchema } from "@lumo/contracts";
-import type { Database } from "@lumo/database";
-import { profile, user } from "@lumo/database/schema";
+import { activeWorkspaceInputSchema, profileInputSchema } from "@lumolynk/contracts";
+import type { Database } from "@lumolynk/database";
+import { profile, user } from "@lumolynk/database/schema";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 

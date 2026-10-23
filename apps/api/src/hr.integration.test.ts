@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 
-import { createAuth } from "@lumo/auth";
-import { legalVersions } from "@lumo/contracts/legal";
-import { statutoryConfigurationsSchema } from "@lumo/contracts/payroll";
+import { createAuth } from "@lumolynk/auth";
+import { legalVersions } from "@lumolynk/contracts/legal";
+import { statutoryConfigurationsSchema } from "@lumolynk/contracts/payroll";
 import {
   membership,
   profile as userProfile,
@@ -14,8 +14,8 @@ import {
   hrShift,
   hrPayrollRun,
   hrPayrollAdjustment,
-} from "@lumo/database/schema";
-import { readServerEnv } from "@lumo/env/server";
+} from "@lumolynk/database/schema";
+import { readServerEnv } from "@lumolynk/env/server";
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, afterAll, expect, test } from "vitest";
 

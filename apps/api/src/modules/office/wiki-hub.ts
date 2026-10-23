@@ -1,9 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
 
-import type { Database } from "@lumo/database";
-import { officeDocument, officeVersion, wikiConnection, wikiUpdate } from "@lumo/database/schema";
-import type { ServerEnv } from "@lumo/env/server";
+import type { Database } from "@lumolynk/database";
+import {
+  officeDocument,
+  officeVersion,
+  wikiConnection,
+  wikiUpdate,
+} from "@lumolynk/database/schema";
+import type { ServerEnv } from "@lumolynk/env/server";
 import { and, eq, sql } from "drizzle-orm";
 import { sign, verify } from "hono/jwt";
 import * as decoding from "lib0/decoding";
@@ -133,7 +138,7 @@ export function createWikiHub(
           broadcast(room, message(1, update));
           if (origin !== "remote" && update.length < 4000)
             void announce(
-              "lumo_wiki_awareness",
+              "lumolynk_wiki_awareness",
               JSON.stringify({ id: room.id, data: Buffer.from(update).toString("base64") }),
             ).catch(() => {});
         },
@@ -255,7 +260,7 @@ export function createWikiHub(
               await tx.execute(
                 sql`delete from wiki_updates where document_id = ${room.id} and id not in (select id from wiki_updates where document_id = ${room.id} order by created_at desc,id desc limit 1000)`,
               );
-              await tx.execute(sql`select pg_notify('lumo_wiki',${room.id})`);
+              await tx.execute(sql`select pg_notify('lumolynk_wiki',${room.id})`);
               committed = state;
               room.actor = client.ticket.actor;
             }
@@ -464,7 +469,7 @@ export function createWikiHub(
         if (
           ![
             env.WEB_ORIGIN,
-            "lumo://app",
+            "lumolynk://app",
             ...(env.NODE_ENV !== "production" ? ["http://127.0.0.1:5174"] : []),
           ].includes(origin ?? "")
         ) {

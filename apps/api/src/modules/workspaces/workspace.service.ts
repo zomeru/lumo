@@ -1,13 +1,13 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import type { Role, WorkspaceInput } from "@lumo/contracts";
+import type { Role, WorkspaceInput } from "@lumolynk/contracts";
 import {
   canChangeRole,
   canInviteRole,
   canManageSettings,
   canRemoveMember,
-} from "@lumo/contracts/permissions";
-import type { Database, Transaction } from "@lumo/database";
+} from "@lumolynk/contracts/permissions";
+import type { Database, Transaction } from "@lumolynk/database";
 import {
   auditEvent,
   invitation,
@@ -15,7 +15,7 @@ import {
   profile,
   user,
   workspace,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { and, asc, desc, eq, gt, ilike, isNull, sql } from "drizzle-orm";
 
 import type { SessionUser } from "../../lib/context.ts";

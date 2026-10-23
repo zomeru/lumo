@@ -1,4 +1,4 @@
-import { workspaceSchema, type Member } from "@lumo/contracts";
+import { workspaceSchema, type Member } from "@lumolynk/contracts";
 import { vi } from "vitest";
 
 export const personalId = "11111111-1111-4111-8111-111111111111";

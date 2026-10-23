@@ -4,7 +4,7 @@ import { get } from "node:https";
 import { BlockList } from "node:net";
 import { Transform, type Readable } from "node:stream";
 
-import type { ServerEnv } from "@lumo/env/server";
+import type { ServerEnv } from "@lumolynk/env/server";
 import { sign, verify } from "hono/jwt";
 import { z } from "zod";
 

@@ -14,15 +14,15 @@ export function LegalPage({ document }: { document: LegalDocument }) {
 export function AboutPage() {
   return (
     <PublicPage
-      title="About Lumo"
+      title="About LumoLynk"
       summary="A shared space for the people and work that move your team forward."
     >
       <section>
         <h2>One place to work together</h2>
         <p>
-          Lumo brings workspace conversations, meetings, files and shared documents together. Move
-          between teams with one account, keep work in context, and give people a clear place to
-          collaborate.
+          LumoLynk brings workspace conversations, meetings, files and shared documents together.
+          Move between teams with one account, keep work in context, and give people a clear place
+          to collaborate.
         </p>
       </section>
       <section>
@@ -38,7 +38,7 @@ export function AboutPage() {
         <h2>Access with purpose</h2>
         <p>
           Your workspace and permissions determine the information and features you can access.
-          Owners and administrators manage their organization’s membership and policies. Lumo
+          Owners and administrators manage their organization’s membership and policies. LumoLynk
           supports collaboration across web and desktop with a consistent experience.
         </p>
       </section>
@@ -74,7 +74,7 @@ export function ContactPage() {
           invited you or your workspace owner through your organization’s usual channels.
         </p>
         <p className="break-all font-medium">
-          support@lumo.example{" "}
+          support@lumolynk.example{" "}
           <span className="font-normal text-muted-foreground">(example address)</span>
         </p>
       </section>
@@ -86,7 +86,7 @@ export function ContactPage() {
           be confirmed before launch.
         </p>
         <p className="break-all font-medium">
-          privacy@lumo.example{" "}
+          privacy@lumolynk.example{" "}
           <span className="font-normal text-muted-foreground">(example address)</span>
         </p>
       </section>
@@ -98,7 +98,7 @@ export function ContactPage() {
           Never send passwords, session cookies, invitation tokens or private workspace content.
         </p>
         <p className="break-all font-medium">
-          security@lumo.example{" "}
+          security@lumolynk.example{" "}
           <span className="font-normal text-muted-foreground">(example address)</span>
         </p>
       </section>
@@ -118,7 +118,7 @@ export function CookiePage() {
       <section>
         <h2>Essential authentication cookies</h2>
         <p>
-          Lumo uses authentication cookies to keep your session attached to requests. Session
+          LumoLynk uses authentication cookies to keep your session attached to requests. Session
           cookies are HTTP-only, use SameSite=Lax and require Secure in production. The session
           lifetime is seven days and may be renewed with activity. Signing out revokes the current
           session.
@@ -138,7 +138,7 @@ export function CookiePage() {
         <p>
           Enabled messaging, meeting and office integrations may use their own browser technologies.
           The operator must document the providers actually enabled in each deployment and review
-          their notices. Lumo’s registration acknowledgement does not authorize advertising or
+          their notices. LumoLynk’s registration acknowledgement does not authorize advertising or
           optional analytics. Any such addition requires its own assessment and any necessary choice
           before activation.
         </p>
@@ -179,10 +179,10 @@ export function SecurityPage() {
       <section>
         <h2>Account and session protection</h2>
         <p>
-          Lumo hashes passwords and requires 12–128 characters. Protected authentication cookies,
-          server-side session checks, email verification and request rate limits support account
-          security. Keep your credentials private, sign out on shared devices and report unexpected
-          account activity.
+          LumoLynk hashes passwords and requires 12–128 characters. Protected authentication
+          cookies, server-side session checks, email verification and request rate limits support
+          account security. Keep your credentials private, sign out on shared devices and report
+          unexpected account activity.
         </p>
       </section>
       <section>

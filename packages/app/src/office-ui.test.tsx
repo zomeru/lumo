@@ -1,5 +1,5 @@
-import { driveItemSchema } from "@lumo/contracts/drive";
-import { officeFormats } from "@lumo/contracts/office";
+import { driveItemSchema } from "@lumolynk/contracts/drive";
+import { officeFormats } from "@lumolynk/contracts/office";
 import { QueryClient } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory } from "@tanstack/react-router";
 import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";

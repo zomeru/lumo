@@ -1,5 +1,5 @@
-import { messengerMessageSchema, type MessengerMessage } from "@lumo/contracts/messenger";
-import { TooltipProvider } from "@lumo/ui";
+import { messengerMessageSchema, type MessengerMessage } from "@lumolynk/contracts/messenger";
+import { TooltipProvider } from "@lumolynk/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

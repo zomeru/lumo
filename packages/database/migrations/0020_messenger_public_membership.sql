@@ -17,7 +17,7 @@ BEGIN
   WHERE c.workspace_id = NEW.workspace_id AND c.kind = 'channel'
     AND c.visibility = 'public' AND c.retired_at IS NULL
   ON CONFLICT (conversation_id, user_id) DO NOTHING;
-  PERFORM pg_notify('lumo_messenger', NEW.workspace_id::text);
+  PERFORM pg_notify('lumolynk_messenger', NEW.workspace_id::text);
   RETURN NEW;
 END;
 $$;

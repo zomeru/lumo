@@ -16,7 +16,7 @@ export async function verifyMessenger(
   inspectThread?: () => Promise<void>,
 ) {
   const touch = await page.evaluate(() => navigator.maxTouchPoints > 0);
-  const origin = page.url().startsWith("lumo:") ? "lumo://app" : "http://localhost:3010",
+  const origin = page.url().startsWith("lumolynk:") ? "lumolynk://app" : "http://localhost:3010",
     root = `${origin}/w/${workspaceId}/messenger`;
   await page.goto(root);
   await verifyEmojiFonts(page);

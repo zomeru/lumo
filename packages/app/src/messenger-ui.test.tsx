@@ -1,5 +1,5 @@
-import { conversationSchema, type Conversation } from "@lumo/contracts/collaboration";
-import { messengerMessageSchema, type MessengerMessage } from "@lumo/contracts/messenger";
+import { conversationSchema, type Conversation } from "@lumolynk/contracts/collaboration";
+import { messengerMessageSchema, type MessengerMessage } from "@lumolynk/contracts/messenger";
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, within, waitFor } from "@testing-library/react";

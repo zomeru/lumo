@@ -1,5 +1,10 @@
-import { approvalHistorySchema, approvalsSchema, canHr, type Approval } from "@lumo/contracts/hr";
-import { formatDate, formatDateTime } from "@lumo/shared/date-time";
+import {
+  approvalHistorySchema,
+  approvalsSchema,
+  canHr,
+  type Approval,
+} from "@lumolynk/contracts/hr";
+import { formatDate, formatDateTime } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -12,7 +17,7 @@ import {
   FilterBar,
   ViewTabs,
   SelectField,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 

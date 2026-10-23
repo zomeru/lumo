@@ -1,6 +1,6 @@
-import { credentialsSchema, registrationSchema } from "@lumo/contracts";
-import { legalVersions } from "@lumo/contracts/legal";
-import { Button, Card, ErrorMessage, Field, ThemeMenu } from "@lumo/ui";
+import { credentialsSchema, registrationSchema } from "@lumolynk/contracts";
+import { legalVersions } from "@lumolynk/contracts/legal";
+import { Button, Card, ErrorMessage, Field, ThemeMenu } from "@lumolynk/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Check, MessageSquare } from "lucide-react";
@@ -106,7 +106,7 @@ export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?
                 LT
               </span>
               <div>
-                <span className="text-xs font-semibold">Lumo team</span>
+                <span className="text-xs font-semibold">LumoLynk team</span>
                 <p className="mt-1 text-xs">
                   A shared space. A new idea. Your next chapter starts here.
                 </p>
@@ -128,9 +128,11 @@ export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?
           >
             <div>
               <span className="mb-3 block text-xs font-medium text-primary">
-                Welcome {register ? "to Lumo" : "back"}
+                Welcome {register ? "to LumoLynk" : "back"}
               </span>
-              <h2 className="text-2xl">{register ? "Create your account" : "Sign in to Lumo"}</h2>
+              <h2 className="text-2xl">
+                {register ? "Create your account" : "Sign in to LumoLynk"}
+              </h2>
               <p>
                 {register
                   ? "Start with your own private workspace."
@@ -248,7 +250,7 @@ export function AuthPage({ mode, invite }: { mode: "login" | "register"; invite?
                 </Button>
               </form>
               <p className="mt-6 text-center text-xs text-muted-foreground [&_a]:font-medium [&_a]:text-primary">
-                {register ? "Already have an account?" : "New to Lumo?"}{" "}
+                {register ? "Already have an account?" : "New to LumoLynk?"}{" "}
                 <Link to={register ? "/login" : "/register"} search={{ invite }}>
                   {register ? "Sign in" : "Create an account"}
                 </Link>

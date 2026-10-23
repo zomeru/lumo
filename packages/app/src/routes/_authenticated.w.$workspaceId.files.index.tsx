@@ -1,4 +1,4 @@
-import { driveListInputSchema } from "@lumo/contracts/drive";
+import { driveListInputSchema } from "@lumolynk/contracts/drive";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 export const Route = createFileRoute("/_authenticated/w/$workspaceId/files/")({
   validateSearch: driveListInputSchema,

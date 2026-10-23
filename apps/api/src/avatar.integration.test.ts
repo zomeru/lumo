@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 
-import { createAuth } from "@lumo/auth";
-import { avatarIdentity } from "@lumo/contracts/avatar";
-import { legalVersions } from "@lumo/contracts/legal";
-import { membership } from "@lumo/database/schema";
-import { readServerEnv } from "@lumo/env/server";
+import { createAuth } from "@lumolynk/auth";
+import { avatarIdentity } from "@lumolynk/contracts/avatar";
+import { legalVersions } from "@lumolynk/contracts/legal";
+import { membership } from "@lumolynk/database/schema";
+import { readServerEnv } from "@lumolynk/env/server";
 import { and, eq } from "drizzle-orm";
 import sharp from "sharp";
 import { afterAll, expect, test, vi } from "vitest";

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { legalVersions } from "@lumo/contracts/legal";
+import { legalVersions } from "@lumolynk/contracts/legal";
 import { expect, test, type BrowserContext } from "@playwright/test";
 
 import { verifyMedia } from "../../media-flow";
@@ -8,8 +8,8 @@ import { verifyMessenger } from "../../messenger-flow";
 import { verifyAvatarPersistence } from "../../profile-flow";
 import { reserveRegistration } from "../../rate-limits";
 
-const apiOrigin = process.env.LUMO_E2E_API_ORIGIN ?? "http://localhost:3011";
-const webOrigin = process.env.LUMO_E2E_WEB_ORIGIN ?? "http://localhost:3010";
+const apiOrigin = process.env.LUMOLYNK_E2E_API_ORIGIN ?? "http://localhost:3011";
+const webOrigin = process.env.LUMOLYNK_E2E_WEB_ORIGIN ?? "http://localhost:3010";
 async function signup(context: BrowserContext, name: string) {
   await reserveRegistration();
   const email = `${randomUUID()}@example.com`;
@@ -71,7 +71,7 @@ test("live private S3 attachments send and download through Messenger", async ({
   context,
 }, testInfo) => {
   test.skip(
-    process.env.LUMO_LIVE_MESSENGER_STORAGE !== "1",
+    process.env.LUMOLYNK_LIVE_MESSENGER_STORAGE !== "1",
     "Requires the existing private S3 configuration.",
   );
   await signup(context, "Attachment Owner");
@@ -85,7 +85,7 @@ test("live private S3 attachments send and download through Messenger", async ({
   await page.getByLabel("Choose attachment", { exact: true }).setInputFiles({
     name: "messenger-validation.txt",
     mimeType: "text/plain",
-    buffer: Buffer.from("Lumo Messenger attachment validation"),
+    buffer: Buffer.from("LumoLynk Messenger attachment validation"),
   });
   await expect(
     page.getByRole("button", { name: "Remove messenger-validation.txt", exact: true }),
@@ -108,7 +108,7 @@ test("profile photos save, replace, reload and remove in private storage", async
   context,
 }) => {
   test.skip(
-    process.env.LUMO_LIVE_AVATAR_STORAGE !== "1",
+    process.env.LUMOLYNK_LIVE_AVATAR_STORAGE !== "1",
     "Requires configured private S3 storage.",
   );
   const email = await signup(context, "Avatar Persistence");
@@ -141,7 +141,7 @@ test("live private media thumbnails, gallery and playback work in both themes", 
   context,
 }, info) => {
   test.skip(
-    process.env.LUMO_LIVE_MESSENGER_STORAGE !== "1",
+    process.env.LUMOLYNK_LIVE_MESSENGER_STORAGE !== "1",
     "Requires existing private S3 storage.",
   );
   await signup(context, "Media Owner");

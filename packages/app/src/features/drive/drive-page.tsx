@@ -1,13 +1,13 @@
-import type { DriveItem, DriveListInput, DriveUpload, DriveView } from "@lumo/contracts/drive";
+import type { DriveItem, DriveListInput, DriveUpload, DriveView } from "@lumolynk/contracts/drive";
 import {
   acceptsOfficeUpload,
   officeUploadFormat,
   fileModules,
   fileOwnership,
   type FileModule,
-} from "@lumo/contracts/files";
-import { officeFileKind } from "@lumo/contracts/office";
-import { formatDateTime } from "@lumo/shared/date-time";
+} from "@lumolynk/contracts/files";
+import { officeFileKind } from "@lumolynk/contracts/office";
+import { formatDateTime } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -38,7 +38,7 @@ import {
   TableCell,
   cn,
   useToast,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {

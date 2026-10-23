@@ -1,5 +1,5 @@
-import { workspaceSchema } from "@lumo/contracts";
-import { parseLumoLink } from "@lumo/shared";
+import { workspaceSchema } from "@lumolynk/contracts";
+import { parseLumoLynkLink } from "@lumolynk/shared";
 import {
   Badge,
   Brand,
@@ -10,7 +10,7 @@ import {
   Loading,
   PageHeading,
   ThemeMenu,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
@@ -70,7 +70,7 @@ export function WorkspacesPage() {
               event.preventDefault();
               try {
                 const value = new FormData(event.currentTarget).get("link") as string;
-                const target = parseLumoLink(
+                const target = parseLumoLynkLink(
                   value,
                   getPlatform()?.webOrigin ?? window.location.origin,
                 );
@@ -86,7 +86,7 @@ export function WorkspacesPage() {
             }}
           >
             <Field
-              label="Lumo invitation or meeting link"
+              label="LumoLynk invitation or meeting link"
               type="url"
               name="link"
               required

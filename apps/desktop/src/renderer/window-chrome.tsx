@@ -1,5 +1,5 @@
-import { AppChromeProvider } from "@lumo/app/chrome";
-import { Button } from "@lumo/ui";
+import { AppChromeProvider } from "@lumolynk/app/chrome";
+import { Button } from "@lumolynk/ui";
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 

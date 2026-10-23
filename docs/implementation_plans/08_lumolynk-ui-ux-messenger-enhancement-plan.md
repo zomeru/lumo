@@ -1,4 +1,4 @@
-# Lumo: Platform-Wide UI/UX Enhancement and Messenger Redesign
+# LumoLynk: Platform-Wide UI/UX Enhancement and Messenger Redesign
 
 **Type:** AI coding agent implementation plan  
 **Platforms:** Web and Electron desktop (shared application UI)  
@@ -7,9 +7,9 @@
 
 ## 1. Goals and constraints
 
-Improve Lumo's entire UI so it feels modern, readable, consistent, and easy to use. Maintain a comfortable **neutral blue** primary brand color, but introduce restrained semantic accents so the interface is not merely blue, white, and gray. Improve **both light and dark themes**. Fix known workspace Settings layout and profile-photo upload problems. Most importantly, transform Messenger into a polished **Slack-like workspace messenger** that minimizes unnecessary manual actions.
+Improve LumoLynk's entire UI so it feels modern, readable, consistent, and easy to use. Maintain a comfortable **neutral blue** primary brand color, but introduce restrained semantic accents so the interface is not merely blue, white, and gray. Improve **both light and dark themes**. Fix known workspace Settings layout and profile-photo upload problems. Most importantly, transform Messenger into a polished **Slack-like workspace messenger** that minimizes unnecessary manual actions.
 
-Treat this as targeted modernization and feature completion, **not a rewrite**. Preserve Lumo's current logo, routing, authentication, channel permissions, persisted messages, APIs, attachments, and shared web/desktop architecture. Use `docs/ui_samples/messenger-slack-like-ui` as a visual reference, without cloning Slack or overriding Lumo's identity.
+Treat this as targeted modernization and feature completion, **not a rewrite**. Preserve LumoLynk's current logo, routing, authentication, channel permissions, persisted messages, APIs, attachments, and shared web/desktop architecture. Use `docs/ui_samples/messenger-slack-like-ui` as a visual reference, without cloning Slack or overriding LumoLynk's identity.
 
 ### Success criteria
 
@@ -42,7 +42,7 @@ A preliminary repository inspection identified the following locations. Verify t
 | Workspace Settings | `packages/app/src/features/workspaces/settings-page.tsx` |
 | Messenger design reference | `docs/ui_samples/messenger-slack-like-ui` |
 | Current notes | `docs/messenger-implementation-notes.md` |
-| Prior Messenger plan | `docs/implementation_plans/07-lumo-messenger-implementation-plan.md` |
+| Prior Messenger plan | `docs/implementation_plans/07-lumolynk-messenger-implementation-plan.md` |
 
 **Do not recreate working Messenger features.** The current system already contains persisted channels, DMs/group DMs, reactions, threads, pins, uploads, search, mentions, realtime events and authorization. It currently has a six-emoji menu, a visible “Message actions” disclosure, and a separate checkbox-based “Mention” workflow. The README identifies **presence as pending**. The avatar editor uses its own **Save photo** action separate from **Save profile**, and the bug requires an actual end-to-end investigation rather than a cosmetic-only fix.
 
@@ -84,7 +84,7 @@ Update `packages/ui/src/tokens.ts` first. Regenerate `theme.css` using the exist
 
 ### Typography, dimensions and surface treatment
 
-Standardize body, metadata, captions, headings, line heights, list-row density, field/control heights, button padding, icon sizes, card gutters, page widths, section spacing, dialog dimensions, borders, elevation and a small set of radius values. Aim for enterprise-grade compactness while keeping essential tap targets usable. Unify the shared `@lumo/ui` primitives first, then remove inconsistent per-screen styling.
+Standardize body, metadata, captions, headings, line heights, list-row density, field/control heights, button padding, icon sizes, card gutters, page widths, section spacing, dialog dimensions, borders, elevation and a small set of radius values. Aim for enterprise-grade compactness while keeping essential tap targets usable. Unify the shared `@lumolynk/ui` primitives first, then remove inconsistent per-screen styling.
 
 ### Decision on field outlines
 
@@ -186,7 +186,7 @@ Position the toolbar safely near viewport/panel edges without covering message t
 Replace the fixed six-emoji selection in both message composer and reaction action. **Recommended first candidate:** [`emoji-picker-react`](https://github.com/ealush/emoji-picker-react), with search, categories, skin tones, recent emojis, light/dark theming, keyboard support, customization and reaction mode. At implementation time confirm current version, maintenance, bundle impact, accessibility, React compatibility and license. Compare against `@emoji-mart/react` if needed; choose based on verifiable maintenance and performance.
 
 - Lazy-load the picker to protect initial Messenger performance.
-- Match its colors and dimensions to Lumo; support mobile/narrow layouts.
+- Match its colors and dimensions to LumoLynk; support mobile/narrow layouts.
 - Insert emoji at the current caret/selection, not automatically at the end.
 - Preserve surrounding text, message length constraints, draft state and focus.
 - Handle reaction toggle/counts, outside click, Escape, keyboard navigation and emoji variants correctly.
@@ -242,7 +242,7 @@ Use small status dots on applicable user avatars:
 
 Also provide human-readable labels/tooltips, not color alone. Show status in Messenger sidebar, timeline/threads, DM picker and hover profile, reusing a shared avatar/status component.
 
-Implement presence using **Lumo's existing authenticated realtime foundation**, not a second chat service:
+Implement presence using **LumoLynk's existing authenticated realtime foundation**, not a second chat service:
 
 - Online means an active authenticated connection or unexpired heartbeat/lease, not merely a saved account.
 - Support multiple tabs and simultaneous web/desktop sessions; one disconnect cannot mark a user offline if another session is still live.
@@ -389,4 +389,4 @@ After each coherent feature, run appropriate lint, formatting, typecheck and tes
 
 ## 16. Instructions for the AI coding agent
 
-Implement this plan in the Lumo repository. Start by inspecting `AGENTS.md`, loading the repository-local Intent skills, reviewing the existing Messenger implementation notes and reference screenshots, and reproducing the actual UI in a browser. Do not rebuild features that already work. Use `packages/ui` as the design system's source of truth and preserve shared web/Electron rendering. Prioritize the Messenger experience and broken avatar behavior over minor decorative changes. Perform the improvements phase by phase, use Playwright MCP or agent-browser to inspect live screens and interactions, add targeted tests, and run relevant checks after each milestone. **Commit regularly**, with detailed Conventional Commit messages. Finish with the implemented changes, commit SHAs, tests passed/failed/not run, screenshots or visual evidence where possible, and remaining limitations. Do not stop after writing another plan: implement and validate the requested changes.
+Implement this plan in the LumoLynk repository. Start by inspecting `AGENTS.md`, loading the repository-local Intent skills, reviewing the existing Messenger implementation notes and reference screenshots, and reproducing the actual UI in a browser. Do not rebuild features that already work. Use `packages/ui` as the design system's source of truth and preserve shared web/Electron rendering. Prioritize the Messenger experience and broken avatar behavior over minor decorative changes. Perform the improvements phase by phase, use Playwright MCP or agent-browser to inspect live screens and interactions, add targeted tests, and run relevant checks after each milestone. **Commit regularly**, with detailed Conventional Commit messages. Finish with the implemented changes, commit SHAs, tests passed/failed/not run, screenshots or visual evidence where possible, and remaining limitations. Do not stop after writing another plan: implement and validate the requested changes.

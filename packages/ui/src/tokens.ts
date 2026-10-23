@@ -1,4 +1,4 @@
-// Platform-independent values. Generate the CSS adapter with `pnpm --filter @lumo/ui theme:generate`.
+// Platform-independent values. Generate the CSS adapter with `pnpm --filter @lumolynk/ui theme:generate`.
 export const themes = {
   light: {
     background: "#f7f9fc",

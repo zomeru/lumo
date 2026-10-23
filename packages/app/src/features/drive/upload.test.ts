@@ -1,7 +1,7 @@
 import { webcrypto } from "node:crypto";
 
-import type { Transport } from "@lumo/api-client";
-import { driveItemSchema, type DriveUpload } from "@lumo/contracts/drive";
+import type { Transport } from "@lumolynk/api-client";
+import { driveItemSchema, type DriveUpload } from "@lumolynk/contracts/drive";
 import { beforeEach, afterEach, expect, test, vi } from "vitest";
 
 import { configurePlatform } from "../../platform";
@@ -110,7 +110,7 @@ beforeEach(() => {
       };
     return { status: 200, body: item };
   });
-  configurePlatform({ kind: "web", webOrigin: "https://lumo.test", transport });
+  configurePlatform({ kind: "web", webOrigin: "https://lumolynk.test", transport });
 });
 afterEach(() => {
   vi.unstubAllGlobals();

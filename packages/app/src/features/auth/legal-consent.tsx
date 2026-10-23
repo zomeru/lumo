@@ -1,4 +1,4 @@
-import { legalVersions } from "@lumo/contracts/legal";
+import { legalVersions } from "@lumolynk/contracts/legal";
 import {
   Button,
   Checkbox,
@@ -8,7 +8,7 @@ import {
   DialogDescription,
   DialogTitle,
   DialogTrigger,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useCallback, useState } from "react";
 
 import { LegalContent, legalDocuments, type LegalDocument } from "../public/legal-content";

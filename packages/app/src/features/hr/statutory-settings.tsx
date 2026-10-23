@@ -2,8 +2,8 @@ import {
   statutoryConfigurationInputSchema,
   statutoryConfigurationsSchema,
   type StatutoryConfigurationInput,
-} from "@lumo/contracts/payroll";
-import { formatDate, formatDateTime } from "@lumo/shared/date-time";
+} from "@lumolynk/contracts/payroll";
+import { formatDate, formatDateTime } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -20,7 +20,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 

@@ -1,5 +1,5 @@
-import { type MessengerMessage } from "@lumo/contracts/messenger";
-import { Button, ErrorMessage, Loading } from "@lumo/ui";
+import { type MessengerMessage } from "@lumolynk/contracts/messenger";
+import { Button, ErrorMessage, Loading } from "@lumolynk/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Download, ExternalLink } from "lucide-react";
 import { useRef, useState } from "react";

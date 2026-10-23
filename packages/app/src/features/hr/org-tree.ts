@@ -1,4 +1,4 @@
-import type { Person } from "@lumo/contracts/hr";
+import type { Person } from "@lumolynk/contracts/hr";
 
 /** Build a forest in linear time, detaching missing managers and one edge per cycle. */
 export function buildOrgTree(people: Person[]) {

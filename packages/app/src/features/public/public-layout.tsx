@@ -1,4 +1,4 @@
-import { Button, ThemeMenu } from "@lumo/ui";
+import { Button, ThemeMenu } from "@lumolynk/ui";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -43,7 +43,7 @@ export function PublicFooter() {
             One workspace for your people, conversations and shared work.
           </p>
           <p className="mt-3 text-xs text-muted-foreground">
-            © {currentYear} Lumo. All rights reserved.
+            © {currentYear} LumoLynk. All rights reserved.
           </p>
         </div>
         <nav aria-label="Footer navigation" className="grid grid-cols-3 gap-x-4 gap-y-5 text-xs">

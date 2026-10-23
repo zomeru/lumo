@@ -11,7 +11,7 @@ import {
 } from "./menu";
 
 type Theme = "light" | "dark" | "system";
-const storageKey = "lumo.theme.v1";
+const storageKey = "lumolynk.theme.v1";
 const ThemeContext = createContext<{ theme: Theme; setTheme: (theme: Theme) => void } | null>(null);
 function readTheme(): Theme {
   try {

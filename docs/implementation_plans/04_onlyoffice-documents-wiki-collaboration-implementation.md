@@ -1,12 +1,12 @@
-# 04 — Lumo ONLYOFFICE Collaborative Docs, Sheets, Slides & Wiki + Drive Stabilization
+# 04 — LumoLynk ONLYOFFICE Collaborative Docs, Sheets, Slides & Wiki + Drive Stabilization
 
 > **Status:** Implementation specification for Codex (not a completed implementation)
-> **Project:** Lumo workspace collaboration platform
-> **Repository:** `zomeru/lumo`
+> **Project:** LumoLynk workspace collaboration platform
+> **Repository:** `zomeru/lumolynk`
 > **Recommended repository location:** `docs/implementation_plans/04_onlyoffice-documents-wiki-collaboration-implementation.md`
 > **Last updated:** October 20, 2026
 > **Prerequisite:** The existing AWS S3 Drive implementation is already present; do NOT reimplement Drive.
-> **Primary deliverable:** Working, persistent, access-controlled, collaborative **Docs (.docx), Sheets (.xlsx), Slides (.pptx), and Wiki pages (.md)** in BOTH web and Electron desktop, integrated with the existing Lumo shell and backend.
+> **Primary deliverable:** Working, persistent, access-controlled, collaborative **Docs (.docx), Sheets (.xlsx), Slides (.pptx), and Wiki pages (.md)** in BOTH web and Electron desktop, integrated with the existing LumoLynk shell and backend.
 > **Editor:** ONLYOFFICE Docs API, initially using the user's ONLYOFFICE Docs Cloud 30-day trial; keep a supported path to a self-hosted instance.
 > **Delivery order:** (1) implement Docs/Sheets/Slides/Wiki end to end on the **existing** Drive/S3 storage and permission foundation; (2) after Office is working, reproduce, diagnose, and fix existing Drive issues and Office↔Drive integration defects; (3) run full regression testing.
 > **Out of scope:** Rebuilding Drive from scratch, an unrelated file platform, HR, tasks, Expo/native mobile, or unrelated architecture rewrites. Storage adaptations necessary for durable Office versions are in scope.
@@ -18,11 +18,11 @@ Implement a complete vertical slice, not a mock, skeleton, static UI, unpersiste
 - Implement workspace document listing, creation, naming, opening, real editing, co-authoring, autosaving, reopening, permissioned sharing, version/recovery behavior, trash/restore, and appropriate error states.
 - Implement a **Wiki** with a workspace-scoped hierarchical page tree, page operations, Markdown `.md` content and **collaborative editing**, not just a Markdown preview or plain text area.
 - Use **ONLYOFFICE Docs API** as the editor for Docs/Sheets/Slides and the first-choice editor for native `.md` wiki pages. ONLYOFFICE Docs 9.0+ lists `.md` among supported document formats, and ONLYOFFICE describes native Markdown co-editing. **Verify the actual cloud trial version, live `.md` editability, callback format, round-trip fidelity, and multi-user behavior before treating this as production-ready.** If the trial's deployment cannot reliably edit and save Markdown with real-time co-editing, record the exact provider limitation and implement a separately approved Markdown-first collaborative editor (e.g., Milkdown + Yjs) *only for Wiki*. Do **not** silently save a `.docx` and call it `.md`, or introduce a second sync stack before proof of necessity.
-- Do not implement a custom collaboration transport for Docs/Sheets/Slides. ONLYOFFICE owns their editing synchronization and in-editor collaborator experience. Lumo owns authorization, file persistence, document metadata, Wiki navigation, version records and audit logs.
+- Do not implement a custom collaboration transport for Docs/Sheets/Slides. ONLYOFFICE owns their editing synchronization and in-editor collaborator experience. LumoLynk owns authorization, file persistence, document metadata, Wiki navigation, version records and audit logs.
 - **Drive is already implemented** with AWS S3 and workspace-scoped file/folder management. Reuse and integrate with it instead of creating a parallel file manager, S3 client, folder hierarchy, share system, or upload/download mechanism. Office-generated Docs/Sheets/Slides must appear in and open from Drive with consistent IDs, ownership, locations, permissions and status. Wiki keeps its own page-tree UX and can reuse Drive file references where appropriate.
 - **Strict sequencing:** Finish and verify the Office/Wiki features first. After that, perform a dedicated Drive bug-fix/hardening pass. Only fix an existing Drive defect earlier when it blocks Office integration, compromises security or threatens data integrity; log these exceptions. Do not silently turn the Office phase into a general Drive rewrite.
 - **Do not guess what is broken in Drive.** Inventory/reproduce actual failures from the current code, tests, UI flows and available bug reports, then repair their root causes with focused regression tests. Report unreproduced claims as unverified.
-- Keep the current Lumo design system, layout, route conventions, responsive behavior, blue/navy professional theme, compact density, icons, accessibility and Electron custom window experience.
+- Keep the current LumoLynk design system, layout, route conventions, responsive behavior, blue/navy professional theme, compact density, icons, accessibility and Electron custom window experience.
 - The existing code and `AGENTS.md` override older *proposed* directory structures. Adapt the design to current packages; don't scaffold empty apps/packages or replace working code.
 - No credentials, JWT shared secrets, private keys, storage access secrets, database URLs, session cookies, callback tokens or signed object URLs in logs/commits/browser environment variables. Never paste live credentials into example files.
 
@@ -123,11 +123,11 @@ Create/update the existing **Documents** navigation item inside the current work
 
 ### 3.2 Document editor view
 
-- Open in the existing Lumo workspace context (web and Electron), via shared route/layout. Compact top bar: back/navigation breadcrumbs, editable title, doc type, save/sync status, permissions/Share, collaborator presence as supported, history and contextual menu. Editor fills remaining height without double scrollbars, browser-style gutters or clipped footer.
-- The ONLYOFFICE component owns office content editing, formatting, formulas, slide controls and in-editor co-authoring. Do not rebuild a fake Word/Excel/PowerPoint ribbon with Lumo controls.
+- Open in the existing LumoLynk workspace context (web and Electron), via shared route/layout. Compact top bar: back/navigation breadcrumbs, editable title, doc type, save/sync status, permissions/Share, collaborator presence as supported, history and contextual menu. Editor fills remaining height without double scrollbars, browser-style gutters or clipped footer.
+- The ONLYOFFICE component owns office content editing, formatting, formulas, slide controls and in-editor co-authoring. Do not rebuild a fake Word/Excel/PowerPoint ribbon with LumoLynk controls.
 - Allow viewer vs editor mode based on actual server-granted role. Disable controls that would imply elevated privileges. Implement close/unmount cleanup and lifecycle-aware navigation warning where appropriate; do not suggest all edits persist instantly just because bytes remain in ONLYOFFICE's cache.
-- Preserve Lumo header/sidebar behavior and Electron drag regions/window buttons. Do not let ONLYOFFICE script or iframe gain Node/Electron IPC privilege. Handle script load failure, expired signing token, offline state, stale document key, permission revocation, callbacks failing and provider outage.
-- Track save completion from **backend version state**, not only from `onDocumentStateChange`; the latter reflects editor state/changes sent to editing service, not necessarily durable Lumo storage.
+- Preserve LumoLynk header/sidebar behavior and Electron drag regions/window buttons. Do not let ONLYOFFICE script or iframe gain Node/Electron IPC privilege. Handle script load failure, expired signing token, offline state, stale document key, permission revocation, callbacks failing and provider outage.
+- Track save completion from **backend version state**, not only from `onDocumentStateChange`; the latter reflects editor state/changes sent to editing service, not necessarily durable LumoLynk storage.
 
 ### 3.3 Wiki (Markdown)
 
@@ -144,7 +144,7 @@ Create/update the existing **Documents** navigation item inside the current work
 - Share to **specific existing active workspace members** with `owner`/`editor`/`viewer`/`none` levels. Owner can manage grants; editor can edit; viewer can view; no-access cannot fetch bytes/open editor. Access policy may permit owner/admin-managed overrides only if product rules explicitly require them.
 - Every document and wiki page has **exactly one workspace ID**. Do not create public/anonymous share links unless specifically approved; copy-link creates a link that still requires login and access.
 - Stable provider user IDs and display names only, never emails or auth tokens in third-party editor config unless required by an explicitly approved feature.
-- ONLYOFFICE provides live co-editing/commenting where the plan supports it. Lumo retains permissions/audit. No cross-workspace sharing in this iteration.
+- ONLYOFFICE provides live co-editing/commenting where the plan supports it. LumoLynk retains permissions/audit. No cross-workspace sharing in this iteration.
 - Membership removal/role change revokes future API/file/editor sessions. Design an active-session revocation strategy: provider command service disconnect/terminate if supported by tenant, short-lived scopes/configs, deny future file access and downloads, and document any remaining provider session/cache window. **Do not claim instantaneous revocation without a tested provider mechanism.**
 
 ## 4. Integration architecture
@@ -153,7 +153,7 @@ Create/update the existing **Documents** navigation item inside the current work
 
 ```text
                               ┌─────────────────────────────────────┐
-                              │ Lumo Web / Electron Renderer        │
+                              │ LumoLynk Web / Electron Renderer        │
                               │ packages/app: Docs, Wiki + Drive UI │
                               │ packages/ui: controls/tokens        │
                               └──────────────────┬──────────────────┘
@@ -182,7 +182,7 @@ Create/update the existing **Documents** navigation item inside the current work
                   └─────────────────────────────────────────────────┘
 ```
 
-- Lumo API/Drive is the **authoritative file, permission and persistence system** for the ONLYOFFICE integration. ONLYOFFICE is *not* the Lumo database or long-term file repository. Keep the existing `drive_items` row as the canonical file when an Office document is Drive-backed, with a stable one-to-one `office_documents` association, not a second duplicate Drive file.
+- LumoLynk API/Drive is the **authoritative file, permission and persistence system** for the ONLYOFFICE integration. ONLYOFFICE is *not* the LumoLynk database or long-term file repository. Keep the existing `drive_items` row as the canonical file when an Office document is Drive-backed, with a stable one-to-one `office_documents` association, not a second duplicate Drive file.
 - `packages/app` for shared UI/routes (including existing Drive); `packages/ui` for reusable controls; `packages/api-client` for typed client; `packages/contracts` for shared schemas; `apps/api/src/modules/office` for API/service/repository/provider adapter; **reuse** `apps/api/src/modules/drive` for file/ACL commands and `apps/api/src/storage` for object operations; `packages/database` for schema/migrations; `packages/env` for config. Add `packages/onlyoffice` or `packages/office-editor` **only if** a clearly reusable framework-specific client adapter is worth a separate package. Prefer a small feature-local component initially to avoid redundant scaffolding.
 - Keep provider config/signer/callback processing **server-only**. Client SDK integration can expose a typed `OfficeEditor` component, with no dependency from native Electron main into DOM packages.
 - Retain existing web vs desktop client authentication transports. Use the authenticated API request abstraction for `GET editor-config`; the iframe will fetch content via **scoped signed URL** that does not rely on app cookies.
@@ -268,7 +268,7 @@ Concurrency:
 - Ignore/reject callbacks for stale or foreign keys that could overwrite a newer generation; keep a bounded safe recovery process for delayed legitimate events.
 - Distinguish **provider edit state**, **persisted revision state**, and **displayed last saved timestamp**. Test graceful close vs crash, network loss, upload failure, callback outage, retries and permanent provider failure.
 - Optional force-save command integration requires proper authenticated backend authorization and official supported cloud command service; never assume forced save is included in trial plan.
-- Version history UI may use Lumo-stored immutable snapshots even if advanced ONLYOFFICE in-editor history API is unavailable. When ONLYOFFICE's history events are implemented, provide the exact provider's revision metadata/URLs as documented; no guessed methods or misleading timeline.
+- Version history UI may use LumoLynk-stored immutable snapshots even if advanced ONLYOFFICE in-editor history API is unavailable. When ONLYOFFICE's history events are implemented, provide the exact provider's revision metadata/URLs as documented; no guessed methods or misleading timeline.
 
 ### 6.3 Permissions and revocation on active editors
 
@@ -333,14 +333,14 @@ Reuse existing layout, auth guard, workspace context, query factory, toast/dialo
 - Use `packages/ui` existing `Button`, `Dialog`, `DropdownMenu`, `Tabs`, `Input`, `Tooltip`, `ScrollArea`, `Toast`, etc. Don't add a duplicate design system; don't add broad CSS outside Tailwind v4 except small justified third-party SDK integration fixes.
 - Editors must own a bounded `min-height:0` flex container, with appropriate viewport resize and no permanently reserved scrollbar gutter. Apply theme adaptations ONLY where supported by the SDK; not via fragile DOM shadow/iframe style injection.
 - Provide a visible action state when document is still in provider editing cache vs saved durably. Preserve a last known durable revision even after editor load fails. When edited from Drive, invalidate/refetch the correct Drive list/query keys after a durable save; preserve file position, stars, share grants and stable item ID.
-- Electron main/preload security remains intact: `nodeIntegration:false`, isolated/sandboxed renderer, no `remote`, no arbitrary URL/IPC bridge. Its signed-config API call uses existing bounded main-process request bridge. Third-party editor iframe must not be allowed to navigate Lumo's top-level window, download unsafe URLs, or invoke application privilege; narrowly allow provider origin in CSP/connect/frame policies and validate `setWindowOpenHandler` / navigation as existing security architecture requires.
+- Electron main/preload security remains intact: `nodeIntegration:false`, isolated/sandboxed renderer, no `remote`, no arbitrary URL/IPC bridge. Its signed-config API call uses existing bounded main-process request bridge. Third-party editor iframe must not be allowed to navigate LumoLynk's top-level window, download unsafe URLs, or invoke application privilege; narrowly allow provider origin in CSP/connect/frame policies and validate `setWindowOpenHandler` / navigation as existing security architecture requires.
 - Verify asset loading, clipboard, keyboard shortcuts, printing/download permissions and OS behavior on desktop. Do not expose cookies by forcing web-authentication into a third-party iframe.
 - Avoid frame/embed access to private local backend. Cloud editor receives signed file URL + callback URL only.
 - On workspace switch, cancel stale API requests, remove workspace queries and unmount prior editor; **never** display previous workspace document contents or keep an iframe visible with stale access.
 
 ## 9. Cloud config and local development
 
-Add server-only validated configuration to `@lumo/env/server` and `apps/api/.env.example` using exact project naming conventions. Example keys (adapt and document):
+Add server-only validated configuration to `@lumolynk/env/server` and `apps/api/.env.example` using exact project naming conventions. Example keys (adapt and document):
 
 ```dotenv
 # Only public Docs Cloud Document Server endpoint (not DocSpace)
@@ -397,7 +397,7 @@ ONLYOFFICE_MODE=cloud
 - Add status handling 1/2/3/4/6/7, duplicate callback idempotency, content download SSRF protection, provider failure/retry and telemetry.
 - Verify save persists and reopening reflects changes; concurrent editors share key; forcesave does not rotate key.
 
-**Exit:** Two distinct users edit one document in real time; saved file round-trips back into Lumo; no arbitrary URL fetch.
+**Exit:** Two distinct users edit one document in real time; saved file round-trips back into LumoLynk; no arbitrary URL fetch.
 
 ### Phase 4 — Documents UI and Drive entry-point integration (web + Electron)
 
@@ -453,7 +453,7 @@ Use the current repo test systems: Vitest unit/integration, existing API test DB
 | Save from ONLYOFFICE | New immutable revision updates the canonical Drive current-file pointer without changing file ID, folder or grants |
 | Drive rename/move/share/trash/restore on edited file | Editor/doc metadata remains synchronized and effective access enforced |
 | Open editor in browser | Signed config, correct type, real editor loads |
-| Open editor in Electron | Same Lumo experience, CSP/bridge intact, no Node access by iframe |
+| Open editor in Electron | Same LumoLynk experience, CSP/bridge intact, no Node access by iframe |
 | 2 editors same doc | Same active key, co-editing and stable saves |
 | 2 editors different docs | Isolated sessions, no content crossover |
 | Close/save/reopen | New durable version, exact persisted edits after reload |
@@ -499,7 +499,7 @@ Use actual existing scripts/flags: first confirm each command from `package.json
 
 1. **Cloud instance can't reach localhost.** Use HTTPS public API endpoint/tunnel for its callbacks and source GETs.
 2. **JWT token is signed in frontend.** Incorrect; server-only, dynamically signed config.
-3. **ONLYOFFICE JWT replaces Lumo permissions.** Incorrect; ACL and workspace checks are authoritative in Hono.
+3. **ONLYOFFICE JWT replaces LumoLynk permissions.** Incorrect; ACL and workspace checks are authoritative in Hono.
 4. **No callback means no persistence.** Never report saved just because users can type.
 5. **Recreate key for every user/open.** Splits co-editing; reuse key within active generation.
 6. **Rotate key after status=6.** Breaks current co-editing; don't rotate.

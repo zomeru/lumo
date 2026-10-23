@@ -2,8 +2,14 @@ import {
   leavePolicyInputSchema,
   requestDetailsSchema,
   type RequestDetails,
-} from "@lumo/contracts/hr";
-import { hrEmployee, hrLeaveLedger, hrLeaveType, hrRequest, hrFile } from "@lumo/database/schema";
+} from "@lumolynk/contracts/hr";
+import {
+  hrEmployee,
+  hrLeaveLedger,
+  hrLeaveType,
+  hrRequest,
+  hrFile,
+} from "@lumolynk/database/schema";
 import { and, eq, sql } from "drizzle-orm";
 
 import { AppError, missing } from "../../lib/errors";

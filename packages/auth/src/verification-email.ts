@@ -1,4 +1,4 @@
-import { themes, tokens } from "@lumo/ui/tokens";
+import { themes, tokens } from "@lumolynk/ui/tokens";
 
 import type { EmailMessage } from "./email.ts";
 
@@ -34,7 +34,7 @@ export function createVerificationEmail({
 
   return {
     to,
-    subject: "Verify your Lumo email",
+    subject: "Verify your LumoLynk email",
     text: `Verify your email to accept workspace invitations:\n${url}`,
     url,
     // Inline styles and presentation tables keep the baseline usable without CSS support.
@@ -46,7 +46,7 @@ export function createVerificationEmail({
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
   <meta name="supported-color-schemes" content="light dark" />
-  <title>Verify your Lumo email</title>
+  <title>Verify your LumoLynk email</title>
   <style>
     a:focus-visible { outline: 2px solid ${light.ring}; outline-offset: 4px; }
     @media only screen and (max-width: 600px) {
@@ -72,12 +72,12 @@ export function createVerificationEmail({
       <!--[if mso]><table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:560px;">
         <tr><td style="padding:0 4px 28px;">
-          <p class="email-brand" style="margin:0;color:${light.foreground};font-size:26px;font-weight:600;line-height:32px;letter-spacing:-1px;">lumo<span class="email-link" style="color:${light.primary};">.</span></p>
+          <p class="email-brand" style="margin:0;color:${light.foreground};font-size:26px;font-weight:600;line-height:32px;letter-spacing:-1px;">lumolynk<span class="email-link" style="color:${light.primary};">.</span></p>
           <p class="email-muted" style="margin:4px 0 0;color:${light["muted-foreground"]};font-size:12px;line-height:20px;">Everything, connected.</p>
         </td></tr>
         <tr><td class="email-card email-content" bgcolor="${light.surface}" style="padding:40px;background-color:${light.surface};border:1px solid ${light.border};border-radius:${tokens.radius.xl}px;">
           <main>
-            <p class="email-link" style="margin:0 0 12px;color:${light.primary};font-size:12px;font-weight:600;line-height:20px;">Welcome to Lumo</p>
+            <p class="email-link" style="margin:0 0 12px;color:${light.primary};font-size:12px;font-weight:600;line-height:20px;">Welcome to LumoLynk</p>
             <h1 class="email-heading" style="margin:0 0 24px;color:${light.foreground};font-size:30px;font-weight:600;line-height:1.2;letter-spacing:-0.7px;">Verify your email</h1>
             <p class="email-muted" style="margin:0 0 12px;color:${light["muted-foreground"]};font-size:14px;line-height:24px;word-break:break-word;overflow-wrap:anywhere;">${greeting}</p>
             <p class="email-muted" style="margin:0 0 28px;color:${light["muted-foreground"]};font-size:14px;line-height:24px;">Good work starts with connection. Confirm your email address to accept workspace invitations and connect with your team.</p>
@@ -94,8 +94,8 @@ export function createVerificationEmail({
           </main>
         </td></tr>
         <tr><td style="padding:24px 4px 0;">
-          <p class="email-muted" style="margin:0 0 12px;color:${light["muted-foreground"]};font-size:12px;line-height:20px;">If you didn’t create a Lumo account or request this email, you can safely ignore it.</p>
-          <p class="email-muted" style="margin:0;color:${light["muted-foreground"]};font-size:12px;line-height:20px;">Lumo · Your people, all in one place.</p>
+          <p class="email-muted" style="margin:0 0 12px;color:${light["muted-foreground"]};font-size:12px;line-height:20px;">If you didn’t create a LumoLynk account or request this email, you can safely ignore it.</p>
+          <p class="email-muted" style="margin:0;color:${light["muted-foreground"]};font-size:12px;line-height:20px;">LumoLynk · Your people, all in one place.</p>
         </td></tr>
       </table>
       <!--[if mso]></td></tr></table><![endif]-->

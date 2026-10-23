@@ -9,13 +9,13 @@ import {
   okSchema,
   workspaceSchema,
   workspacesSchema,
-} from "@lumo/contracts";
-import { readWebEnv } from "@lumo/env/web";
+} from "@lumolynk/contracts";
+import { readWebEnv } from "@lumolynk/env/web";
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 const { VITE_API_URL } = readWebEnv(import.meta.env);
-export { ApiError } from "@lumo/api-client";
-import { createApi, fetchTransport } from "@lumo/api-client";
+export { ApiError } from "@lumolynk/api-client";
+import { createApi, fetchTransport } from "@lumolynk/api-client";
 
 import { getPlatform } from "../platform";
 const browserTransport = fetchTransport(VITE_API_URL);

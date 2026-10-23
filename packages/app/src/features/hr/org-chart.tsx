@@ -1,5 +1,5 @@
-import type { Person } from "@lumo/contracts/hr";
-import { Button, EmptyState, Field, cn } from "@lumo/ui";
+import type { Person } from "@lumolynk/contracts/hr";
+import { Button, EmptyState, Field, cn } from "@lumolynk/ui";
 import { Maximize, Minus, Plus } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 

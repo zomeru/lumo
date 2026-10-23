@@ -1,12 +1,12 @@
-import type { onboardingStepSchema } from "@lumo/contracts/hr";
+import type { onboardingStepSchema } from "@lumolynk/contracts/hr";
 import {
   canHr,
   onboardingDetailSchema,
   onboardingInstancesSchema,
   onboardingInvitationsSchema,
   onboardingTemplatesSchema,
-} from "@lumo/contracts/hr";
-import { formatDate, formatDateTime } from "@lumo/shared/date-time";
+} from "@lumolynk/contracts/hr";
+import { formatDate, formatDateTime } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -19,7 +19,7 @@ import {
   ViewTabs,
   Progress,
   SelectField,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { z } from "zod";

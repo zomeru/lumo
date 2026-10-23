@@ -1,4 +1,4 @@
-import { driveListSchema, driveUrlSchema, type DriveListInput } from "@lumo/contracts/drive";
+import { driveListSchema, driveUrlSchema, type DriveListInput } from "@lumolynk/contracts/drive";
 import { queryOptions } from "@tanstack/react-query";
 
 import { api } from "../../lib/api";

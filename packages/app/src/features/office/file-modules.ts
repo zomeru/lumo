@@ -1,4 +1,4 @@
-import { type OfficeKind } from "@lumo/contracts/files";
+import { type OfficeKind } from "@lumolynk/contracts/files";
 import { BookOpen, FileText, Folder, Files, Sheet, Presentation } from "lucide-react";
 
 export const moduleIcons = {

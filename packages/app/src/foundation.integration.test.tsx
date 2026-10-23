@@ -46,7 +46,7 @@ describe("authentication and guards", () => {
   test("redirects anonymous deep links and preserves invitation intent", async () => {
     server.state.authenticated = false;
     const { router } = await renderRoute(`/invite?token=${inviteToken}`);
-    expect(await screen.findByRole("heading", { name: "Sign in to Lumo" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in to LumoLynk" })).toBeInTheDocument();
     expect(router.state.location.searchStr).toContain(inviteToken);
     expect(screen.queryByRole("group", { name: "Window controls" })).not.toBeInTheDocument();
   });

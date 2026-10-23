@@ -1,5 +1,5 @@
-import type { PayrollSettings } from "@lumo/contracts/hr";
-import { statutoryConfigurationInputSchema } from "@lumo/contracts/payroll";
+import type { PayrollSettings } from "@lumolynk/contracts/hr";
+import { statutoryConfigurationInputSchema } from "@lumolynk/contracts/payroll";
 import { expect, test } from "vitest";
 
 import { calculatePay } from "./payroll-engine";

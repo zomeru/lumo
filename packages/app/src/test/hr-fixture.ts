@@ -6,8 +6,11 @@ import {
   payrollResultSchema,
   personSchema,
   type HrAccess,
-} from "@lumo/contracts/hr";
-import type { StatutoryConfiguration, StatutoryConfigurationInput } from "@lumo/contracts/payroll";
+} from "@lumolynk/contracts/hr";
+import type {
+  StatutoryConfiguration,
+  StatutoryConfigurationInput,
+} from "@lumolynk/contracts/payroll";
 
 import { mockApi, teamId, bobId } from "./mock-api";
 export const hrId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",

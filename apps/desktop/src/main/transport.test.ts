@@ -20,7 +20,7 @@ let dir: string;
 beforeEach(async () => {
   storage.available = true;
   storage.backend = "gnome_libsecret";
-  dir = await mkdtemp(join(tmpdir(), "lumo-session-"));
+  dir = await mkdtemp(join(tmpdir(), "lumolynk-session-"));
 });
 afterEach(async () => {
   vi.unstubAllGlobals();

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { Database } from "@lumo/database";
+import type { Database } from "@lumolynk/database";
 import {
   driveItem,
   storageCleanup,
@@ -8,7 +8,7 @@ import {
   officeVersion,
   messengerAttachment,
   messengerMessage,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { and, asc, eq, inArray, lte, or, sql } from "drizzle-orm";
 
 import type { Storage } from "./storage";

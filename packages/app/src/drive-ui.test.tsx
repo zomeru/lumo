@@ -1,4 +1,4 @@
-import { driveItemSchema, type DriveItem } from "@lumo/contracts/drive";
+import { driveItemSchema, type DriveItem } from "@lumolynk/contracts/drive";
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";

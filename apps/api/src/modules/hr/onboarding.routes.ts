@@ -1,9 +1,9 @@
-import { idSchema } from "@lumo/contracts";
+import { idSchema } from "@lumolynk/contracts";
 import {
   onboardingAssignSchema,
   onboardingStepSchema,
   onboardingTemplateInputSchema,
-} from "@lumo/contracts/hr";
+} from "@lumolynk/contracts/hr";
 import {
   hrEmployee,
   hrFile,
@@ -12,7 +12,7 @@ import {
   hrOnboardingTask,
   hrOnboardingTemplate,
   invitation,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { and, asc, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";

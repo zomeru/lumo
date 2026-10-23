@@ -1,8 +1,8 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { credentialsSchema, registrationSchema } from "@lumo/contracts";
-import type { Database } from "@lumo/database";
-import * as schema from "@lumo/database/schema";
-import type { ServerEnv } from "@lumo/env/server";
+import { credentialsSchema, registrationSchema } from "@lumolynk/contracts";
+import type { Database } from "@lumolynk/database";
+import * as schema from "@lumolynk/database/schema";
+import type { ServerEnv } from "@lumolynk/env/server";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 
@@ -12,7 +12,7 @@ import { createVerificationEmail } from "./verification-email.ts";
 export function createAuth(db: Database, env: ServerEnv) {
   const email = createEmailProvider(env);
   return betterAuth({
-    appName: "Lumo",
+    appName: "LumoLynk",
     baseURL: env.API_ORIGIN,
     basePath: "/api/auth",
     secret: env.BETTER_AUTH_SECRET,
@@ -80,7 +80,7 @@ export function createAuth(db: Database, env: ServerEnv) {
         path: "/",
       },
       // The HTTP boundary overwrites this header with the actual socket address.
-      ipAddress: { ipAddressHeaders: ["x-lumo-client-ip"] },
+      ipAddress: { ipAddressHeaders: ["x-lumolynk-client-ip"] },
     },
     session: { expiresIn: 7 * 24 * 3600, updateAge: 24 * 3600, cookieCache: { enabled: false } },
     rateLimit: {

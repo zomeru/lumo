@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
 
-import { createAuth } from "@lumo/auth";
+import { createAuth } from "@lumolynk/auth";
 import {
   meSchema,
   workspaceSchema,
@@ -16,8 +16,8 @@ import {
   discoverySchema,
   auditSchema,
   invitationsSchema,
-} from "@lumo/contracts";
-import { legalVersions } from "@lumo/contracts/legal";
+} from "@lumolynk/contracts";
+import { legalVersions } from "@lumolynk/contracts/legal";
 import {
   invitation,
   membership,
@@ -25,8 +25,8 @@ import {
   session as sessionTable,
   user,
   workspace,
-} from "@lumo/database/schema";
-import { readServerEnv } from "@lumo/env/server";
+} from "@lumolynk/database/schema";
+import { readServerEnv } from "@lumolynk/env/server";
 import { and, eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
@@ -42,7 +42,7 @@ const source = {
 };
 const database = await createTestDatabase(source.TEST_DATABASE_URL);
 const { db } = database;
-const mailDir = await mkdtemp(join(tmpdir(), "lumo-mail-"));
+const mailDir = await mkdtemp(join(tmpdir(), "lumolynk-mail-"));
 const env = readServerEnv({
   DATABASE_URL: database.url,
   BETTER_AUTH_SECRET: "integration-test-secret-with-more-than-32-characters",

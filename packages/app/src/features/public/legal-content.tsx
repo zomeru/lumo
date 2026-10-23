@@ -1,4 +1,4 @@
-import { legalVersions } from "@lumo/contracts/legal";
+import { legalVersions } from "@lumolynk/contracts/legal";
 import { Link } from "@tanstack/react-router";
 
 import { documents20261021 } from "./legal-documents/2026-10-21";

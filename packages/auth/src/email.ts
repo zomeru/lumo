@@ -1,4 +1,4 @@
-import type { ServerEnv } from "@lumo/env/server";
+import type { ServerEnv } from "@lumolynk/env/server";
 import pino from "pino";
 
 import { FileEmailProvider } from "./file-email-provider.ts";

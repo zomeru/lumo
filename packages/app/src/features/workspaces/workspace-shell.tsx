@@ -1,5 +1,5 @@
-import { fileModules } from "@lumo/contracts/files";
-import { canManageSettings } from "@lumo/contracts/permissions";
+import { fileModules } from "@lumolynk/contracts/files";
+import { canManageSettings } from "@lumolynk/contracts/permissions";
 import {
   Badge,
   Brand,
@@ -14,7 +14,7 @@ import {
   SelectField,
   ThemeMenu,
   cn,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
@@ -370,7 +370,7 @@ export function WorkspaceShell({ workspaceId }: { workspaceId: string }) {
           </main>
           {!fullLayout && (
             <footer className="flex items-center justify-between gap-3 border-t px-5 py-4 text-[10px] text-muted-foreground sm:px-8">
-              <span>Lumo · Everything, connected.</span>
+              <span>LumoLynk · Everything, connected.</span>
               <span className="flex items-center gap-1.5">
                 <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
                 Your team’s space

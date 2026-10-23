@@ -1,6 +1,6 @@
-import { type Meeting } from "@lumo/contracts/collaboration";
-import { formatDate, formatTime, formatDateTime } from "@lumo/shared/date-time";
-import { meetingState } from "@lumo/shared/meeting-time";
+import { type Meeting } from "@lumolynk/contracts/collaboration";
+import { formatDate, formatTime, formatDateTime } from "@lumolynk/shared/date-time";
+import { meetingState } from "@lumolynk/shared/meeting-time";
 import {
   Badge,
   Button,
@@ -15,8 +15,8 @@ import {
   PageHeading,
   SelectField,
   cn,
-} from "@lumo/ui";
-import { ConfirmAction } from "@lumo/ui/confirm-action";
+} from "@lumolynk/ui";
+import { ConfirmAction } from "@lumolynk/ui/confirm-action";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
@@ -135,7 +135,9 @@ function CalendarDetails({
       </p>
       <p className="text-sm">Organizer: {detail.data.hostName}</p>
       <p className="text-sm">
-        {item.access === "open" ? "Anyone with a Lumo account and link" : "Workspace members only"}
+        {item.access === "open"
+          ? "Anyone with a LumoLynk account and link"
+          : "Workspace members only"}
       </p>
       {item.description && <p className="whitespace-pre-wrap text-sm">{item.description}</p>}
       <MeetingLinks meeting={item} />

@@ -1,5 +1,5 @@
-import { avatarIdentity, avatarUrlSchema } from "@lumo/contracts/avatar";
-import { Avatar } from "@lumo/ui";
+import { avatarIdentity, avatarUrlSchema } from "@lumolynk/contracts/avatar";
+import { Avatar } from "@lumolynk/ui";
 import { useQuery } from "@tanstack/react-query";
 import type { ComponentProps } from "react";
 

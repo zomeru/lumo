@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 
-import { readProductionEmailEnv, type ServerEnv } from "@lumo/env/server";
+import { readProductionEmailEnv, type ServerEnv } from "@lumolynk/env/server";
 import type { Logger } from "pino";
 import { Resend } from "resend";
 

@@ -6,7 +6,7 @@ export default {
   versionGroups: [
     {
       label: "Local workspace packages",
-      dependencies: ["@lumo/**"],
+      dependencies: ["@lumolynk/**"],
       dependencyTypes: ["!local"],
       pinVersion: "workspace:*",
     },

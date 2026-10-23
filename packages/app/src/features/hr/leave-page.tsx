@@ -5,8 +5,8 @@ import {
   leavePoliciesSchema,
   whoOutSchema,
   type LeavePolicy,
-} from "@lumo/contracts/hr";
-import { formatDate, formatDateTime } from "@lumo/shared/date-time";
+} from "@lumolynk/contracts/hr";
+import { formatDate, formatDateTime } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -24,7 +24,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";

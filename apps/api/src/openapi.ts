@@ -1,12 +1,12 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
-import * as contracts from "@lumo/contracts";
+import * as contracts from "@lumolynk/contracts";
 import {
   avatarConfigSchema,
   avatarInputSchema,
   avatarResultSchema,
   avatarUrlSchema,
-} from "@lumo/contracts/avatar";
+} from "@lumolynk/contracts/avatar";
 
 import type { ApiContext } from "./lib/context";
 /** Existing routes retain their behavior; documentation consumes their real DTO/input schemas. */

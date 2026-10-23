@@ -8,7 +8,7 @@ import {
   hrEmployee,
   hrPayrollRun,
   hrStatutoryConfiguration,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { eq, sql } from "drizzle-orm";
 import { expect, test } from "vitest";
 

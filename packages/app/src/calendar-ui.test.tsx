@@ -1,5 +1,5 @@
-import type { Meeting } from "@lumo/contracts/collaboration";
-import { zonedDateTime } from "@lumo/shared/meeting-time";
+import type { Meeting } from "@lumolynk/contracts/collaboration";
+import { zonedDateTime } from "@lumolynk/shared/meeting-time";
 import { QueryClient, onlineManager } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
@@ -122,7 +122,7 @@ test("schedules from Meetings, invalidates both lists and preserves success link
   fireEvent.change(within(dialog).getByLabelText("Start date and time"), {
     target: { value: futureLocal() },
   });
-  await selectOption(user, "Who can join", "Anyone with a Lumo account and link");
+  await selectOption(user, "Who can join", "Anyone with a LumoLynk account and link");
   await user.type(screen.getByLabelText("Description / agenda"), "A shared agenda");
   await user.click(within(dialog).getByRole("button", { name: "Schedule meeting" }));
   await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
@@ -274,7 +274,7 @@ test("workspace switches clear all Calendar data and desktop shares the same scr
   const fetch = globalThis.fetch;
   configurePlatform({
     kind: "desktop",
-    webOrigin: "https://lumo.test",
+    webOrigin: "https://lumolynk.test",
     transport: async (path, options) => {
       const result = await fetch(path, {
         method: options.method,
@@ -286,7 +286,7 @@ test("workspace switches clear all Calendar data and desktop shares the same scr
   const { user, router } = await show();
   await user.click((await screen.findAllByRole("button", { name: /Shared planning/ }))[0]!);
   expect(((await screen.findByLabelText("Share meeting link")) as HTMLInputElement).value).toBe(
-    `https://lumo.test/meetings/${id}`,
+    `https://lumolynk.test/meetings/${id}`,
   );
   await user.click(screen.getByRole("button", { name: "Close dialog" }));
   expect(client.getQueriesData({ queryKey: ["workspace", teamId, "calendar"] })).not.toHaveLength(

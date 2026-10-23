@@ -1,4 +1,4 @@
-import { officeDetailSchema, type OfficeKind } from "@lumo/contracts/office";
+import { officeDetailSchema, type OfficeKind } from "@lumolynk/contracts/office";
 import {
   Button,
   Dialog,
@@ -8,7 +8,7 @@ import {
   Field,
   SelectField,
   ErrorMessage,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";

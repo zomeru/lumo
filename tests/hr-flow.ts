@@ -11,11 +11,11 @@ async function api(page: Page, path: string, method = "GET", body?: unknown): Pr
     async (input) => {
       const bridge = (
         window as unknown as {
-          lumo?: {
+          lumolynk?: {
             request: (path: string, options: { method: string; body?: unknown }) => Promise<Reply>;
           };
         }
-      ).lumo;
+      ).lumolynk;
       if (bridge)
         return bridge.request(`/api/v1${input.path}`, { method: input.method, body: input.body });
       const response = await fetch(`http://localhost:3011/api/v1${input.path}`, {

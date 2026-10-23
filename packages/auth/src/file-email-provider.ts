@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import type { ServerEnv } from "@lumo/env/server";
+import type { ServerEnv } from "@lumolynk/env/server";
 
 import type { EmailMessage, EmailProvider } from "./email.ts";
 

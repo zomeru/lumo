@@ -1,9 +1,9 @@
-import { membersSchema } from "@lumo/contracts";
-import type { Conversation } from "@lumo/contracts/collaboration";
-import { messengerSearchSchema } from "@lumo/contracts/messenger";
-import { canCreateChannel } from "@lumo/contracts/permissions";
-import { formatDateTime } from "@lumo/shared/date-time";
-import { Badge, Button, EmptyState, ErrorMessage, Field, Loading, cn } from "@lumo/ui";
+import { membersSchema } from "@lumolynk/contracts";
+import type { Conversation } from "@lumolynk/contracts/collaboration";
+import { messengerSearchSchema } from "@lumolynk/contracts/messenger";
+import { canCreateChannel } from "@lumolynk/contracts/permissions";
+import { formatDateTime } from "@lumolynk/shared/date-time";
+import { Badge, Button, EmptyState, ErrorMessage, Field, Loading, cn } from "@lumolynk/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Hash, Lock, MessageSquare, Plus, Search, Settings, X } from "lucide-react";

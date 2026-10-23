@@ -1,6 +1,6 @@
-import { canInvite } from "@lumo/contracts/permissions";
-import { formatDate } from "@lumo/shared/date-time";
-import { Badge, Button, Card, ErrorMessage, Loading, PageHeading, Skeleton } from "@lumo/ui";
+import { canInvite } from "@lumolynk/contracts/permissions";
+import { formatDate } from "@lumolynk/shared/date-time";
+import { Badge, Button, Card, ErrorMessage, Loading, PageHeading, Skeleton } from "@lumolynk/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {

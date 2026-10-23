@@ -1,5 +1,5 @@
-import type { PayrollSettings } from "@lumo/contracts/hr";
-import { hrNotification, hrPayrollRun } from "@lumo/database/schema";
+import type { PayrollSettings } from "@lumolynk/contracts/hr";
+import { hrNotification, hrPayrollRun } from "@lumolynk/database/schema";
 import { and, eq, lte } from "drizzle-orm";
 
 import { localParts } from "./calendar";

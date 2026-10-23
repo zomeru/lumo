@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const apiOrigin = process.env.LUMO_E2E_API_ORIGIN ?? "http://localhost:3011";
-const webOrigin = process.env.LUMO_E2E_WEB_ORIGIN ?? "http://localhost:3010";
+const apiOrigin = process.env.LUMOLYNK_E2E_API_ORIGIN ?? "http://localhost:3011";
+const webOrigin = process.env.LUMOLYNK_E2E_WEB_ORIGIN ?? "http://localhost:3010";
 
 export default defineConfig({
   testDir: "./tests/e2e/web",
@@ -21,13 +21,14 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "pnpm --filter @lumo/api exec tsx --env-file-if-exists=.env src/test/e2e-server.ts",
+      command:
+        "pnpm --filter @lumolynk/api exec tsx --env-file-if-exists=.env src/test/e2e-server.ts",
       url: `http://[::1]:${new URL(apiOrigin).port}/ready`,
       reuseExistingServer: false,
       gracefulShutdown: { signal: "SIGTERM", timeout: 10000 },
     },
     {
-      command: `pnpm --filter @lumo/web build && pnpm --filter @lumo/web preview --host ::1 --port ${new URL(webOrigin).port}`,
+      command: `pnpm --filter @lumolynk/web build && pnpm --filter @lumolynk/web preview --host ::1 --port ${new URL(webOrigin).port}`,
       timeout: 120000,
       url: `http://[::1]:${new URL(webOrigin).port}`,
       env: { VITE_API_URL: apiOrigin },

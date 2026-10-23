@@ -1,15 +1,15 @@
-# Lumo UI
+# LumoLynk UI
 
-The shared DOM component library for web and Electron. Import components from `@lumo/ui` and import `@lumo/ui/styles.css` once in each renderer. Both renderers use `@tailwindcss/vite`; no Tailwind JavaScript configuration is needed.
+The shared DOM component library for web and Electron. Import components from `@lumolynk/ui` and import `@lumolynk/ui/styles.css` once in each renderer. Both renderers use `@tailwindcss/vite`; no Tailwind JavaScript configuration is needed.
 
 ## Theme and source detection
 
-`src/tokens.ts` owns platform-independent semantic colors, spacing, control height, radii, font family, and motion values. The generated `src/theme.css` adapts those values to CSS variables and Tailwind v4 `@theme` tokens. A future native app can import `@lumo/ui/tokens` without loading React or browser CSS.
+`src/tokens.ts` owns platform-independent semantic colors, spacing, control height, radii, font family, and motion values. The generated `src/theme.css` adapts those values to CSS variables and Tailwind v4 `@theme` tokens. A future native app can import `@lumolynk/ui/tokens` without loading React or browser CSS.
 
 After changing tokens, run:
 
 ```sh
-pnpm --filter @lumo/ui theme:generate
+pnpm --filter @lumolynk/ui theme:generate
 pnpm exec oxfmt --write packages/ui/src/theme.css
 ```
 
@@ -22,7 +22,7 @@ Call `initializeTheme()` before mounting a renderer. The shared root installs `T
 ## Components
 
 - Forms: `Button`, `Input`, `PasswordInput`, `Textarea`, `FormField`, `Field`, `SelectField`, `Combobox`, `MultiSelectField`, `Checkbox`, `RadioGroup`, and `Switch`.
-- Overlays: composable `Dialog`, `AlertDialog`, `DropdownMenu`, `ContextMenu`, `Popover`, and `Tooltip` parts. `ConfirmAction` is available at `@lumo/ui/confirm-action`.
+- Overlays: composable `Dialog`, `AlertDialog`, `DropdownMenu`, `ContextMenu`, `Popover`, and `Tooltip` parts. `ConfirmAction` is available at `@lumolynk/ui/confirm-action`.
 - Content: `Tabs`, `Badge`, `Card`, `Avatar`, semantic `Table` parts, `ScrollArea`, and `Separator`.
 - Feedback: `Skeleton`, `Spinner`, native `Progress`, `Loading`, `Notice`, `ErrorMessage`, `EmptyState`, and `useToast()`.
 

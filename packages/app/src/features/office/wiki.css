@@ -1,4 +1,4 @@
-.lumo-wiki .wiki-content {
+.lumolynk-wiki .wiki-content {
   max-width: 52rem;
   min-height: 25rem;
   margin: 0 auto;
@@ -7,58 +7,58 @@
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
-.lumo-wiki .wiki-content > * + * {
+.lumolynk-wiki .wiki-content > * + * {
   margin-top: 0.8rem;
 }
-.lumo-wiki h1 {
+.lumolynk-wiki h1 {
   font-size: 2rem;
   font-weight: 700;
 }
-.lumo-wiki h2 {
+.lumolynk-wiki h2 {
   font-size: 1.5rem;
   font-weight: 650;
 }
-.lumo-wiki h3 {
+.lumolynk-wiki h3 {
   font-size: 1.25rem;
   font-weight: 600;
 }
-.lumo-wiki ul {
+.lumolynk-wiki ul {
   list-style: disc;
   padding-left: 1.5rem;
 }
-.lumo-wiki ol {
+.lumolynk-wiki ol {
   list-style: decimal;
   padding-left: 1.5rem;
 }
-.lumo-wiki blockquote {
+.lumolynk-wiki blockquote {
   border-left: 3px solid var(--color-border);
   padding-left: 1rem;
   color: var(--color-muted-foreground);
 }
-.lumo-wiki pre {
+.lumolynk-wiki pre {
   padding: 1rem;
   background: var(--color-muted);
   border-radius: 0.4rem;
   overflow: auto;
 }
-.lumo-wiki code {
+.lumolynk-wiki code {
   font-family: monospace;
   background: var(--color-muted);
 }
-.lumo-wiki a {
+.lumolynk-wiki a {
   color: var(--color-primary);
   text-decoration: underline;
 }
-.lumo-wiki .ProseMirror:focus-visible {
+.lumolynk-wiki .ProseMirror:focus-visible {
   box-shadow: inset 0 0 0 2px var(--color-ring);
 }
-.lumo-wiki .ProseMirror-yjs-cursor {
+.lumolynk-wiki .ProseMirror-yjs-cursor {
   position: relative;
   border-left: 2px solid;
   margin-left: -1px;
   pointer-events: none;
 }
-.lumo-wiki .ProseMirror-yjs-cursor > div {
+.lumolynk-wiki .ProseMirror-yjs-cursor > div {
   position: absolute;
   top: -1.3em;
   left: -1px;
@@ -94,7 +94,7 @@
 .wiki-split .wiki-preview-pane {
   border-left: 1px solid var(--color-border);
 }
-.lumo-wiki .wiki-content {
+.lumolynk-wiki .wiki-content {
   min-height: 100%;
 }
 .wiki-preview table {

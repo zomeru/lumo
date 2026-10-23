@@ -1,7 +1,7 @@
-# Lumo Messenger: Workspace Channels and Slack-Like Messaging
+# LumoLynk Messenger: Workspace Channels and Slack-Like Messaging
 
 **Document type:** AI agent implementation plan  
-**Project:** Lumo (web + Electron desktop)  
+**Project:** LumoLynk (web + Electron desktop)\
 **Status:** Ready for implementation, subject to repository audit  
 **Primary objective:** Turn the existing Messenger module into a fully functional, workspace-scoped collaboration messenger with public/private channels, direct messages, secure realtime communication, and a full-available-space UI.
 
@@ -11,7 +11,7 @@
 
 ## 1. Context and goals
 
-Lumo is a workspace-based collaboration platform with web and Electron desktop clients. Its Messenger UI currently shows channels and a direct-messages section, but the full channel model, permissions, conversation handling, and overall messaging experience need verification and improvement. The provided UI screenshot shows a global navigation sidebar, Messenger sidebar, and an empty conversation panel.
+LumoLynk is a workspace-based collaboration platform with web and Electron desktop clients. Its Messenger UI currently shows channels and a direct-messages section, but the full channel model, permissions, conversation handling, and overall messaging experience need verification and improvement. The provided UI screenshot shows a global navigation sidebar, Messenger sidebar, and an empty conversation panel.
 
 ### Goals
 
@@ -20,16 +20,16 @@ Lumo is a workspace-based collaboration platform with web and Electron desktop c
 3. Support **private channels** that only explicitly authorized channel members can discover, read, or post in.
 4. Support workspace-scoped 1:1 and group direct messages.
 5. Deliver reliable realtime messages, unread state, threads, reactions, attachments, and search.
-6. Use **all available main-content width and height**, within Lumo's existing app shell, with independently scrolling areas.
+6. Use **all available main-content width and height**, within LumoLynk's existing app shell, with independently scrolling areas.
 7. Reuse existing shared components, libraries, API patterns, and monorepo tooling wherever possible.
 8. Deliver incrementally with tests, migrations, and **frequent, logically grouped Git commits**.
 
 ### Non-goals
 
-- Rebuilding Lumo's global navigation, authentication system, or design system.
+- Rebuilding LumoLynk's global navigation, authentication system, or design system.
 - Replacing existing messaging/realtime providers without technical justification.
 - Implementing end-to-end encryption merely to justify an existing UI claim.
-- Cross-workspace chats or global direct messages unless Lumo already explicitly supports them.
+- Cross-workspace chats or global direct messages unless LumoLynk already explicitly supports them.
 - Large unrelated refactors.
 
 ### Guiding principles
@@ -233,7 +233,7 @@ GET    /workspaces/:workspaceId/search
 
 ## 6. Phase 3: Realtime delivery, state reconciliation, and unread tracking
 
-**Reuse existing transport infrastructure.** Lumo has discussed Agora for communication and Socket.IO for presence/notifications, but confirm the actual implementation. Do not maintain duplicate competing chat pipelines.
+**Reuse existing transport infrastructure.** LumoLynk has discussed Agora for communication and Socket.IO for presence/notifications, but confirm the actual implementation. Do not maintain duplicate competing chat pipelines.
 
 ### Event design (illustrative)
 
@@ -278,13 +278,13 @@ typing.started / typing.stopped
 
 ## 7. Phase 4: Full-available-space UI and reusable conversation components
 
-Use the attached Messenger screenshot as the **current-state reference**, not as a requirement to preserve its excess unused space. Keep the **global Lumo sidebar and top navigation**, original logo, professional blue/dark-blue palette, and existing UI design system.
+Use the attached Messenger screenshot as the **current-state reference**, not as a requirement to preserve its excess unused space. Keep the **global LumoLynk sidebar and top navigation**, original logo, professional blue/dark-blue palette, and existing UI design system.
 
 ### Target layout
 
 ```text
 ┌─────────────────┬──────────────────────────────────────────────────────┐
-│ Global Lumo nav │ Global app toolbar / search                          │
+│ Global LumoLynk nav │ Global app toolbar / search                          │
 │                 ├─────────────────┬────────────────────────────────────┤
 │                 │ Messenger       │ Conversation header                │
 │                 │ sidebar         ├────────────────────────────────────┤
@@ -395,7 +395,7 @@ Use the attached Messenger screenshot as the **current-state reference**, not as
 
 ### Attachments and notifications
 
-- [ ] Reuse Lumo's existing storage integration, preferably private objects with authorized signed upload/download flows.
+- [ ] Reuse LumoLynk's existing storage integration, preferably private objects with authorized signed upload/download flows.
 - [ ] Validate maximum size, MIME/file extension, ownership, and upload completion.
 - [ ] Integrate malware scanning or current safe-upload gating policy, without representing unscanned objects as trusted.
 - [ ] Recheck channel/DM authorization before attachment download; revoke old links quickly or use a download proxy if needed.
@@ -522,7 +522,7 @@ At minimum, report progress after: **audit**, **schema/security APIs**, **realti
 - [ ] Editing, deleting, reactions, threads, pinned messages, attachments, and search are implemented or clearly documented as scoped follow-ups if explicitly approved.
 - [ ] Full-width/full-height Messenger layout within existing app chrome.
 - [ ] Independent sidebar/message scrolling and bottom-docked composer.
-- [ ] Responsive and usable on web and Electron desktop without redesigning Lumo.
+- [ ] Responsive and usable on web and Electron desktop without redesigning LumoLynk.
 - [ ] Encryption claims accurately represent the real implementation.
 
 ### Engineering quality
@@ -546,4 +546,4 @@ At minimum, report progress after: **audit**, **schema/security APIs**, **realti
 7. **Messaging:** DMs/group DMs, history, threads, reactions, search, attachments, notifications.
 8. **QA/rollout:** security, web/desktop E2E, performance, cleanup, docs, final report.
 
-**Outcome:** A secure, maintainable, Slack-like Messenger for Lumo that uses all available main-content space, without sacrificing existing workspace boundaries, design consistency, or production data.
+**Outcome:** A secure, maintainable, Slack-like Messenger for LumoLynk that uses all available main-content space, without sacrificing existing workspace boundaries, design consistency, or production data.

@@ -1,4 +1,4 @@
-import type { ServerEnv } from "@lumo/env/server";
+import type { ServerEnv } from "@lumolynk/env/server";
 import AgoraToken from "agora-token";
 
 import { AppError } from "../lib/errors";

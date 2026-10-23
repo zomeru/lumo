@@ -1,4 +1,4 @@
-import { Button, Card, ThemeMenu } from "@lumo/ui";
+import { Button, Card, ThemeMenu } from "@lumolynk/ui";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ArrowRight, Building2, Users, ShieldCheck } from "lucide-react";
 
@@ -29,7 +29,7 @@ function HomePage() {
         <span className="mb-3 block text-xs font-medium text-primary">
           A little less scattered. A lot more connected.
         </span>
-        <h1>Welcome to Lumo</h1>
+        <h1>Welcome to LumoLynk</h1>
         <p className="mt-5 text-5xl leading-[1.08] font-semibold tracking-tight text-foreground sm:text-7xl [&_span]:text-primary">
           Make room for
           <br />

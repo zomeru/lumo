@@ -1,4 +1,4 @@
-import { formatDate, formatTime } from "@lumo/shared/date-time";
+import { formatDate, formatTime } from "@lumolynk/shared/date-time";
 import { useEffect, useState } from "react";
 
 export function AttendanceClock({

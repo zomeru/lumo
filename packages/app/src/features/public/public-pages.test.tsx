@@ -29,7 +29,7 @@ async function setup(path = "/") {
 test("footer links reach every informational page without authentication or a reload", async () => {
   const { user, router } = await setup();
   for (const [label, path, heading] of [
-    ["About Us", "/about", "About Lumo"],
+    ["About Us", "/about", "About LumoLynk"],
     ["Contact Us", "/contact", "Contact Us"],
     ["Privacy Policy", "/privacy", "Privacy Policy"],
     ["Terms of Use", "/terms", "Terms of Use"],
@@ -52,7 +52,7 @@ test("unknown routes render in place and offer safe back navigation without hist
   expect(screen.getByRole("heading", { name: "404 | Page Not Found" })).toBeInTheDocument();
   expect(router.state.location.pathname).toBe("/unknown/nested/page");
   await user.click(screen.getByRole("button", { name: "Go Back" }));
-  expect(await screen.findByRole("heading", { name: "Welcome to Lumo" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Welcome to LumoLynk" })).toBeInTheDocument();
 });
 
 test("authenticated not-found recovery returns to the workspace picker", async () => {

@@ -1,5 +1,5 @@
-import type { Database, Transaction } from "@lumo/database";
-import { presenceLease, presencePreference, membership, session } from "@lumo/database/schema";
+import type { Database, Transaction } from "@lumolynk/database";
+import { presenceLease, presencePreference, membership, session } from "@lumolynk/database/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { createWorkspaceService } from "../workspaces/workspace.service";
@@ -10,7 +10,7 @@ export function createPresenceService(
   workspaces: ReturnType<typeof createWorkspaceService>,
 ) {
   const notify = (tx: Transaction, workspaceId: string) =>
-    tx.execute(sql`select pg_notify('lumo_messenger_presence', ${workspaceId})`);
+    tx.execute(sql`select pg_notify('lumolynk_messenger_presence', ${workspaceId})`);
   return {
     async renew(id: string, workspaceId: string, userId: string, sessionId: string) {
       await workspaces.withAccess(workspaceId, userId, async (tx) => {

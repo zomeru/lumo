@@ -49,20 +49,20 @@ export async function listenForWiki(
       connection.on("end", lost);
       connection.on("notification", (message) => {
         if (stopped || current !== acquired || !message.payload) return;
-        if (message.channel === "lumo_wiki") void wiki.refresh(message.payload).catch(failed);
-        if (message.channel === "lumo_wiki_awareness") wiki.awareness(message.payload);
-        if (message.channel === "lumo_messenger")
+        if (message.channel === "lumolynk_wiki") void wiki.refresh(message.payload).catch(failed);
+        if (message.channel === "lumolynk_wiki_awareness") wiki.awareness(message.payload);
+        if (message.channel === "lumolynk_messenger")
           void messenger?.refresh(message.payload).catch(failed);
-        if (message.channel === "lumo_messenger_presence")
+        if (message.channel === "lumolynk_messenger_presence")
           void messenger?.presence?.(message.payload).catch(failed);
-        if (message.channel === "lumo_messenger_typing") messenger?.typing(message.payload);
+        if (message.channel === "lumolynk_messenger_typing") messenger?.typing(message.payload);
       });
-      await connection.query("LISTEN lumo_wiki");
-      await connection.query("LISTEN lumo_wiki_awareness");
+      await connection.query("LISTEN lumolynk_wiki");
+      await connection.query("LISTEN lumolynk_wiki_awareness");
       if (messenger) {
-        await connection.query("LISTEN lumo_messenger");
-        await connection.query("LISTEN lumo_messenger_typing");
-        await connection.query("LISTEN lumo_messenger_presence");
+        await connection.query("LISTEN lumolynk_messenger");
+        await connection.query("LISTEN lumolynk_messenger_typing");
+        await connection.query("LISTEN lumolynk_messenger_presence");
       }
     } catch {
       if (current === connection && connection) {

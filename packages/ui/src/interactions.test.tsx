@@ -239,10 +239,10 @@ test("theme follows system changes, persists explicit preferences and synchroniz
   await user.click(screen.getByRole("button", { name: "Change appearance" }));
   await user.click(screen.getByRole("menuitemcheckbox", { name: "Light" }));
   expect(document.documentElement).toHaveAttribute("data-theme", "light");
-  expect(localStorage.getItem("lumo.theme.v1")).toBe("light");
+  expect(localStorage.getItem("lumolynk.theme.v1")).toBe("light");
   act(() => {
-    localStorage.setItem("lumo.theme.v1", "dark");
-    window.dispatchEvent(new StorageEvent("storage", { key: "lumo.theme.v1" }));
+    localStorage.setItem("lumolynk.theme.v1", "dark");
+    window.dispatchEvent(new StorageEvent("storage", { key: "lumolynk.theme.v1" }));
   });
   expect(document.documentElement).toHaveAttribute("data-theme", "dark");
   unmount();

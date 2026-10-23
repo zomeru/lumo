@@ -1,11 +1,11 @@
-import { onboardingStepSchema } from "@lumo/contracts/hr";
-import type { Transaction } from "@lumo/database";
+import { onboardingStepSchema } from "@lumolynk/contracts/hr";
+import type { Transaction } from "@lumolynk/database";
 import {
   hrOnboardingInstance,
   hrOnboardingTask,
   hrOnboardingEvent,
   hrNotification,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { and, eq, sql } from "drizzle-orm";
 
 import { AppError, denied, missing } from "../../lib/errors";

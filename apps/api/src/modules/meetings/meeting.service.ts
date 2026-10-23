@@ -3,8 +3,8 @@ import type {
   calendarQuerySchema,
   meetingAvailabilityInputSchema,
   scheduledMeetingInputSchema,
-} from "@lumo/contracts/collaboration";
-import type { Database } from "@lumo/database";
+} from "@lumolynk/contracts/collaboration";
+import type { Database } from "@lumolynk/database";
 import {
   meeting,
   meetingParticipant,
@@ -12,8 +12,8 @@ import {
   user,
   auditEvent,
   workspace,
-} from "@lumo/database/schema";
-import { rtcIdentity } from "@lumo/shared";
+} from "@lumolynk/database/schema";
+import { rtcIdentity } from "@lumolynk/shared";
 import { and, eq, desc, inArray, asc, lt, gt, ne, sql, or, exists } from "drizzle-orm";
 import type { z } from "zod";
 

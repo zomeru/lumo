@@ -2,12 +2,12 @@
 export const documents20261021 = {
   terms: {
     title: "Terms of Use",
-    summary: "The responsibilities we share when working together in Lumo.",
+    summary: "The responsibilities we share when working together in LumoLynk.",
     sections: [
       {
-        title: "Using Lumo",
+        title: "Using LumoLynk",
         paragraphs: [
-          "Lumo is a workspace-based collaboration platform for messaging, meetings, shared files, documents, calendars and people operations. These terms apply to your account and use of the service. Features available to you depend on your workspace, role and deployment.",
+          "LumoLynk is a workspace-based collaboration platform for messaging, meetings, shared files, documents, calendars and people operations. These terms apply to your account and use of the service. Features available to you depend on your workspace, role and deployment.",
           "Create an account only if you can enter a binding agreement and are authorized to use the service for your organization. Provide accurate account information, keep your email address current and protect your password. Do not share credentials or use someone else’s identity.",
         ],
       },
@@ -21,7 +21,7 @@ export const documents20261021 = {
       {
         title: "Acceptable use",
         paragraphs: [
-          "Do not use Lumo for unlawful activity, harassment, fraud, impersonation, malware, unauthorized surveillance or infringement of others’ rights. Do not attempt to bypass permissions, probe other workspaces, misuse invitations or interfere with the service.",
+          "Do not use LumoLynk for unlawful activity, harassment, fraud, impersonation, malware, unauthorized surveillance or infringement of others’ rights. Do not attempt to bypass permissions, probe other workspaces, misuse invitations or interfere with the service.",
           "Keep sensitive information limited to what your team needs. Do not use ordinary chat or file sharing as a substitute for a regulated records system without an appropriate organizational assessment.",
         ],
       },
@@ -29,7 +29,7 @@ export const documents20261021 = {
         title: "Your content and collaboration",
         paragraphs: [
           "You and your organization retain your rights in content you provide. You authorize the processing needed to store, display and share that content with the people you choose and to operate the features you use. Ensure you have the necessary permissions for documents, messages, images and other uploaded material.",
-          "Meeting participants should be told about any recording or transcription, and any permissions required by applicable law must be obtained before recording. Lumo’s registration acknowledgement does not grant permission to record other people.",
+          "Meeting participants should be told about any recording or transcription, and any permissions required by applicable law must be obtained before recording. LumoLynk’s registration acknowledgement does not grant permission to record other people.",
         ],
       },
       {
@@ -67,7 +67,7 @@ export const documents20261021 = {
       {
         title: "Scope and responsibilities",
         paragraphs: [
-          "This notice describes Lumo’s account and collaboration features. The platform operator manages account and service operations; your organization decides how and why it uses information in its workspaces. Their roles as personal information controller or processor depend on the processing activity and their agreements.",
+          "This notice describes LumoLynk’s account and collaboration features. The platform operator manages account and service operations; your organization decides how and why it uses information in its workspaces. Their roles as personal information controller or processor depend on the processing activity and their agreements.",
           "This draft is informed by the Philippine Data Privacy Act of 2012 (Republic Act No. 10173), its implementing rules and National Privacy Commission guidance. It does not claim certification or confirm that a particular deployment complies with every applicable requirement.",
         ],
       },

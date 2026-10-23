@@ -1,6 +1,6 @@
 # Transactional email
 
-`@lumo/auth` renders verification content in `verification-email.ts` and keeps authentication rules in `server.ts`. Delivery goes through the `EmailProvider.send` interface. `createEmailProvider` selects a provider strictly from the validated `NODE_ENV`; there is no provider override.
+`@lumolynk/auth` renders verification content in `verification-email.ts` and keeps authentication rules in `server.ts`. Delivery goes through the `EmailProvider.send` interface. `createEmailProvider` selects a provider strictly from the validated `NODE_ENV`; there is no provider override.
 
 | Environment | Provider | Behavior |
 | --- | --- | --- |
@@ -16,12 +16,12 @@ Set these variables only in the API runtime's secret/environment configuration:
 NODE_ENV=production
 RESEND_API_KEY=<your sending API key>
 EMAIL_FROM=noreply@notify.lumolynk.com
-EMAIL_FROM_NAME=Lumo
+EMAIL_FROM_NAME=LumoLynk
 ```
 
-`RESEND_API_KEY` must be nonempty and `EMAIL_FROM` must be a plain email address at `lumolynk.com` or one of its subdomains, such as `noreply@notify.lumolynk.com`. Verify the actual sending domain in Resend; local validation only checks the address and domain boundary, not provider verification status. The display name defaults to `Lumo` and rejects header characters. HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `DATABASE_URL`, and `BETTER_AUTH_SECRET` remain required. `MAIL_DIR` is ignored in production. Credentials are read at runtime and must never be placed in `VITE_*` variables, frontend/desktop environment files, source code, logs, or committed `.env` files. Create a sending-only Resend key scoped to the verified domain when possible.
+`RESEND_API_KEY` must be nonempty and `EMAIL_FROM` must be a plain email address at `lumolynk.com` or one of its subdomains, such as `noreply@notify.lumolynk.com`. Verify the actual sending domain in Resend; local validation only checks the address and domain boundary, not provider verification status. The display name defaults to `LumoLynk` and rejects header characters. HTTPS `API_ORIGIN` and `WEB_ORIGIN`, `DATABASE_URL`, and `BETTER_AUTH_SECRET` remain required. `MAIL_DIR` is ignored in production. Credentials are read at runtime and must never be placed in `VITE_*` variables, frontend/desktop environment files, source code, logs, or committed `.env` files. Create a sending-only Resend key scoped to the verified domain when possible.
 
-The API bundles the pinned Resend SDK; only `@lumo/auth` declares it as a runtime dependency. The Turbo API development task allows the new server variables through without exposing them to frontend tasks.
+The API bundles the pinned Resend SDK; only `@lumolynk/auth` declares it as a runtime dependency. The Turbo API development task allows the new server variables through without exposing them to frontend tasks.
 
 ## Domain and DNS setup
 
@@ -46,7 +46,7 @@ No Resend account or key is needed in development, test or CI; an unused blank k
 
 Read a JSON file in that directory to preview the content and open its `url` to complete verification. The outbox is never served by HTTP and contains live tokens, so keep it private and out of source control. Filesystem failures report `MAIL_DIR`/permission guidance without echoing content.
 
-The verification email includes a personalized HTML template using the same platform-independent colors, typography and radii exported by `@lumo/ui/tokens`. It mirrors the platform's `lumo.` wordmark, surface cards and primary action, with a one-hour expiry notice and a copyable fallback link. Inline styles and presentation tables provide a baseline for mail clients; supported clients also receive responsive spacing and the platform's dark palette. It requires no remote images, fonts, React renderer or Tailwind runtime. Names and links are escaped in HTML, and the existing plain-text body and JSON `url` remain available. To inspect the design locally, extract the JSON's `html` into a private `.html` file and open it in a browser; never publish previews containing real tokens.
+The verification email includes a personalized HTML template using the same platform-independent colors, typography and radii exported by `@lumolynk/ui/tokens`. It mirrors the platform's `lumolynk.` wordmark, surface cards and primary action, with a one-hour expiry notice and a copyable fallback link. Inline styles and presentation tables provide a baseline for mail clients; supported clients also receive responsive spacing and the platform's dark palette. It requires no remote images, fonts, React renderer or Tailwind runtime. Names and links are escaped in HTML, and the existing plain-text body and JSON `url` remain available. To inspect the design locally, extract the JSON's `html` into a private `.html` file and open it in a browser; never publish previews containing real tokens.
 
 Unit tests exercise the real Resend SDK with an intercepted `fetch` transport and synthetic credentials. Every provider request is intercepted, including retries and failures. Normal application integration tests explicitly use `NODE_ENV=test` and local files. Run `pnpm test --project auth --project env` for focused coverage, or the repository's full `pnpm check:all` gate.
 

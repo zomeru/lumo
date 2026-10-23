@@ -1,7 +1,7 @@
-import { workspaceUpdateSchema, workspaceSchema } from "@lumo/contracts";
-import { canManageSettings } from "@lumo/contracts/permissions";
-import { formatDateTime } from "@lumo/shared/date-time";
-import { Button, Card, ErrorMessage, Loading, PageHeading } from "@lumo/ui";
+import { workspaceUpdateSchema, workspaceSchema } from "@lumolynk/contracts";
+import { canManageSettings } from "@lumolynk/contracts/permissions";
+import { formatDateTime } from "@lumolynk/shared/date-time";
+import { Button, Card, ErrorMessage, Loading, PageHeading } from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 

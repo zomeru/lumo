@@ -1,7 +1,7 @@
-# 05 — People & HR Module Implementation Plan (Lumo)
+# 05 — People & HR Module Implementation Plan (LumoLynk)
 
 **Status:** Implementation specification for Codex  
-**Target:** Existing Lumo monorepo, web and desktop applications, API, database, and shared packages  
+**Target:** Existing LumoLynk monorepo, web and desktop applications, API, database, and shared packages\
 **Source UI references:** `docs/ui_samples/people_&_hr_flow/`  
 **Goal:** Implement an integrated, workspace-scoped People & HR system, with secure HR/payroll access and production-quality end-to-end flows.
 
@@ -16,11 +16,11 @@
 3. Separate **platform user identity**, **workspace membership role**, **employment information/job role**, and **HR capabilities**. No automatic payroll access from job titles such as Manager, HR, or Accountant, and no automatic payroll access from a generic workspace admin role.
 4. **Workspace owner** may administer HR and payroll. Additional HR/accounting/payroll specialists gain only the explicit capabilities the owner grants. Employees can access their own permitted records.
 5. Enforce authorization **at the server, in database query scoping, and for files/exports**, not only by hiding tabs or buttons.
-6. UI should follow existing Lumo design system, compact enterprise styling, reusable components, responsive web/desktop patterns, and the provided PNG designs. Preserve existing logo, professional blue/dark-blue palette, navigation, and shared layout.
+6. UI should follow existing LumoLynk design system, compact enterprise styling, reusable components, responsive web/desktop patterns, and the provided PNG designs. Preserve existing logo, professional blue/dark-blue palette, navigation, and shared layout.
 7. Leave, attendance, approvals, and payroll are connected through **canonical records**. Avoid duplicated request states or payroll values that cannot be traced to a source.
 8. Use accurate time-zone and money handling: UTC instants for events; workspace-local calendar dates and schedules; **decimal/integer-minor-unit financial calculations**, never floating-point money arithmetic.
 9. Changes to finalized payroll must be deliberate, logged, and corrected via controlled adjustments/revisions rather than silent editing.
-10. No actual salary transfers, government filings, bank integration, or external remittances unless a suitable integration already exists and is explicitly in scope. A `paid` status is a recorded business action, not proof that Lumo transmitted funds.
+10. No actual salary transfers, government filings, bank integration, or external remittances unless a suitable integration already exists and is explicitly in scope. A `paid` status is a recorded business action, not proof that LumoLynk transmitted funds.
 
 **Not in first release:** Recruiting/ATS, biometric/geofenced attendance, employee tax filing, full benefits administration, external banking payouts, government portal submission, cross-border payroll calculations, and broad performance management. Architect extensibly but do not prematurely build these.
 
@@ -501,7 +501,7 @@ Include privacy notices, lawful-basis assessment, retention/access policies, enc
 
 The implementation is complete only if:
 
-- All six sections work on **web and desktop** with consistent navigation and UI, using the PNGs as visual references and existing Lumo design components.
+- All six sections work on **web and desktop** with consistent navigation and UI, using the PNGs as visual references and existing LumoLynk design components.
 - Payroll tabs are named **My Pay, Pay Runs, Employees, Settings**, in that order.
 - Employees can create requests, request leave, clock attendance/breaks, see their own payslips, complete onboarding, and browse the permitted directory.
 - Properly authorized managers, HR specialists, and accounting/payroll users can perform their assigned responsibilities without seeing more data than necessary.

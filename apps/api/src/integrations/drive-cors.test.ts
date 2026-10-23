@@ -16,7 +16,7 @@ test("checks actual browser preflight headers without sending object bytes or le
   });
   const results = await checkDriveCors(
     memory.storage,
-    ["https://web.example.com", "lumo://app"],
+    ["https://web.example.com", "lumolynk://app"],
     fetcher,
   );
   expect(results.every((v) => v.allowed)).toBe(true);

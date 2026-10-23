@@ -2,7 +2,7 @@
 -- Payload is only the workspace ID; no private conversation metadata is published.
 CREATE FUNCTION notify_messenger_membership() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  PERFORM pg_notify('lumo_messenger', OLD.workspace_id::text);
+  PERFORM pg_notify('lumolynk_messenger', OLD.workspace_id::text);
   RETURN OLD;
 END;
 $$;

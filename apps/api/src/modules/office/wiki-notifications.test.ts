@@ -26,27 +26,27 @@ test("lost LISTEN connection resubscribes, ignores stale notifications and relea
     },
     failed = vi.fn<() => void>();
   const listener = await listenForWiki(pool, wiki, failed);
-  first.emit("notification", { channel: "lumo_wiki", payload: "page" });
-  first.emit("notification", { channel: "lumo_wiki_awareness", payload: "presence" });
+  first.emit("notification", { channel: "lumolynk_wiki", payload: "page" });
+  first.emit("notification", { channel: "lumolynk_wiki_awareness", payload: "presence" });
   first.emit("notification", { channel: "unknown" });
   expect(wiki.refresh).toHaveBeenCalledWith("page");
   expect(wiki.awareness).toHaveBeenCalledWith("presence");
   first.emit("error", new Error("Connection lost"));
   first.emit("end");
-  first.emit("notification", { channel: "lumo_wiki", payload: "stale" });
+  first.emit("notification", { channel: "lumolynk_wiki", payload: "stale" });
   expect(first.release).toHaveBeenCalledExactlyOnceWith(true);
   expect(failed).toHaveBeenCalledTimes(1);
   await vi.advanceTimersByTimeAsync(5000);
   expect(second.query.mock.calls.map(([sql]) => sql)).toEqual([
-    "LISTEN lumo_wiki",
-    "LISTEN lumo_wiki_awareness",
+    "LISTEN lumolynk_wiki",
+    "LISTEN lumolynk_wiki_awareness",
   ]);
   wiki.refresh.mockRejectedValueOnce(new Error("Refresh failed"));
-  second.emit("notification", { channel: "lumo_wiki", payload: "new" });
+  second.emit("notification", { channel: "lumolynk_wiki", payload: "new" });
   await vi.waitFor(() => expect(failed).toHaveBeenCalledTimes(2));
   await listener.close();
   expect(second.release).toHaveBeenCalledExactlyOnceWith();
-  second.emit("notification", { channel: "lumo_wiki", payload: "after-close" });
+  second.emit("notification", { channel: "lumolynk_wiki", payload: "after-close" });
   expect(wiki.refresh).toHaveBeenCalledTimes(2);
 });
 test("connection and subscription failures retry without leaking clients or retrying after shutdown", async () => {

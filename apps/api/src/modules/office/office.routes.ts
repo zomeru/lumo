@@ -1,8 +1,8 @@
 import { Readable } from "node:stream";
 
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { idSchema, okSchema, errorSchema } from "@lumo/contracts";
-import { driveItemSchema, driveListSchema, driveUrlSchema } from "@lumo/contracts/drive";
+import { idSchema, okSchema, errorSchema } from "@lumolynk/contracts";
+import { driveItemSchema, driveListSchema, driveUrlSchema } from "@lumolynk/contracts/drive";
 import {
   officeCreateSchema,
   officeDetailSchema,
@@ -12,7 +12,7 @@ import {
   wikiMoveSchema,
   wikiSessionSchema,
   wikiTreeSchema,
-} from "@lumo/contracts/office";
+} from "@lumolynk/contracts/office";
 import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 

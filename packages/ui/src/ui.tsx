@@ -33,7 +33,7 @@ export {
   useToast,
 } from "./toast";
 
-const logoUrl = new URL("./assets/lumo-logo.png", import.meta.url).href;
+const logoUrl = new URL("./assets/lumolynk-logo.png", import.meta.url).href;
 
 export function Brand({
   compact = false,
@@ -51,7 +51,7 @@ export function Brand({
         className="size-8 shrink-0 rounded-lg"
       />
       <span className="text-lg font-semibold tracking-tight">
-        lumo<span className="text-primary">.</span>
+        lumolynk<span className="text-primary">.</span>
         {!compact && <small className="font-normal tracking-normal">Everything, connected.</small>}
       </span>
     </>
@@ -59,7 +59,7 @@ export function Brand({
   return (
     <a
       href="/"
-      aria-label="Lumo home"
+      aria-label="LumoLynk home"
       className={cn("inline-flex items-center gap-2.5 text-foreground", className)}
       {...props}
     >

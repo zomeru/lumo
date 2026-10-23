@@ -1,6 +1,6 @@
-import { conversationSchema } from "@lumo/contracts/collaboration";
-import { canHr, type Person } from "@lumo/contracts/hr";
-import { canInvite } from "@lumo/contracts/permissions";
+import { conversationSchema } from "@lumolynk/contracts/collaboration";
+import { canHr, type Person } from "@lumolynk/contracts/hr";
+import { canInvite } from "@lumolynk/contracts/permissions";
 import {
   Badge,
   Button,
@@ -19,7 +19,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";

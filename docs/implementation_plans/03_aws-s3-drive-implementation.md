@@ -1,6 +1,6 @@
-# Implement Lumo Drive with AWS S3 Storage
+# Implement LumoLynk Drive with AWS S3 Storage
 
-Implement the **Drive** section in Lumo using Amazon S3 for object storage. Drive should provide a modern, enterprise-grade file management experience similar to Google Drive and Lark Drive, while following our existing architecture, design system, and coding conventions.
+Implement the **Drive** section in LumoLynk using Amazon S3 for object storage. Drive should provide a modern, enterprise-grade file management experience similar to Google Drive and Lark Drive, while following our existing architecture, design system, and coding conventions.
 
 ## 1. Review the Existing Project
 
@@ -45,7 +45,7 @@ Implement a reusable storage service or abstraction rather than coupling Drive's
 
 ## 3. Workspace-Based Drive
 
-Lumo is a workspace-based collaboration platform, similar to Slack or Lark.
+LumoLynk is a workspace-based collaboration platform, similar to Slack or Lark.
 
 Drive must respect workspace isolation.
 
@@ -158,7 +158,7 @@ Use `docs/ui_samples/documents_flow/5_Drive` as the primary visual and workflow 
 The UI should be:
 
 - Modern, elegant, and enterprise-grade.
-- Consistent with Lumo's existing design system.
+- Consistent with LumoLynk's existing design system.
 - Responsive across desktop and smaller screens.
 - Optimized for both browser and Electron usage.
 - Compact, with appropriate information density.
@@ -170,9 +170,9 @@ Use existing reusable UI components wherever possible. Create new reusable compo
 
 Ensure file operations update the UI correctly without requiring manual refreshes.
 
-## 8. Integration With Lumo
+## 8. Integration With LumoLynk
 
-Drive should be designed as a shared file storage foundation for other Lumo modules.
+Drive should be designed as a shared file storage foundation for other LumoLynk modules.
 
 Consider future integrations with:
 
@@ -245,7 +245,7 @@ Fix issues introduced by the implementation.
 
 ## 12. Expected Deliverables
 
-1. Fully functional Drive UI integrated into Lumo web and desktop.
+1. Fully functional Drive UI integrated into LumoLynk web and desktop.
 2. AWS S3 integration through our backend.
 3. Database schema and migrations.
 4. Secure file and folder management APIs.
@@ -256,4 +256,4 @@ Fix issues introduced by the implementation.
 
 After implementation, provide a concise summary of the changes, architectural decisions, required AWS configuration, test results, and any remaining limitations.
 
-**Important:** The goal is a fully functional, production-oriented Drive module, not simply a UI recreation. Prioritize secure storage, workspace isolation, maintainability, and seamless integration with the existing Lumo ecosystem.
+**Important:** The goal is a fully functional, production-oriented Drive module, not simply a UI recreation. Prioritize secure storage, workspace isolation, maintainability, and seamless integration with the existing LumoLynk ecosystem.

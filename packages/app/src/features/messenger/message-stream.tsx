@@ -3,8 +3,8 @@ import {
   messengerAttachmentFormats,
   messengerMessagesSchema,
   type MessengerMessage,
-} from "@lumo/contracts/messenger";
-import { formatDate } from "@lumo/shared/date-time";
+} from "@lumolynk/contracts/messenger";
+import { formatDate } from "@lumolynk/shared/date-time";
 import {
   Button,
   ErrorMessage,
@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogDescription,
   Tooltip,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, Paperclip, Send, X } from "lucide-react";
 import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from "react";

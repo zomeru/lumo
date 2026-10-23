@@ -1,4 +1,4 @@
-import { Loading, ThemeProvider, ToastProvider, TooltipProvider } from "@lumo/ui";
+import { Loading, ThemeProvider, ToastProvider, TooltipProvider } from "@lumolynk/ui";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 

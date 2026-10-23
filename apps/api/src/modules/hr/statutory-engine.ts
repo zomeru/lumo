@@ -1,5 +1,5 @@
-import type { PayrollSettings } from "@lumo/contracts/hr";
-import type { StatutoryConfigurationInput } from "@lumo/contracts/payroll";
+import type { PayrollSettings } from "@lumolynk/contracts/hr";
+import type { StatutoryConfigurationInput } from "@lumolynk/contracts/payroll";
 
 import { financialRatio } from "./payroll-money";
 import { philippineRules } from "./payroll-rules";

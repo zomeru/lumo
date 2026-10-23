@@ -1,4 +1,4 @@
-import { messengerNotificationsSchema } from "@lumo/contracts/messenger";
+import { messengerNotificationsSchema } from "@lumolynk/contracts/messenger";
 import {
   Badge,
   Button,
@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
   ErrorMessage,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { MessageSquare } from "lucide-react";

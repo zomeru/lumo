@@ -1,11 +1,11 @@
 /** Explicit RTC signing smoke; credentials are never printed. */
 import { randomUUID } from "node:crypto";
 
-import { readServerEnv } from "@lumo/env/server";
+import { readServerEnv } from "@lumolynk/env/server";
 
 import { createAgora } from "../integrations/agora";
-if (process.env.LUMO_LIVE_AGORA !== "1")
-  throw new Error("Set LUMO_LIVE_AGORA=1 to validate configured RTC credentials.");
+if (process.env.LUMOLYNK_LIVE_AGORA !== "1")
+  throw new Error("Set LUMOLYNK_LIVE_AGORA=1 to validate configured RTC credentials.");
 const rtc = createAgora(readServerEnv()).rtcToken(
   `smoke${randomUUID().replaceAll("-", "")}`,
   randomUUID(),

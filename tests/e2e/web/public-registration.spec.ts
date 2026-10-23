@@ -30,7 +30,7 @@ test("public pages, legal review and registration work at desktop and mobile siz
   await page.goto("/does-not-exist/nested");
   await expect(page.getByRole("heading", { name: "404 | Page Not Found" })).toBeVisible();
   await page.getByRole("main").getByRole("link", { name: "Home", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Welcome to Lumo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome to LumoLynk" })).toBeVisible();
   await page.goto("/login");
   const footer = page.getByRole("navigation", { name: "Footer navigation" });
   await expect(footer.getByRole("link", { name: "Privacy Policy", exact: true })).toBeVisible();

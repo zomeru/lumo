@@ -1,5 +1,5 @@
 {
-  "name": "@lumo/app",
+  "name": "@lumolynk/app",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,11 +15,11 @@
     "@codemirror/language-data": "6.5.2",
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.14",
-    "@lumo/api-client": "workspace:*",
-    "@lumo/contracts": "workspace:*",
-    "@lumo/env": "workspace:*",
-    "@lumo/shared": "workspace:*",
-    "@lumo/ui": "workspace:*",
+    "@lumolynk/api-client": "workspace:*",
+    "@lumolynk/contracts": "workspace:*",
+    "@lumolynk/env": "workspace:*",
+    "@lumolynk/shared": "workspace:*",
+    "@lumolynk/ui": "workspace:*",
     "@onlyoffice/doceditor-types": "10.0.1",
     "@onlyoffice/document-editor-react": "2.3.0",
     "@tanstack/react-query": "5.104.3",
@@ -39,7 +39,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@lumo/typescript-config": "workspace:*",
+    "@lumolynk/typescript-config": "workspace:*",
     "@tanstack/router-generator": "1.167.44",
     "@tanstack/router-plugin": "1.168.46",
     "@testing-library/jest-dom": "7.0.1",

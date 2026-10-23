@@ -1,4 +1,9 @@
-import { hrAccessSchema, peopleSchema, departmentsSchema, hrUrlSchema } from "@lumo/contracts/hr";
+import {
+  hrAccessSchema,
+  peopleSchema,
+  departmentsSchema,
+  hrUrlSchema,
+} from "@lumolynk/contracts/hr";
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
 

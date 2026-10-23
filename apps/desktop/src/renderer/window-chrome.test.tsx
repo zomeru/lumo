@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { AppHeader } from "@lumo/app/chrome";
+import { AppHeader } from "@lumolynk/app/chrome";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 

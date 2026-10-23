@@ -1,4 +1,4 @@
-import { readServerEnv } from "@lumo/env/server";
+import { readServerEnv } from "@lumolynk/env/server";
 import { sign } from "hono/jwt";
 import { expect, test, vi, afterEach } from "vitest";
 

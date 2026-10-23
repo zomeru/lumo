@@ -15,18 +15,19 @@ const windowApi: WindowApi = Object.freeze({
   },
 });
 contextBridge.exposeInMainWorld(
-  "lumo",
+  "lumolynk",
   Object.freeze({
     window: windowApi,
     request: (path: string, options: { method?: string; body?: unknown } = {}) =>
-      ipcRenderer.invoke("lumo:request", {
+      ipcRenderer.invoke("lumolynk:request", {
         path,
         method: options.method ?? "GET",
         body: options.body,
       }),
-    openAttachment: (path: string) => ipcRenderer.invoke("lumo:media-external", path),
-    openExternal: (url: string) => ipcRenderer.invoke("lumo:external", url),
-    download: (path: string, body: unknown) => ipcRenderer.invoke("lumo:download", { path, body }),
-    webOrigin: () => ipcRenderer.invoke("lumo:web-origin"),
+    openAttachment: (path: string) => ipcRenderer.invoke("lumolynk:media-external", path),
+    openExternal: (url: string) => ipcRenderer.invoke("lumolynk:external", url),
+    download: (path: string, body: unknown) =>
+      ipcRenderer.invoke("lumolynk:download", { path, body }),
+    webOrigin: () => ipcRenderer.invoke("lumolynk:web-origin"),
   }),
 );

@@ -3,9 +3,14 @@ import { describe, test, expect } from "vitest";
 import { externalUrl, remoteOrigin, requestSchema, trustedRenderer, rendererCsp } from "./policy";
 describe("desktop trust boundaries", () => {
   test("trusts only application and explicitly configured development origins", () => {
-    expect(trustedRenderer("lumo://app/login")).toBe(true);
+    expect(trustedRenderer("lumolynk://app/login")).toBe(true);
     expect(trustedRenderer("http://localhost:5174/login", "http://localhost:5174")).toBe(true);
-    for (const url of ["https://evil.test", "lumo://evil/login", "file:///etc/passwd", "invalid"])
+    for (const url of [
+      "https://evil.test",
+      "lumolynk://evil/login",
+      "file:///etc/passwd",
+      "invalid",
+    ])
       expect(trustedRenderer(url)).toBe(false);
   });
   test.each([
@@ -42,16 +47,16 @@ describe("desktop trust boundaries", () => {
       expect(() => remoteOrigin(value)).toThrow(/./);
     expect(remoteOrigin("http://localhost:3001")).toBe("http://localhost:3001");
     expect(remoteOrigin("https://api.example.com")).toBe("https://api.example.com");
-    expect(externalUrl("https://lumo.test/invite?token=abc", "https://lumo.test")).toContain(
-      "/invite",
-    );
+    expect(
+      externalUrl("https://lumolynk.test/invite?token=abc", "https://lumolynk.test"),
+    ).toContain("/invite");
     for (const value of [
       "javascript:alert(1)",
       "https://evil.test",
-      "https://user:pass@lumo.test",
+      "https://user:pass@lumolynk.test",
       null,
     ])
-      expect(() => externalUrl(value, "https://lumo.test")).toThrow(/./);
+      expect(() => externalUrl(value, "https://lumolynk.test")).toThrow(/./);
   });
 });
 

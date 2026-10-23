@@ -1,7 +1,7 @@
-import { meetingsSchema, meetingDetailSchema } from "@lumo/contracts/collaboration";
-import { parseLumoLink } from "@lumo/shared";
-import { formatDateTime } from "@lumo/shared/date-time";
-import { meetingState } from "@lumo/shared/meeting-time";
+import { meetingsSchema, meetingDetailSchema } from "@lumolynk/contracts/collaboration";
+import { parseLumoLynkLink } from "@lumolynk/shared";
+import { formatDateTime } from "@lumolynk/shared/date-time";
+import { meetingState } from "@lumolynk/shared/meeting-time";
 import {
   Badge,
   Button,
@@ -18,7 +18,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -67,7 +67,7 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
             event.preventDefault();
             setJoinError(null);
             try {
-              const link = parseLumoLink(
+              const link = parseLumoLynkLink(
                 new FormData(event.currentTarget).get("link") as string,
                 getPlatform()?.webOrigin ?? window.location.origin,
               );
@@ -120,7 +120,7 @@ export function MeetingsPage({ workspaceId }: { workspaceId: string }) {
                 </TableCell>
                 <TableCell className="text-xs">
                   {item.access === "open"
-                    ? "Anyone with a Lumo account and link"
+                    ? "Anyone with a LumoLynk account and link"
                     : "Workspace members"}
                 </TableCell>
                 <TableCell>

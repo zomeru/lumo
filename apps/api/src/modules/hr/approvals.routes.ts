@@ -1,4 +1,4 @@
-import { idSchema } from "@lumo/contracts";
+import { idSchema } from "@lumolynk/contracts";
 import {
   calendarDateSchema,
   approvalActionSchema,
@@ -6,8 +6,8 @@ import {
   approvalPolicyInputSchema,
   hrPageSchema,
   requestDetailsSchema,
-} from "@lumo/contracts/hr";
-import { hrApprovalPolicy, hrFile, hrRequest, hrRequestEvent } from "@lumo/database/schema";
+} from "@lumolynk/contracts/hr";
+import { hrApprovalPolicy, hrFile, hrRequest, hrRequestEvent } from "@lumolynk/database/schema";
 import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";

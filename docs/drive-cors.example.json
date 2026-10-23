@@ -1,10 +1,10 @@
 [
   {
-    "ID": "LumoDriveBrowserTransfers",
+    "ID": "LumoLynkDriveBrowserTransfers",
     "AllowedOrigins": [
       "http://localhost:3000",
       "http://127.0.0.1:5174",
-      "lumo://app"
+      "lumolynk://app"
     ],
     "AllowedMethods": ["GET", "HEAD", "PUT"],
     "AllowedHeaders": ["content-type", "x-amz-checksum-sha256", "range"],

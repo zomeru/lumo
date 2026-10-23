@@ -3,9 +3,9 @@ import {
   meetingSchema,
   scheduledMeetingInputSchema,
   type Meeting,
-} from "@lumo/contracts/collaboration";
-import { formatDateTime } from "@lumo/shared/date-time";
-import { localMeetingInstant, zonedDateTime } from "@lumo/shared/meeting-time";
+} from "@lumolynk/contracts/collaboration";
+import { formatDateTime } from "@lumolynk/shared/date-time";
+import { localMeetingInstant, zonedDateTime } from "@lumolynk/shared/meeting-time";
 import {
   Button,
   DialogTitle,
@@ -16,7 +16,7 @@ import {
   Textarea,
   MultiSelectField,
   SelectField,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { memo, useMemo, useState } from "react";
 
@@ -192,7 +192,7 @@ export function ScheduleComposer({
           onValueChange={(value) => setAccess(value as "workspace" | "open")}
           options={[
             { value: "workspace", label: "Workspace members" },
-            { value: "open", label: "Anyone with a Lumo account and link" },
+            { value: "open", label: "Anyone with a LumoLynk account and link" },
           ]}
         />
         <MultiSelectField

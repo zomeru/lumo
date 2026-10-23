@@ -2,9 +2,9 @@ import { Server } from "node:http";
 
 import { serve } from "@hono/node-server";
 import { getConnInfo } from "@hono/node-server/conninfo";
-import { createAuth } from "@lumo/auth";
-import { createDatabase } from "@lumo/database";
-import { readServerEnv } from "@lumo/env/server";
+import { createAuth } from "@lumolynk/auth";
+import { createDatabase } from "@lumolynk/database";
+import { readServerEnv } from "@lumolynk/env/server";
 import pino from "pino";
 
 import { createApp } from "./app.ts";
@@ -40,7 +40,7 @@ const maintenance = setInterval(() => {
 }, 60_000);
 maintenance.unref();
 const server = serve({ fetch: app.fetch, hostname: env.HOST, port: env.PORT }, () =>
-  logger.info({ port: env.PORT }, "Lumo API ready"),
+  logger.info({ port: env.PORT }, "LumoLynk API ready"),
 );
 if (!(server instanceof Server)) throw new Error("Wiki requires the HTTP upgrade server");
 app.wiki.attach(server);

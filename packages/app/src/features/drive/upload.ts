@@ -3,8 +3,8 @@ import {
   drivePartSchema,
   driveUploadSchema,
   type DriveUpload,
-} from "@lumo/contracts/drive";
-import { officeUploadFormat, type OfficeUploadModule } from "@lumo/contracts/files";
+} from "@lumolynk/contracts/drive";
+import { officeUploadFormat, type OfficeUploadModule } from "@lumolynk/contracts/files";
 
 import { api } from "../../lib/api";
 import { drivePath } from "./drive-api";

@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { idSchema, okSchema, errorSchema } from "@lumo/contracts";
+import { idSchema, okSchema, errorSchema } from "@lumolynk/contracts";
 import {
   driveListInputSchema,
   driveListSchema,
@@ -17,9 +17,9 @@ import {
   drivePartSchema,
   driveSharesSchema,
   driveDetailsSchema,
-} from "@lumo/contracts/drive";
-import type { Database } from "@lumo/database";
-import type { ServerEnv } from "@lumo/env/server";
+} from "@lumolynk/contracts/drive";
+import type { Database } from "@lumolynk/database";
+import type { ServerEnv } from "@lumolynk/env/server";
 
 import type { ApiContext } from "../../lib/context";
 import { AppError } from "../../lib/errors";

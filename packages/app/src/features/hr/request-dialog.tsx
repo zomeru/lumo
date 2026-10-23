@@ -4,8 +4,8 @@ import {
   leavePoliciesSchema,
   type Approval,
   type RequestDetails,
-} from "@lumo/contracts/hr";
-import { Button, ErrorMessage, Field, SelectField, Textarea } from "@lumo/ui";
+} from "@lumolynk/contracts/hr";
+import { Button, ErrorMessage, Field, SelectField, Textarea } from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { z } from "zod";

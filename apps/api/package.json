@@ -1,5 +1,5 @@
 {
-  "name": "@lumo/api",
+  "name": "@lumolynk/api",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -18,11 +18,11 @@
     "@better-auth/drizzle-adapter": "1.7.10",
     "@hono/node-server": "2.1.5",
     "@hono/zod-openapi": "1.6.3",
-    "@lumo/auth": "workspace:*",
-    "@lumo/contracts": "workspace:*",
-    "@lumo/database": "workspace:*",
-    "@lumo/env": "workspace:*",
-    "@lumo/shared": "workspace:*",
+    "@lumolynk/auth": "workspace:*",
+    "@lumolynk/contracts": "workspace:*",
+    "@lumolynk/database": "workspace:*",
+    "@lumolynk/env": "workspace:*",
+    "@lumolynk/shared": "workspace:*",
     "@scalar/hono-api-reference": "0.12.13",
     "agora-token": "2.0.7",
     "better-auth": "1.7.10",
@@ -43,7 +43,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@lumo/typescript-config": "workspace:*",
+    "@lumolynk/typescript-config": "workspace:*",
     "@types/node": "24.19.2",
     "@types/ws": "8.18.2",
     "@types/yauzl": "3.4.0",

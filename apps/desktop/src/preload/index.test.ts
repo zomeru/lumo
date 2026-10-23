@@ -22,7 +22,7 @@ vi.mock("electron", () => ({
 test("preload exposes only fixed window actions and removes state subscriptions without leaking the IPC event", async () => {
   await import("./index");
   const [name, api] = bridge.exposeInMainWorld.mock.calls[0]! as [string, { window: WindowApi }];
-  expect(name).toBe("lumo");
+  expect(name).toBe("lumolynk");
   expect(Object.isFrozen(api)).toBe(true);
   expect(Object.isFrozen(api.window)).toBe(true);
   expect(Object.keys(api.window).sort()).toEqual([

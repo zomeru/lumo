@@ -1,4 +1,4 @@
-import { payrollSettingsInputSchema } from "@lumo/contracts/hr";
+import { payrollSettingsInputSchema } from "@lumolynk/contracts/hr";
 import { expect, test } from "vitest";
 
 import { suggestedPayrollPeriod } from "./payroll-schedule";

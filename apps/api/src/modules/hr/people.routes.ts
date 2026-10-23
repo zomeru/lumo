@@ -1,6 +1,6 @@
-import { idSchema, roleSchema } from "@lumo/contracts";
-import { departmentInputSchema, employmentInputSchema, hrPageSchema } from "@lumo/contracts/hr";
-import { hrDepartment, hrEmployee, membership, profile, user } from "@lumo/database/schema";
+import { idSchema, roleSchema } from "@lumolynk/contracts";
+import { departmentInputSchema, employmentInputSchema, hrPageSchema } from "@lumolynk/contracts/hr";
+import { hrDepartment, hrEmployee, membership, profile, user } from "@lumolynk/database/schema";
 import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";

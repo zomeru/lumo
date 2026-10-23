@@ -9,7 +9,7 @@ import {
   membership,
   user,
   workspace,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { eq, sql } from "drizzle-orm";
 import { expect, test } from "vitest";
 

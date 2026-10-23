@@ -2,7 +2,7 @@ import {
   attachmentFormat,
   isMessengerMedia,
   type MessengerMessage,
-} from "@lumo/contracts/messenger";
+} from "@lumolynk/contracts/messenger";
 import {
   Button,
   Dialog,
@@ -10,7 +10,7 @@ import {
   DialogDescription,
   DialogTitle,
   ErrorMessage,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   File,

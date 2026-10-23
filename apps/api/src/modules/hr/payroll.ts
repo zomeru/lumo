@@ -4,7 +4,7 @@ import {
   payrollSettingsInputSchema,
   scheduleInputSchema,
   type PayrollSettings,
-} from "@lumo/contracts/hr";
+} from "@lumolynk/contracts/hr";
 import {
   hrCompensation,
   hrEmployee,
@@ -15,7 +15,7 @@ import {
   hrRequest,
   hrShift,
   membership,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { and, asc, desc, eq, sql, or, isNull, lte, gte } from "drizzle-orm";
 
 import { AppError, missing } from "../../lib/errors";
@@ -348,7 +348,7 @@ export async function employeePay(
   return {
     result,
     snapshot: {
-      engineVersion: "lumo-payroll-2",
+      engineVersion: "lumolynk-payroll-2",
       ruleVersion: configuration.version,
       statutoryConfigurationId: configuration.id,
       rules: configuration.rules,

@@ -1,4 +1,4 @@
-import { Button, ErrorMessage } from "@lumo/ui";
+import { Button, ErrorMessage } from "@lumolynk/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { ArrowLeft, FileQuestion, TriangleAlert } from "lucide-react";

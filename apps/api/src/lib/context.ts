@@ -1,4 +1,4 @@
-import type { Role } from "@lumo/contracts";
+import type { Role } from "@lumolynk/contracts";
 
 export type SessionUser = {
   id: string;

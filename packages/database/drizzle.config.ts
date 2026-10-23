@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 
-import { databaseUrlSchema } from "@lumo/env/server";
+import { databaseUrlSchema } from "@lumolynk/env/server";
 import { defineConfig } from "drizzle-kit";
 
 const envFile = new URL("../../apps/api/.env", import.meta.url);

@@ -2,16 +2,16 @@ import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 
-import { createAuth } from "@lumo/auth";
-import { legalVersions } from "@lumo/contracts/legal";
+import { createAuth } from "@lumolynk/auth";
+import { legalVersions } from "@lumolynk/contracts/legal";
 import {
   driveItem,
   driveShare,
   driveStar,
   membership,
   storageCleanup,
-} from "@lumo/database/schema";
-import { readServerEnv } from "@lumo/env/server";
+} from "@lumolynk/database/schema";
+import { readServerEnv } from "@lumolynk/env/server";
 import { eq, inArray, sql } from "drizzle-orm";
 import { beforeAll, afterAll, test, expect, vi } from "vitest";
 

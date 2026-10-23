@@ -1,17 +1,17 @@
 import { randomUUID } from "node:crypto";
 
-import { idSchema } from "@lumo/contracts";
+import { idSchema } from "@lumolynk/contracts";
 import {
   messengerAttachmentInputSchema,
   attachmentMimeFromName,
   isMessengerMedia,
-} from "@lumo/contracts/messenger";
-import type { Database } from "@lumo/database";
+} from "@lumolynk/contracts/messenger";
+import type { Database } from "@lumolynk/database";
 import {
   messengerAttachment as attachment,
   messengerMessage as message,
   storageCleanup,
-} from "@lumo/database/schema";
+} from "@lumolynk/database/schema";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 

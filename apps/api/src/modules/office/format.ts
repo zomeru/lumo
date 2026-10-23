@@ -1,4 +1,4 @@
-import type { OfficeKind } from "@lumo/contracts/office";
+import type { OfficeKind } from "@lumolynk/contracts/office";
 import { fromBuffer } from "yauzl";
 
 import { AppError } from "../../lib/errors";

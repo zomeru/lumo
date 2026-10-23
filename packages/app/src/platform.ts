@@ -1,4 +1,4 @@
-import type { Transport } from "@lumo/api-client";
+import type { Transport } from "@lumolynk/api-client";
 export type AppPlatform = {
   kind: "web" | "desktop";
   webOrigin: string;

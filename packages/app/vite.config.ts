@@ -5,7 +5,7 @@ import type { Plugin } from "vite";
 
 export function appDependencies(): Plugin {
   return {
-    name: "lumo:browser-dependencies",
+    name: "lumolynk:browser-dependencies",
     config: () => ({
       build: {
         rolldownOptions: {

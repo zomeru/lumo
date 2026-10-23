@@ -1,10 +1,10 @@
-import { createAppRouter } from "@lumo/app";
-import { initializeTheme } from "@lumo/ui/theme";
+import { createAppRouter } from "@lumolynk/app";
+import { initializeTheme } from "@lumolynk/ui/theme";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import "@lumo/ui/styles.css";
+import "@lumolynk/ui/styles.css";
 
 initializeTheme();
 const router = createAppRouter();

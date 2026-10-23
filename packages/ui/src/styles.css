@@ -116,7 +116,7 @@
     opacity: 1;
   }
 }
-.lumo-emoji-picker {
+.lumolynk-emoji-picker {
   --epr-emoji-font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", emoji;
   --epr-bg-color: var(--elevated);
   --epr-category-label-bg-color: var(--elevated);
@@ -148,7 +148,7 @@
     width: fit-content;
   }
 }
-.lumo-emoji-picker {
+.lumolynk-emoji-picker {
   --epr-category-icon-inactive-color: var(--muted-foreground);
   --epr-category-icon-active-color: var(--primary);
 }

@@ -1,6 +1,6 @@
 /* oxlint-disable jsx-a11y/prefer-tag-over-role -- A multiline textarea combobox needs a focus-preserving rich listbox; native select cannot render member avatars. */
-import { messengerMembersSchema } from "@lumo/contracts/messenger";
-import { ErrorMessage, Textarea, cn } from "@lumo/ui";
+import { messengerMembersSchema } from "@lumolynk/contracts/messenger";
+import { ErrorMessage, Textarea, cn } from "@lumolynk/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Fragment, useId, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import { createPortal } from "react-dom";

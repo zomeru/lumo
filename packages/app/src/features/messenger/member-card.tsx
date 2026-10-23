@@ -1,5 +1,5 @@
-import { conversationSchema } from "@lumo/contracts/collaboration";
-import { Button, ErrorMessage, Popover, PopoverContent, PopoverTrigger } from "@lumo/ui";
+import { conversationSchema } from "@lumolynk/contracts/collaboration";
+import { Button, ErrorMessage, Popover, PopoverContent, PopoverTrigger } from "@lumolynk/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";

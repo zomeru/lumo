@@ -2,7 +2,7 @@ import {
   messengerAttachmentSchema,
   attachmentMimeFromName,
   messengerAttachmentUrlSchema,
-} from "@lumo/contracts/messenger";
+} from "@lumolynk/contracts/messenger";
 import { z } from "zod";
 
 import { api } from "../../lib/api";

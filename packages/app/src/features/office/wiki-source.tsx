@@ -21,7 +21,7 @@ import {
   DialogDescription,
   Field,
   ErrorMessage,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import {
   Bold,
   Italic,

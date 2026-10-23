@@ -1,5 +1,5 @@
 {
-  "name": "@lumo/database",
+  "name": "@lumolynk/database",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,12 +14,12 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@lumo/env": "workspace:*",
+    "@lumolynk/env": "workspace:*",
     "drizzle-orm": "0.45.4",
     "pg": "8.23.1"
   },
   "devDependencies": {
-    "@lumo/typescript-config": "workspace:*",
+    "@lumolynk/typescript-config": "workspace:*",
     "typescript": "7.0.2",
     "@types/node": "24.19.2",
     "drizzle-kit": "0.31.11",

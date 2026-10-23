@@ -1,13 +1,13 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
-import { errorSchema, idSchema, okSchema, paginationSchema } from "@lumo/contracts";
-import { conversationSchema, conversationsSchema } from "@lumo/contracts/collaboration";
-import * as messenger from "@lumo/contracts/messenger";
+import { errorSchema, idSchema, okSchema, paginationSchema } from "@lumolynk/contracts";
+import { conversationSchema, conversationsSchema } from "@lumolynk/contracts/collaboration";
+import * as messenger from "@lumolynk/contracts/messenger";
 import {
   presenceQuerySchema,
   presenceResultSchema,
   presencePreferenceSchema,
-} from "@lumo/contracts/presence";
+} from "@lumolynk/contracts/presence";
 
 import type { ApiContext } from "../../lib/context";
 

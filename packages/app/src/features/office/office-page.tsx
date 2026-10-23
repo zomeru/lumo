@@ -1,7 +1,7 @@
-import { driveItemSchema } from "@lumo/contracts/drive";
-import { fileOwnership } from "@lumo/contracts/files";
-import { officeDetailSchema } from "@lumo/contracts/office";
-import { formatDateTime } from "@lumo/shared/date-time";
+import { driveItemSchema } from "@lumolynk/contracts/drive";
+import { fileOwnership } from "@lumolynk/contracts/files";
+import { officeDetailSchema } from "@lumolynk/contracts/office";
+import { formatDateTime } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
   ErrorMessage,
   Loading,
-} from "@lumo/ui";
+} from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, History, MoreHorizontal, Share2 } from "lucide-react";

@@ -1,5 +1,5 @@
-import { officeEditorSchema } from "@lumo/contracts/office";
-import { Button, ErrorMessage, Loading } from "@lumo/ui";
+import { officeEditorSchema } from "@lumolynk/contracts/office";
+import { Button, ErrorMessage, Loading } from "@lumolynk/ui";
 import type { Config } from "@onlyoffice/doceditor-types";
 import { DocumentEditor } from "@onlyoffice/document-editor-react";
 import { useQuery } from "@tanstack/react-query";

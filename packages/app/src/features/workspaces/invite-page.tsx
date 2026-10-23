@@ -1,6 +1,6 @@
-import { okSchema, workspaceSchema } from "@lumo/contracts";
-import { formatDate } from "@lumo/shared/date-time";
-import { Brand, Button, Card, ErrorMessage, Loading } from "@lumo/ui";
+import { okSchema, workspaceSchema } from "@lumolynk/contracts";
+import { formatDate } from "@lumolynk/shared/date-time";
+import { Brand, Button, Card, ErrorMessage, Loading } from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 

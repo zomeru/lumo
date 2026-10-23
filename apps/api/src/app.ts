@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import { OpenAPIHono } from "@hono/zod-openapi";
-import type { Auth } from "@lumo/auth";
-import type { Database, Transaction } from "@lumo/database";
+import type { Auth } from "@lumolynk/auth";
+import type { Database, Transaction } from "@lumolynk/database";
 import {
   conversation,
   conversationMember,
@@ -12,8 +12,8 @@ import {
   hrEmployee,
   hrAudit,
   messengerAudit,
-} from "@lumo/database/schema";
-import type { ServerEnv } from "@lumo/env/server";
+} from "@lumolynk/database/schema";
+import type { ServerEnv } from "@lumolynk/env/server";
 import { Scalar } from "@scalar/hono-api-reference";
 import { and, eq, sql, inArray, ne, asc } from "drizzle-orm";
 import type { Context } from "hono";
@@ -289,7 +289,7 @@ export function createApp({
     if (!allowed.includes(path))
       throw new AppError(404, "NOT_FOUND", "This authentication endpoint is unavailable.");
     const headers = new Headers(c.req.raw.headers);
-    headers.set("x-lumo-client-ip", clientIp(c));
+    headers.set("x-lumolynk-client-ip", clientIp(c));
     const response = await auth.handler(new Request(c.req.raw, { headers }));
     if (response.status >= 300 && response.status < 400) return response;
     if (!response.headers.get("content-type")?.includes("application/json")) return response;
@@ -359,7 +359,7 @@ export function createApp({
   documentMessenger(app);
   app.doc31("/api/openapi.json", {
     openapi: "3.1.0",
-    info: { title: "Lumo API", version: "1.0.0" },
+    info: { title: "LumoLynk API", version: "1.0.0" },
     servers: [{ url: env.API_ORIGIN }],
   });
   app.get(

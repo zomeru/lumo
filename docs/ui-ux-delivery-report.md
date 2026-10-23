@@ -26,9 +26,9 @@ Date: 2026-10-22. Platforms exercised: Chromium Web, mobile Chromium and Linux E
 | `VITEST_MAX_WORKERS=2 pnpm check:all` | PASS: 66 files / 622 tests; formatting, type-aware lint, boundaries, dependency checks and types |
 | Coverage (unchanged 90% gates) | Statements 94.96%, branches 90.13%, functions 93.15%, lines 96.38% |
 | `pnpm build` | PASS: all four Web/Electron/API/shared-app production tasks |
-| `LUMO_LIVE_AVATAR_STORAGE=1 pnpm test:e2e --project chromium` | PASS: 11 passed; one separately executed live attachment opt-in |
-| `LUMO_LIVE_AVATAR_STORAGE=1 pnpm test:e2e --project mobile-chromium` | PASS: 10 passed; live attachment separate, mouse thumb dragging inapplicable to touch |
-| `LUMO_LIVE_AVATAR_STORAGE=1 xvfb-run -a pnpm test:desktop` | PASS: 7 passed; four existing native-WM/live-RTC opt-ins unrun |
+| `LUMOLYNK_LIVE_AVATAR_STORAGE=1 pnpm test:e2e --project chromium` | PASS: 11 passed; one separately executed live attachment opt-in |
+| `LUMOLYNK_LIVE_AVATAR_STORAGE=1 pnpm test:e2e --project mobile-chromium` | PASS: 10 passed; live attachment separate, mouse thumb dragging inapplicable to touch |
+| `LUMOLYNK_LIVE_AVATAR_STORAGE=1 xvfb-run -a pnpm test:desktop` | PASS: 7 passed; four existing native-WM/live-RTC opt-ins unrun |
 | Live attachment with the existing allowed S3 origin | PASS: private S3 upload, immutable completion, signed download and isolated cleanup |
 | Agent-browser visual review | 216 route snapshots plus 16 sign-in/registration captures; two themes × four viewports; no final horizontal overflow/error-only captures |
 | axe 4.12: sign-in, Settings, open thread | Zero violations; one manual-review item each on Settings/thread |

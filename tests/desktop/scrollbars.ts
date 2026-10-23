@@ -32,7 +32,7 @@ export async function verifyDesktopScrolling(app: ElectronApplication, page: Pag
   const workspaceUrl = page.url();
   await desktopWindow.evaluate((win) => win.setSize(1280, 850));
   await page.goto(new URL("/about", page.url()).href);
-  await expect(page.getByRole("heading", { name: "About Lumo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "About LumoLynk" })).toBeVisible();
   await page.evaluate(() => {
     // Public copy can legitimately exceed the native window height. Isolate gutter reclamation.
     document.getElementById("root")!.style.display = "none";

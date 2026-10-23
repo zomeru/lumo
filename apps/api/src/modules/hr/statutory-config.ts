@@ -1,5 +1,9 @@
-import { statutoryConfigurationInputSchema } from "@lumo/contracts/payroll";
-import { hrPayrollEmployee, hrPayrollRun, hrStatutoryConfiguration } from "@lumo/database/schema";
+import { statutoryConfigurationInputSchema } from "@lumolynk/contracts/payroll";
+import {
+  hrPayrollEmployee,
+  hrPayrollRun,
+  hrStatutoryConfiguration,
+} from "@lumolynk/database/schema";
 import { and, desc, eq, inArray, lte, sql } from "drizzle-orm";
 
 import { AppError } from "../../lib/errors";

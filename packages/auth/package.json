@@ -1,5 +1,5 @@
 {
-  "name": "@lumo/auth",
+  "name": "@lumolynk/auth",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,16 +11,16 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.10",
-    "@lumo/contracts": "workspace:*",
-    "@lumo/database": "workspace:*",
-    "@lumo/env": "workspace:*",
-    "@lumo/ui": "workspace:*",
+    "@lumolynk/contracts": "workspace:*",
+    "@lumolynk/database": "workspace:*",
+    "@lumolynk/env": "workspace:*",
+    "@lumolynk/ui": "workspace:*",
     "better-auth": "1.7.10",
     "pino": "10.4.0",
     "resend": "6.34.1"
   },
   "devDependencies": {
-    "@lumo/typescript-config": "workspace:*",
+    "@lumolynk/typescript-config": "workspace:*",
     "@types/node": "24.19.2",
     "typescript": "7.0.2",
     "vitest": "5.0.5"

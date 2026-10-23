@@ -13,7 +13,7 @@ export async function verifyProfile(page: Page, screenshot: string) {
   await expect(dialog).toBeVisible();
   await dialog
     .getByLabel("Choose profile photo", { exact: true })
-    .setInputFiles(resolve("packages/ui/src/assets/lumo-logo.png"));
+    .setInputFiles(resolve("packages/ui/src/assets/lumolynk-logo.png"));
   await expect(dialog.getByRole("img", { name: "Circular crop preview" })).toBeVisible();
   await dialog.getByLabel("Photo zoom", { exact: true }).press("ArrowRight");
   await dialog.getByLabel("Horizontal position", { exact: true }).press("ArrowLeft");
@@ -46,7 +46,7 @@ export async function verifyAvatarPersistence(
   for (let revision = 0; revision < 2; revision++) {
     await dialog
       .getByLabel("Choose profile photo", { exact: true })
-      .setInputFiles(resolve("packages/ui/src/assets/lumo-logo.png"));
+      .setInputFiles(resolve("packages/ui/src/assets/lumolynk-logo.png"));
     await expect(dialog.getByRole("img", { name: "Circular crop preview" })).toBeVisible();
     if (revision) await dialog.getByLabel("Photo zoom", { exact: true }).press("ArrowRight");
     await dialog.getByRole("button", { name: "Save photo", exact: true }).click();

@@ -1,4 +1,4 @@
-import { Button, ErrorMessage, Loading } from "@lumo/ui";
+import { Button, ErrorMessage, Loading } from "@lumolynk/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";

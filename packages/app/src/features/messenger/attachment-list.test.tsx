@@ -1,4 +1,4 @@
-import { type MessengerMessage } from "@lumo/contracts/messenger";
+import { type MessengerMessage } from "@lumolynk/contracts/messenger";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -168,7 +168,7 @@ test("desktop external-open uses an attachment identity and reports transport fa
     .mockRejectedValue(new Error("Download unavailable"));
   configurePlatform({
     kind: "desktop",
-    webOrigin: "https://lumo.test",
+    webOrigin: "https://lumolynk.test",
     transport: async () => ({ status: 200, body: result() }),
     openAttachment,
     download,

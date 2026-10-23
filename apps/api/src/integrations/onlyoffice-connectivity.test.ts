@@ -60,7 +60,7 @@ test.each([
   () => Response.json(null),
   () => new Response("not json", { headers: { "content-type": "application/json" } }),
   () => new Response('{"status":"ready"}', { headers: { "content-type": "text/html" } }),
-])("rejects non-Lumo or malformed readiness responses", async (response) => {
+])("rejects non-LumoLynk or malformed readiness responses", async (response) => {
   const request = vi
     .fn<typeof fetch>()
     .mockResolvedValueOnce(script())

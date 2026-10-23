@@ -1,5 +1,5 @@
-import { workspaceInputSchema, workspaceSchema, type WorkspaceInput } from "@lumo/contracts";
-import { Brand, Button, Card, ErrorMessage, Field } from "@lumo/ui";
+import { workspaceInputSchema, workspaceSchema, type WorkspaceInput } from "@lumolynk/contracts";
+import { Brand, Button, Card, ErrorMessage, Field } from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";

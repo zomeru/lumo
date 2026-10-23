@@ -1,4 +1,4 @@
-import { rtcCredentialsSchema } from "@lumo/contracts/collaboration";
+import { rtcCredentialsSchema } from "@lumolynk/contracts/collaboration";
 import type {
   IAgoraRTCClient,
   ICameraVideoTrack,

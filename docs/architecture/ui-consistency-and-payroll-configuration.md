@@ -2,7 +2,7 @@
 
 ## Review and decisions
 
-Inspected shared `@lumo/ui` primitives, account/workspace screens and shell, Contacts,
+Inspected shared `@lumolynk/ui` primitives, account/workspace screens and shell, Contacts,
 Messenger, Meetings/Calendar, Drive, the shared Docs/Sheets/Slides/All Files inventory,
 Office/Wiki editor layouts, all six HR screens and Electron chrome/transport boundaries.
 The web and desktop render the same feature components from `packages/app`.

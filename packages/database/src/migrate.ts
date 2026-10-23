@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 
-import { databaseUrlSchema } from "@lumo/env/server";
+import { databaseUrlSchema } from "@lumolynk/env/server";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 
 import { createDatabase } from "./client.ts";

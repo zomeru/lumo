@@ -1,25 +1,25 @@
 {
-  "name": "@lumo/desktop",
+  "name": "@lumolynk/desktop",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Lumo collaboration desktop application",
-  "author": "Lumo",
+  "description": "LumoLynk collaboration desktop application",
+  "author": "LumoLynk",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "pnpm check-types && electron-vite build",
-    "check-types": "pnpm --filter @lumo/app routes:generate && tsc --noEmit",
+    "check-types": "pnpm --filter @lumolynk/app routes:generate && tsc --noEmit",
     "preview": "electron-vite preview",
     "package": "electron-builder --dir",
     "dist": "electron-builder"
   },
   "dependencies": {},
   "devDependencies": {
-    "@lumo/app": "workspace:*",
-    "@lumo/ui": "workspace:*",
-    "@lumo/api-client": "workspace:*",
-    "@lumo/typescript-config": "workspace:*",
+    "@lumolynk/app": "workspace:*",
+    "@lumolynk/ui": "workspace:*",
+    "@lumolynk/api-client": "workspace:*",
+    "@lumolynk/typescript-config": "workspace:*",
     "@tailwindcss/vite": "4.3.3",
     "@vitejs/plugin-react": "6.1.2",
     "@testing-library/react": "16.3.3",
@@ -40,8 +40,8 @@
     "zod": "4.6.7"
   },
   "build": {
-    "appId": "com.lumo.desktop",
-    "productName": "Lumo",
+    "appId": "com.lumolynk.desktop",
+    "productName": "LumoLynk",
     "asar": true,
     "directories": {
       "output": "release",
@@ -72,10 +72,10 @@
       "category": "public.app-category.productivity",
       "icon": "resources/icon.png",
       "extendInfo": {
-        "NSCameraUsageDescription": "Lumo uses your camera when you enable video in a meeting.",
-        "NSMicrophoneUsageDescription": "Lumo uses your microphone when you enable audio in a meeting."
+        "NSCameraUsageDescription": "LumoLynk uses your camera when you enable video in a meeting.",
+        "NSMicrophoneUsageDescription": "LumoLynk uses your microphone when you enable audio in a meeting."
       }
     },
-    "executableName": "lumo"
+    "executableName": "lumolynk"
   }
 }

@@ -1,5 +1,5 @@
-import type { WorkspaceInput } from "@lumo/contracts";
-import { Field, FormField, SelectField, Textarea } from "@lumo/ui";
+import type { WorkspaceInput } from "@lumolynk/contracts";
+import { Field, FormField, SelectField, Textarea } from "@lumolynk/ui";
 
 const choices = (values: string[]) => values.map((value) => ({ value, label: value }));
 export function WorkspaceFields({

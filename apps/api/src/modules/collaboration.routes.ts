@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { idSchema, okSchema, paginationSchema, errorSchema } from "@lumo/contracts";
+import { idSchema, okSchema, paginationSchema, errorSchema } from "@lumolynk/contracts";
 import {
   calendarMeetingDetailSchema,
   calendarQuerySchema,
@@ -16,8 +16,8 @@ import {
   meetingDetailSchema,
   rtcCredentialsSchema,
   rtcTokenInputSchema,
-} from "@lumo/contracts/collaboration";
-import type { Database } from "@lumo/database";
+} from "@lumolynk/contracts/collaboration";
+import type { Database } from "@lumolynk/database";
 
 import type { CollaborationProvider } from "../integrations/agora";
 import type { ApiContext } from "../lib/context";

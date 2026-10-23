@@ -64,7 +64,7 @@ export async function createSessionTransport(
           body: {
             error: {
               code: "OFFLINE",
-              message: "Unable to reach Lumo. Check your connection and try again.",
+              message: "Unable to reach LumoLynk. Check your connection and try again.",
             },
           },
         };

@@ -22,7 +22,7 @@ import { registerWindowControls, synchronizeWindowState } from "./window-control
 const dirname = fileURLToPath(new URL(".", import.meta.url));
 protocol.registerSchemesAsPrivileged([
   {
-    scheme: "lumo",
+    scheme: "lumolynk",
     privileges: {
       standard: true,
       secure: true,
@@ -62,23 +62,23 @@ void app.whenReady().then(async () => {
     )
       throw new Error("Untrusted sender");
   }
-  ipcMain.handle("lumo:request", (event, input: unknown) => {
+  ipcMain.handle("lumolynk:request", (event, input: unknown) => {
     sender(event);
     return request(input);
   });
-  ipcMain.handle("lumo:web-origin", (event) => {
+  ipcMain.handle("lumolynk:web-origin", (event) => {
     sender(event);
     return webOrigin;
   });
-  ipcMain.handle("lumo:download", async (event, input: unknown) => {
+  ipcMain.handle("lumolynk:download", async (event, input: unknown) => {
     sender(event);
     await driveDownload(input, request, (url) => window!.webContents.downloadURL(url));
   });
-  ipcMain.handle("lumo:media-external", async (event, path: unknown) => {
+  ipcMain.handle("lumolynk:media-external", async (event, path: unknown) => {
     sender(event);
     await openMessengerAttachment(path, request, (url) => shell.openExternal(url));
   });
-  ipcMain.handle("lumo:external", async (event, url: unknown) => {
+  ipcMain.handle("lumolynk:external", async (event, url: unknown) => {
     sender(event);
     await shell.openExternal(externalUrl(url, webOrigin));
   });
@@ -96,7 +96,7 @@ void app.whenReady().then(async () => {
       ? remoteOrigin(officeConfig.documentServerUrl)
       : undefined;
   const csp = rendererCsp(undefined, undefined, officeOrigin, apiOrigin);
-  protocol.handle("lumo", async (req) => {
+  protocol.handle("lumolynk", async (req) => {
     const url = new URL(req.url);
     if (url.hostname !== "app" || req.method !== "GET") return new Response(null, { status: 403 });
     let path: string;
@@ -131,7 +131,7 @@ void app.whenReady().then(async () => {
   const ses = session.defaultSession;
   ses.on("will-download", (_event, item) => {
     // Electron's native save dialog keeps file contents outside the renderer.
-    item.setSaveDialogOptions({ title: "Save Lumo download" });
+    item.setSaveDialogOptions({ title: "Save LumoLynk download" });
   });
   if (devOrigin)
     ses.webRequest.onHeadersReceived({ urls: [`${devOrigin}/*`] }, (details, callback) => {
@@ -139,7 +139,7 @@ void app.whenReady().then(async () => {
         responseHeaders: {
           ...details.responseHeaders,
           "Content-Security-Policy": [
-            rendererCsp(devOrigin, import.meta.env.LUMO_CSP_NONCE, officeOrigin, apiOrigin),
+            rendererCsp(devOrigin, import.meta.env.LUMOLYNK_CSP_NONCE, officeOrigin, apiOrigin),
           ],
         },
       });
@@ -162,7 +162,7 @@ void app.whenReady().then(async () => {
     void dialog
       .showMessageBox(window!, {
         type: "question",
-        message: `Allow Lumo to use ${permission === "media" ? "your camera or microphone" : "screen sharing"}?`,
+        message: `Allow LumoLynk to use ${permission === "media" ? "your camera or microphone" : "screen sharing"}?`,
         buttons: ["Deny", "Allow"],
         defaultId: 0,
         cancelId: 0,
@@ -208,7 +208,7 @@ void app.whenReady().then(async () => {
   );
   function createWindow() {
     window = new BrowserWindow({
-      title: "Lumo",
+      title: "LumoLynk",
       ...(process.platform === "darwin"
         ? { titleBarStyle: "hidden" as const, trafficLightPosition: { x: 12, y: 12 } }
         : { frame: false }),
@@ -236,7 +236,7 @@ void app.whenReady().then(async () => {
       if (!trustedRenderer(url, devOrigin)) event.preventDefault();
     });
     window.webContents.on("will-attach-webview", (event) => event.preventDefault());
-    void window.loadURL(devUrl ?? "lumo://app/login");
+    void window.loadURL(devUrl ?? "lumolynk://app/login");
     window.on("closed", () => {
       window = null;
     });

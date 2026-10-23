@@ -5,10 +5,10 @@ import { Server } from "node:http";
 import { parseEnv } from "node:util";
 
 import { serve } from "@hono/node-server";
-import { createAuth } from "@lumo/auth";
-import type { Conversation } from "@lumo/contracts/collaboration";
-import { legalVersions } from "@lumo/contracts/legal";
-import { messengerMessageSchema, type MessengerMessage } from "@lumo/contracts/messenger";
+import { createAuth } from "@lumolynk/auth";
+import type { Conversation } from "@lumolynk/contracts/collaboration";
+import { legalVersions } from "@lumolynk/contracts/legal";
+import { messengerMessageSchema, type MessengerMessage } from "@lumolynk/contracts/messenger";
 import {
   membership,
   presenceLease,
@@ -18,8 +18,8 @@ import {
   storageCleanup,
   conversation,
   user,
-} from "@lumo/database/schema";
-import { readServerEnv } from "@lumo/env/server";
+} from "@lumolynk/database/schema";
+import { readServerEnv } from "@lumolynk/env/server";
 import { and, eq, sql } from "drizzle-orm";
 import { beforeAll, afterAll, test, expect, vi } from "vitest";
 import { WebSocket, type RawData } from "ws";
@@ -1200,5 +1200,5 @@ test("reply previews aggregate the last three distinct participants without dupl
       where ranked.rank <= 3 order by ranked.parent_id, ranked.last_sequence desc`,
   );
   expect(JSON.stringify(plan.rows)).toContain("Plan");
-  if (process.env.LUMO_QUERY_PLANS === "1") console.info(JSON.stringify(plan.rows));
+  if (process.env.LUMOLYNK_QUERY_PLANS === "1") console.info(JSON.stringify(plan.rows));
 });

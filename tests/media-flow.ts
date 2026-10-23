@@ -50,7 +50,7 @@ export async function verifyMedia(
         ctx.fillRect(0, 0, 320, 180);
         ctx.fillStyle = "white";
         ctx.font = "24px sans-serif";
-        ctx.fillText(`Lumo ${Date.now() % 10000}`, 30, 95);
+        ctx.fillText(`LumoLynk ${Date.now() % 10000}`, 30, 95);
       }, 70);
       recorder.ondataavailable = (event) => chunks.push(event.data);
       const completed = new Promise<void>((resolve) => {
@@ -68,15 +68,15 @@ export async function verifyMedia(
     mp4 = await recordVideo("video/mp4;codecs=avc1.42001E");
   const files = [
     {
-      name: "Lumo-photo.png",
+      name: "LumoLynk-photo.png",
       mimeType: "image/png",
-      buffer: await readFile(resolve("packages/ui/src/assets/lumo-logo.png")),
+      buffer: await readFile(resolve("packages/ui/src/assets/lumolynk-logo.png")),
     },
-    { name: "Lumo-animation.gif", mimeType: "image/gif", buffer: animatedGif() },
-    { name: "Lumo-clip.webm", mimeType: "video/webm", buffer: Buffer.from(webm) },
-    { name: "Lumo-clip.mp4", mimeType: "video/mp4", buffer: Buffer.from(mp4) },
+    { name: "LumoLynk-animation.gif", mimeType: "image/gif", buffer: animatedGif() },
+    { name: "LumoLynk-clip.webm", mimeType: "video/webm", buffer: Buffer.from(webm) },
+    { name: "LumoLynk-clip.mp4", mimeType: "video/mp4", buffer: Buffer.from(mp4) },
     {
-      name: "Lumo-notes.txt",
+      name: "LumoLynk-notes.txt",
       mimeType: "text/plain",
       buffer: Buffer.from("Private Messenger media validation"),
     },
@@ -135,18 +135,18 @@ export async function verifyMedia(
   }
   await expect(history.getByText("Text file · 34 B", { exact: true })).toBeVisible();
   await expect(
-    history.getByRole("button", { name: "Preview Lumo-notes.txt", exact: true }),
+    history.getByRole("button", { name: "Preview LumoLynk-notes.txt", exact: true }),
   ).toHaveCount(0);
-  const trigger = history.getByRole("button", { name: "Preview Lumo-photo.png", exact: true });
+  const trigger = history.getByRole("button", { name: "Preview LumoLynk-photo.png", exact: true });
   await trigger.click();
   const dialog = page.getByRole("dialog");
   for (const theme of ["light", "dark"]) {
     // The product theme is changed through its own appearance menu outside the modal.
-    await expect(dialog).toHaveAccessibleName("Lumo-photo.png");
+    await expect(dialog).toHaveAccessibleName("LumoLynk-photo.png");
     await expect
       .poll(() =>
         dialog
-          .getByAltText("Lumo-photo.png", { exact: true })
+          .getByAltText("LumoLynk-photo.png", { exact: true })
           .evaluate((img: HTMLImageElement) => img.naturalWidth),
       )
       .toBeGreaterThan(0);
@@ -162,15 +162,15 @@ export async function verifyMedia(
         dialog.getByRole("button", { name: "Download", exact: true }).click(),
       );
     await dialog.getByRole("button", { name: "Next attachment", exact: true }).click();
-    await expect(dialog).toHaveAccessibleName("Lumo-animation.gif");
+    await expect(dialog).toHaveAccessibleName("LumoLynk-animation.gif");
     await expect
       .poll(() =>
         dialog
-          .getByAltText("Lumo-animation.gif", { exact: true })
+          .getByAltText("LumoLynk-animation.gif", { exact: true })
           .evaluate((img: HTMLImageElement) => img.naturalWidth),
       )
       .toBe(2);
-    for (const clip of ["Lumo-clip.webm", "Lumo-clip.mp4"]) {
+    for (const clip of ["LumoLynk-clip.webm", "LumoLynk-clip.mp4"]) {
       await dialog.getByRole("button", { name: "Next attachment", exact: true }).click();
       await expect(dialog).toHaveAccessibleName(clip);
       const player = dialog.getByLabel(`Video: ${clip}`, { exact: true });
@@ -196,7 +196,7 @@ export async function verifyMedia(
     }
   }
   await verifyDownload(files.at(-1)!, () =>
-    history.getByRole("button", { name: "Lumo-notes.txt · Download", exact: true }).click(),
+    history.getByRole("button", { name: "LumoLynk-notes.txt · Download", exact: true }).click(),
   );
   await page.screenshot({ path: screenshot("attachments-dark.png") });
 }

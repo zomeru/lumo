@@ -7,8 +7,8 @@ import {
   payrollDetailSchema,
   payrollScheduleSchema,
   type PayrollResult,
-} from "@lumo/contracts/hr";
-import { formatDate } from "@lumo/shared/date-time";
+} from "@lumolynk/contracts/hr";
+import { formatDate } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -26,8 +26,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@lumo/ui";
-import { ConfirmAction } from "@lumo/ui/confirm-action";
+} from "@lumolynk/ui";
+import { ConfirmAction } from "@lumolynk/ui/confirm-action";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -459,7 +459,7 @@ export function PayrollPage({ workspaceId }: { workspaceId: string }) {
               {canHr(permissions, "hr.payroll.mark_paid") && run.status === "finalized" && (
                 <ConfirmAction
                   label="Record paid"
-                  message="Record that payment was made outside Lumo? This does not transmit funds."
+                  message="Record that payment was made outside LumoLynk? This does not transmit funds."
                   disabled={action.isPending}
                   onConfirm={() => runAction("mark_paid", { confirmation: "record_payment" })}
                 />

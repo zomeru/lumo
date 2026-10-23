@@ -1,4 +1,4 @@
 {
-  "extends": "@lumo/typescript-config/node.json",
+  "extends": "@lumolynk/typescript-config/node.json",
   "include": ["src", "*.config.ts"]
 }

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { fileURLToPath, URL } from "node:url";
 
-import { appDependencies, appRoutes } from "@lumo/app/vite";
+import { appDependencies, appRoutes } from "@lumolynk/app/vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
@@ -9,7 +9,7 @@ const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 const nonce = randomBytes(24).toString("base64");
 export default defineConfig({
   main: {
-    define: { "import.meta.env.LUMO_CSP_NONCE": JSON.stringify(nonce) },
+    define: { "import.meta.env.LUMOLYNK_CSP_NONCE": JSON.stringify(nonce) },
     build: { externalizeDeps: false },
   },
   preload: {

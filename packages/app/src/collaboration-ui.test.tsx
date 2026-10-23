@@ -1,4 +1,4 @@
-import { messengerMessageSchema, type MessengerMessage } from "@lumo/contracts/messenger";
+import { messengerMessageSchema, type MessengerMessage } from "@lumolynk/contracts/messenger";
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -204,7 +204,7 @@ test("desktop has login first, restores sessions and uses configured invitation 
   const fetch = globalThis.fetch;
   configurePlatform({
     kind: "desktop",
-    webOrigin: "https://lumo.test",
+    webOrigin: "https://lumolynk.test",
     transport: async (path, options) => {
       const response = await fetch(path, {
         method: options.method,
@@ -215,7 +215,7 @@ test("desktop has login first, restores sessions and uses configured invitation 
   });
   server.state.authenticated = false;
   await show("/");
-  expect(await screen.findByRole("heading", { name: "Sign in to Lumo" })).toBeVisible();
+  expect(await screen.findByRole("heading", { name: "Sign in to LumoLynk" })).toBeVisible();
 });
 
 test("declining an invitation returns to authorized workspaces", async () => {
@@ -252,7 +252,7 @@ test("desktop restores the authorized workspace after login-page cold start", as
   const fetch = globalThis.fetch;
   configurePlatform({
     kind: "desktop",
-    webOrigin: "https://lumo.test",
+    webOrigin: "https://lumolynk.test",
     transport: async (path, options) => {
       const response = await fetch(path, {
         method: options.method,
@@ -270,14 +270,14 @@ test("desktop restores the authorized workspace after login-page cold start", as
 test("shared links navigate only to configured invitation or meeting destinations", async () => {
   const user = await show("/workspaces");
   await user.type(
-    await screen.findByLabelText("Lumo invitation or meeting link"),
+    await screen.findByLabelText("LumoLynk invitation or meeting link"),
     "https://evil.test/meetings/" + id,
   );
   await user.click(screen.getByRole("button", { name: "Open link" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Lumo server");
-  await user.clear(screen.getByLabelText("Lumo invitation or meeting link"));
+  expect(await screen.findByRole("alert")).toHaveTextContent("LumoLynk server");
+  await user.clear(screen.getByLabelText("LumoLynk invitation or meeting link"));
   await user.type(
-    screen.getByLabelText("Lumo invitation or meeting link"),
+    screen.getByLabelText("LumoLynk invitation or meeting link"),
     window.location.origin + "/meetings/" + id,
   );
   await user.click(screen.getByRole("button", { name: "Open link" }));

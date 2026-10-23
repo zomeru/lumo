@@ -1,4 +1,4 @@
-import { driveListInputSchema } from "@lumo/contracts/drive";
+import { driveListInputSchema } from "@lumolynk/contracts/drive";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { moduleRoutes } from "../features/office/file-modules";

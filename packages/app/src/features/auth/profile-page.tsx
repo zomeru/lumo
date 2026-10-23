@@ -1,4 +1,4 @@
-import { Button, Card, ErrorMessage, Field, Loading, ThemeMenu } from "@lumo/ui";
+import { Button, Card, ErrorMessage, Field, Loading, ThemeMenu } from "@lumolynk/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 

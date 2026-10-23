@@ -1,11 +1,11 @@
-import type { Member, Role } from "@lumo/contracts";
+import type { Member, Role } from "@lumolynk/contracts";
 import {
   canChangeRole,
   canInvite,
   canInviteRole,
   canRemoveMember,
-} from "@lumo/contracts/permissions";
-import { formatDate } from "@lumo/shared/date-time";
+} from "@lumolynk/contracts/permissions";
+import { formatDate } from "@lumolynk/shared/date-time";
 import {
   Badge,
   Button,
@@ -21,8 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
   useToast,
-} from "@lumo/ui";
-import { ConfirmAction } from "@lumo/ui/confirm-action";
+} from "@lumolynk/ui";
+import { ConfirmAction } from "@lumolynk/ui/confirm-action";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";

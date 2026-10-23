@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
 
-import type { Auth } from "@lumo/auth";
-import type { Database } from "@lumo/database";
-import { session } from "@lumo/database/schema";
-import type { ServerEnv } from "@lumo/env/server";
+import type { Auth } from "@lumolynk/auth";
+import type { Database } from "@lumolynk/database";
+import { session } from "@lumolynk/database/schema";
+import type { ServerEnv } from "@lumolynk/env/server";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { sign, verify } from "hono/jwt";
 import { WebSocketServer, WebSocket } from "ws";
@@ -135,7 +135,7 @@ export function createMessengerHub(
         if (
           ![
             env.WEB_ORIGIN,
-            "lumo://app",
+            "lumolynk://app",
             ...(env.NODE_ENV !== "production" ? ["http://127.0.0.1:5174"] : []),
           ].includes(request.headers.origin ?? "")
         ) {
@@ -192,7 +192,7 @@ export function createMessengerHub(
                   async (tx, item, member) => {
                     chat.canPost(item, member);
                     await tx.execute(
-                      sql`select pg_notify('lumo_messenger_typing',${JSON.stringify({ workspaceId: ticket.workspaceId, conversationId: input.conversationId, actorId: ticket.actor })})`,
+                      sql`select pg_notify('lumolynk_messenger_typing',${JSON.stringify({ workspaceId: ticket.workspaceId, conversationId: input.conversationId, actorId: ticket.actor })})`,
                     );
                   },
                 );

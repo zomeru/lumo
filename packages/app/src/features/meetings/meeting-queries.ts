@@ -1,4 +1,7 @@
-import { calendarMeetingsSchema, calendarMeetingDetailSchema } from "@lumo/contracts/collaboration";
+import {
+  calendarMeetingsSchema,
+  calendarMeetingDetailSchema,
+} from "@lumolynk/contracts/collaboration";
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { api } from "../../lib/api";

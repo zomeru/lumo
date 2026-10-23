@@ -1,4 +1,4 @@
-import type { WorkSchedule } from "@lumo/contracts/hr";
+import type { WorkSchedule } from "@lumolynk/contracts/hr";
 import { expect, test } from "vitest";
 
 import { csvRows, shiftMinutes } from "./attendance";

@@ -27,17 +27,17 @@ Date: 2026-10-22. This follow-up completes the six requested fixes after plan 08
 | Broader acceptance | Result |
 | --- | --- |
 | `pnpm test:e2e --project chromium` | 10 passed; three live-storage cases opt in separately |
-| `LUMO_LIVE_AVATAR_STORAGE=1 pnpm test:e2e --project mobile-chromium` | 10 passed; two Messenger storage cases separate; mouse thumb dragging inapplicable to touch |
-| `LUMO_LIVE_AVATAR_STORAGE=1 xvfb-run -a pnpm test:desktop` | 7 passed; four native window-manager/live-RTC opt-ins unrun; private media passed separately |
+| `LUMOLYNK_LIVE_AVATAR_STORAGE=1 pnpm test:e2e --project mobile-chromium` | 10 passed; two Messenger storage cases separate; mouse thumb dragging inapplicable to touch |
+| `LUMOLYNK_LIVE_AVATAR_STORAGE=1 xvfb-run -a pnpm test:desktop` | 7 passed; four native window-manager/live-RTC opt-ins unrun; private media passed separately |
 | Private media journeys | One passing journey each in Web, mobile Chromium and Electron, both themes; additional focused reruns during implementation |
 
 ## Reproduction and local evidence
 
-Run normal projects separately with `pnpm test:e2e --project chromium`, `pnpm test:e2e --project mobile-chromium`, and `xvfb-run -a pnpm test:desktop`. Native/live-provider opt-ins remain explicit. Run the new private-storage journeys with `LUMO_LIVE_MESSENGER_STORAGE=1` and `-g 'live private media thumbnails'` (Web) or `-g 'private Messenger media plays'` (Desktop).
+Run normal projects separately with `pnpm test:e2e --project chromium`, `pnpm test:e2e --project mobile-chromium`, and `xvfb-run -a pnpm test:desktop`. Native/live-provider opt-ins remain explicit. Run the new private-storage journeys with `LUMOLYNK_LIVE_MESSENGER_STORAGE=1` and `-g 'live private media thumbnails'` (Web) or `-g 'private Messenger media plays'` (Desktop).
 
 Use an origin already allowed by the bucket. Web live-storage runs use the existing allowed `http://localhost:3000` / `http://localhost:3001` origins with isolated IPv6 listeners and `--host-resolver-rules=MAP localhost [::1]` in the ignored `.local/messenger-fixes/playwright.media.config.ts`.
 
-Desktop uses a dedicated explicit IPv4 loopback API for both Node HTTP and advertised sockets; readiness waits for the test server's startup output. Its normal port is 3011. For native live storage, use `LUMO_E2E_WEB_ORIGIN=http://localhost:3000`, `LUMO_E2E_API_ORIGIN=http://localhost:3021` and `.local/messenger-fixes/playwright.media-desktop.config.ts`. Port 3021 keeps the IPv4 development API on 3001 untouched. The bucket already permits `lumo://app`; no CORS change is needed. The test bootstrap permits only IPv4/IPv6 loopback hosts.
+Desktop uses a dedicated explicit IPv4 loopback API for both Node HTTP and advertised sockets; readiness waits for the test server's startup output. Its normal port is 3011. For native live storage, use `LUMOLYNK_E2E_WEB_ORIGIN=http://localhost:3000`, `LUMOLYNK_E2E_API_ORIGIN=http://localhost:3021` and `.local/messenger-fixes/playwright.media-desktop.config.ts`. Port 3021 keeps the IPv4 development API on 3001 untouched. The bucket already permits `lumolynk://app`; no CORS change is needed. The test bootstrap permits only IPv4/IPv6 loopback hosts.
 
 A launcher-isolation mistake was found during broad native acceptance: this WSL hosts file resolves Node's `localhost` only to IPv4, so earlier media checks reached the development API. Those results were rerun against the isolated API. Exactly three synthetic accounts, their three sole-member personal workspaces, 13 attachments and 26 staging/content objects were identified and removed; absence of the accounts was verified afterward. Unrelated development data was preserved. DNS-order changes alone did not solve this host setup. Explicit, consistent loopback origins now prevent both wrong-server access and socket/CSP mismatch. Test shutdown cleans the isolated schemas and their synthetic storage objects.
 

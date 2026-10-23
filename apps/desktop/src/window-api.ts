@@ -1,9 +1,9 @@
 export const windowChannels = {
-  minimize: "lumo:window:minimize",
-  toggleMaximize: "lumo:window:toggle-maximize",
-  close: "lumo:window:close",
-  state: "lumo:window:state",
-  stateChanged: "lumo:window:state-changed",
+  minimize: "lumolynk:window:minimize",
+  toggleMaximize: "lumolynk:window:toggle-maximize",
+  close: "lumolynk:window:close",
+  state: "lumolynk:window:state",
+  stateChanged: "lumolynk:window:state-changed",
 } as const;
 
 export type WindowState = { maximized: boolean; fullscreen: boolean };

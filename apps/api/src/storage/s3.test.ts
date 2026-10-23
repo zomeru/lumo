@@ -10,16 +10,16 @@ import {
   type GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
-import { readServerEnv } from "@lumo/env/server";
+import { readServerEnv } from "@lumolynk/env/server";
 import { afterEach, beforeEach, describe, expect, test, vi, type MockInstance } from "vitest";
 
 import { createS3Storage } from "./s3";
 
 const awsEnv = readServerEnv({
-  DATABASE_URL: "postgresql://test@localhost/lumo_test",
+  DATABASE_URL: "postgresql://test@localhost/lumolynk_test",
   BETTER_AUTH_SECRET: "test-secret-with-at-least-thirty-two-characters",
   AWS_REGION: "us-east-1",
-  AWS_S3_BUCKET: "lumo-test-bucket",
+  AWS_S3_BUCKET: "lumolynk-test-bucket",
 });
 const spacesEnv = readServerEnv({
   ...awsEnv,
@@ -50,11 +50,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe.each([
-  { provider: "AWS S3", env: awsEnv, host: "lumo-test-bucket.s3.us-east-1.amazonaws.com" },
+  { provider: "AWS S3", env: awsEnv, host: "lumolynk-test-bucket.s3.us-east-1.amazonaws.com" },
   {
     provider: "DigitalOcean Spaces",
     env: spacesEnv,
-    host: "lumo-test-bucket.nyc3.digitaloceanspaces.com",
+    host: "lumolynk-test-bucket.nyc3.digitaloceanspaces.com",
   },
 ])("$provider", ({ env, host }) => {
   test("signs short-lived PUT, part and GET URLs with exact sizes/checksums and safe dispositions", async () => {
@@ -275,7 +275,7 @@ test("path-style addressing and object-key encoding use the configured endpoint"
   const storage = createS3Storage({ ...spacesEnv, S3_FORCE_PATH_STYLE: true });
   const url = new URL(await storage.downloadUrl("drive/workspace/a b+名.txt", "a b+名.txt"));
   expect(url.hostname).toBe("nyc3.digitaloceanspaces.com");
-  expect(url.pathname).toBe("/lumo-test-bucket/drive/workspace/a%20b%2B%E5%90%8D.txt");
+  expect(url.pathname).toBe("/lumolynk-test-bucket/drive/workspace/a%20b%2B%E5%90%8D.txt");
   expect(url.searchParams.get("response-cache-control")).toBe("no-store");
 });
 
@@ -284,18 +284,20 @@ test.each(["false", "true"])(
   async (S3_FORCE_PATH_STYLE) => {
     const env = readServerEnv({
       ...spacesEnv,
-      AWS_S3_BUCKET: "lumo-prod",
-      S3_ENDPOINT: "https://lumo-prod.sgp1.digitaloceanspaces.com",
+      AWS_S3_BUCKET: "lumolynk-prod",
+      S3_ENDPOINT: "https://lumolynk-prod.sgp1.digitaloceanspaces.com",
       S3_FORCE_PATH_STYLE,
     });
     const url = new URL(await createS3Storage(env).downloadUrl("drive/workspace/file", "file.txt"));
     expect(url.hostname).toBe(
       S3_FORCE_PATH_STYLE === "true"
         ? "sgp1.digitaloceanspaces.com"
-        : "lumo-prod.sgp1.digitaloceanspaces.com",
+        : "lumolynk-prod.sgp1.digitaloceanspaces.com",
     );
     expect(url.pathname).toBe(
-      S3_FORCE_PATH_STYLE === "true" ? "/lumo-prod/drive/workspace/file" : "/drive/workspace/file",
+      S3_FORCE_PATH_STYLE === "true"
+        ? "/lumolynk-prod/drive/workspace/file"
+        : "/drive/workspace/file",
     );
   },
 );

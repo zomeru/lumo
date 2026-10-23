@@ -16,7 +16,7 @@ import { registerWindowControls, synchronizeWindowState } from "./window-control
 
 function createWindow() {
   const events = new EventEmitter();
-  const mainFrame = { url: "lumo://app/login" };
+  const mainFrame = { url: "lumolynk://app/login" };
   const window = Object.assign(events, {
     isDestroyed: vi.fn<() => boolean>(() => false),
     isMaximized: vi.fn<() => boolean>(() => false),
@@ -67,11 +67,14 @@ test("rejects other windows, child frames, untrusted URLs and destroyed windows 
       "Untrusted sender",
     );
     expect(() =>
-      invoke(channel, { ...event, senderFrame: { url: "lumo://app/login" } } as IpcMainInvokeEvent),
+      invoke(channel, {
+        ...event,
+        senderFrame: { url: "lumolynk://app/login" },
+      } as IpcMainInvokeEvent),
     ).toThrow("Untrusted sender");
     window.webContents.mainFrame.url = "https://evil.test";
     expect(() => invoke(channel, event)).toThrow("Untrusted sender");
-    window.webContents.mainFrame.url = "lumo://app/login";
+    window.webContents.mainFrame.url = "lumolynk://app/login";
     window.isDestroyed.mockReturnValue(true);
     expect(() => invoke(channel, event)).toThrow("Untrusted sender");
     window.isDestroyed.mockReturnValue(false);

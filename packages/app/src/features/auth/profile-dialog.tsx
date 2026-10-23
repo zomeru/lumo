@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from "@lumo/ui";
+import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from "@lumolynk/ui";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   createContext,

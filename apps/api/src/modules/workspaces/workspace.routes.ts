@@ -7,7 +7,7 @@ import {
   transferInputSchema,
   workspaceInputSchema,
   workspaceUpdateSchema,
-} from "@lumo/contracts";
+} from "@lumolynk/contracts";
 import { Hono } from "hono";
 
 import type { ApiContext } from "../../lib/context.ts";

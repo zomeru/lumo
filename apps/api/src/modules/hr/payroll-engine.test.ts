@@ -1,4 +1,4 @@
-import type { PayrollSettings } from "@lumo/contracts/hr";
+import type { PayrollSettings } from "@lumolynk/contracts/hr";
 import { expect, test } from "vitest";
 
 import {
