@@ -1,5 +1,31 @@
 import { z } from "zod";
 
+const emailFromName = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .regex(/^[^<>"\\\r\n]+$/, "Use a plain sender name without header characters");
+const productionEmailSchema = z.object({
+  RESEND_API_KEY: z.string().trim().min(1, "Set RESEND_API_KEY for production email"),
+  EMAIL_FROM: z
+    .email()
+    .refine(
+      (value) => value.split("@")[1]?.toLowerCase() === "lumolynk.com",
+      "Set EMAIL_FROM to an address at the verified lumolynk.com domain",
+    ),
+  EMAIL_FROM_NAME: emailFromName,
+});
+
+export function readProductionEmailEnv(source: Record<string, unknown>) {
+  const result = productionEmailSchema.safeParse(source);
+  if (!result.success)
+    throw new Error(
+      `Invalid production email configuration: ${result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")}`,
+    );
+  return result.data;
+}
+
 const origin = z.url().refine((value) => {
   const url = new URL(value);
   return ["http:", "https:"].includes(url.protocol) && url.origin === value;
@@ -36,11 +62,9 @@ const serverSchema = z
     WEB_ORIGIN: origin.default("http://localhost:3000"),
     PORT: z.coerce.number().int().min(1).max(65535).default(3001),
     HOST: z.string().default("0.0.0.0"),
-    SMTP_URL: z
-      .url()
-      .refine((value) => ["smtp:", "smtps:"].includes(new URL(value).protocol))
-      .optional(),
-    MAIL_FROM: z.email().default("hello@lumo.local"),
+    RESEND_API_KEY: z.string().trim().min(1).optional(),
+    EMAIL_FROM: z.email().default("hello@lumo.local"),
+    EMAIL_FROM_NAME: emailFromName.default("Lumo"),
     MAIL_DIR: z.string().min(1).default("../../.local/mail"),
     AGORA_APP_ID: z
       .string()
@@ -172,12 +196,10 @@ const serverSchema = z
       if (!value[field].startsWith("https://"))
         ctx.addIssue({ code: "custom", path: [field], message: "HTTPS is required in production" });
     }
-    if (!value.SMTP_URL)
-      ctx.addIssue({
-        code: "custom",
-        path: ["SMTP_URL"],
-        message: "SMTP is required in production",
-      });
+    const email = productionEmailSchema.safeParse(value);
+    if (!email.success)
+      for (const issue of email.error.issues)
+        ctx.addIssue({ code: "custom", path: issue.path, message: issue.message });
   });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

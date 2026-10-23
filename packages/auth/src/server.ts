@@ -1,7 +1,3 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
-
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { credentialsSchema, registrationSchema } from "@lumo/contracts";
 import type { Database } from "@lumo/database";
@@ -9,21 +5,11 @@ import * as schema from "@lumo/database/schema";
 import type { ServerEnv } from "@lumo/env/server";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import nodemailer from "nodemailer";
+
+import { createEmailProvider } from "./email.ts";
 
 export function createAuth(db: Database, env: ServerEnv) {
-  const smtp = env.SMTP_URL ? new URL(env.SMTP_URL) : undefined;
-  const transport = smtp
-    ? nodemailer.createTransport({
-        host: smtp.hostname,
-        port: Number(smtp.port || (smtp.protocol === "smtps:" ? 465 : 587)),
-        secure: smtp.protocol === "smtps:",
-        requireTLS: env.NODE_ENV === "production",
-        auth: smtp.username
-          ? { user: decodeURIComponent(smtp.username), pass: decodeURIComponent(smtp.password) }
-          : undefined,
-      })
-    : undefined;
+  const email = createEmailProvider(env);
   return betterAuth({
     appName: "Lumo",
     baseURL: env.API_ORIGIN,
@@ -80,22 +66,12 @@ export function createAuth(db: Database, env: ServerEnv) {
         const verificationUrl = new URL(url);
         verificationUrl.searchParams.set("callbackURL", `${env.WEB_ORIGIN}/workspaces`);
         const link = verificationUrl.toString();
-        if (transport) {
-          await transport.sendMail({
-            from: env.MAIL_FROM,
-            to: user.email,
-            subject: "Verify your Lumo email",
-            text: `Verify your email to accept workspace invitations:\n${link}`,
-          });
-        } else {
-          const dir = resolve(env.MAIL_DIR);
-          await mkdir(dir, { recursive: true, mode: 0o700 });
-          await writeFile(
-            resolve(dir, `${Date.now()}-${randomUUID()}.json`),
-            JSON.stringify({ to: user.email, subject: "Verify your Lumo email", url: link }),
-            { mode: 0o600 },
-          );
-        }
+        await email.send({
+          to: user.email,
+          subject: "Verify your Lumo email",
+          text: `Verify your email to accept workspace invitations:\n${link}`,
+          url: link,
+        });
       },
     },
     advanced: {

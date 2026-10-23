@@ -7,7 +7,7 @@
     "onlyoffice:check": "tsx --env-file-if-exists=.env src/test/onlyoffice-connectivity.ts",
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
     "start": "node --env-file-if-exists=.env dist/index.mjs",
-    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --packages=bundle --external:pg --external:sharp --external:better-auth --external:@better-auth/drizzle-adapter --external:drizzle-orm --external:nodemailer --external:pino --external:agora-token --external:@aws-sdk/client-s3 --external:@aws-sdk/lib-storage --external:@aws-sdk/s3-request-presigner --external:ws --external:yauzl --external:yazl --outfile=dist/index.mjs",
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --packages=bundle --external:pg --external:sharp --external:better-auth --external:@better-auth/drizzle-adapter --external:drizzle-orm --external:pino --external:agora-token --external:@aws-sdk/client-s3 --external:@aws-sdk/lib-storage --external:@aws-sdk/s3-request-presigner --external:ws --external:yauzl --external:yazl --outfile=dist/index.mjs",
     "check-types": "tsc --noEmit",
     "drive:check": "tsx --env-file-if-exists=.env src/test/drive-connectivity.ts"
   },
@@ -29,7 +29,6 @@
     "drizzle-orm": "0.45.4",
     "hono": "4.13.13",
     "lib0": "0.2.119",
-    "nodemailer": "10.1.1",
     "pg": "8.23.1",
     "pino": "10.4.0",
     "prosemirror-markdown": "1.13.8",

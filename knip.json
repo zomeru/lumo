@@ -6,7 +6,7 @@
     "apps/api": {
       "entry": ["src/test/e2e-server.ts", "src/test/live-provider.ts"],
       "project": ["src/**/*.ts", "*.config.ts"],
-      "ignoreDependencies": ["@better-auth/drizzle-adapter", "better-auth", "nodemailer"]
+      "ignoreDependencies": ["@better-auth/drizzle-adapter", "better-auth"]
     },
     "packages/app": {
       "entry": ["src/routes/**/*.{ts,tsx}"],

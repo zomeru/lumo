@@ -34,7 +34,7 @@ async function launch(dir: string, capture = false) {
     "BETTER_AUTH_SECRET",
     "DATABASE_URL",
     "TEST_DATABASE_URL",
-    "SMTP_URL",
+    "RESEND_API_KEY",
     ...Object.keys(clientEnv).filter(
       (key) => key.startsWith("AWS_") || key.startsWith("ONLYOFFICE_"),
     ),

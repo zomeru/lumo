@@ -7,6 +7,63 @@ const valid = {
   DATABASE_URL: "postgresql://test:password@localhost/lumo_test",
   BETTER_AUTH_SECRET: "a".repeat(48),
 };
+
+const production = {
+  ...valid,
+  NODE_ENV: "production",
+  API_ORIGIN: "https://api.example.com",
+  WEB_ORIGIN: "https://example.com",
+  RESEND_API_KEY: "re_synthetic_test_key",
+  EMAIL_FROM: "hello@lumolynk.com",
+};
+
+describe("production email configuration", () => {
+  test.each([undefined, "", "   "])(
+    "rejects missing or blank Resend credentials",
+    (RESEND_API_KEY) => {
+      expect(() => readServerEnv({ ...production, RESEND_API_KEY })).toThrow("RESEND_API_KEY");
+    },
+  );
+  test.each([
+    undefined,
+    "hello@other.com",
+    "hello@sub.lumolynk.com",
+    "hello@lumolynk.com.attacker.com",
+    "Lumo <hello@lumolynk.com>",
+  ])("requires a sender address at the verified domain: %s", (EMAIL_FROM) => {
+    expect(() => readServerEnv({ ...production, EMAIL_FROM })).toThrow("EMAIL_FROM");
+  });
+  test("accepts a configured sender with a default or custom display name", () => {
+    expect(readServerEnv(production)).toMatchObject({
+      EMAIL_FROM: "hello@lumolynk.com",
+      EMAIL_FROM_NAME: "Lumo",
+    });
+    expect(readServerEnv({ ...production, EMAIL_FROM_NAME: "Lumo Support" }).EMAIL_FROM_NAME).toBe(
+      "Lumo Support",
+    );
+  });
+  test.each(["", "Lumo\r\nBcc: other@example.com", "Lumo <other@example.com>"])(
+    "rejects invalid display names without echoing them",
+    (EMAIL_FROM_NAME) => {
+      expect(() => readServerEnv({ ...production, EMAIL_FROM_NAME })).toThrow("EMAIL_FROM_NAME");
+      expect(() => readServerEnv({ ...production, EMAIL_FROM_NAME })).not.toThrow(
+        EMAIL_FROM_NAME || "synthetic-private-value",
+      );
+    },
+  );
+  test("email configuration errors and browser config exclude secrets", () => {
+    const config = {
+      ...production,
+      RESEND_API_KEY: "re_private_secret",
+      EMAIL_FROM: "private-value",
+    };
+    expect(() => readServerEnv(config)).toThrow("EMAIL_FROM");
+    expect(() => readServerEnv(config)).not.toThrow("re_private_secret");
+    expect(() => readServerEnv(config)).not.toThrow("private-value");
+    expect(readWebEnv(config)).toEqual({ VITE_API_URL: "" });
+  });
+});
+
 describe("environment boundaries", () => {
   test("provides local defaults and coerces ports", () => {
     expect(readServerEnv({ ...valid, PORT: "3101" })).toMatchObject({
@@ -35,7 +92,7 @@ describe("environment boundaries", () => {
       expect(() => readServerEnv({ ...valid, WEB_ORIGIN })).toThrow("WEB_ORIGIN");
     },
   );
-  test("requires HTTPS and SMTP in production", () => {
+  test("requires HTTPS and Resend in production", () => {
     expect(() => readServerEnv({ ...valid, NODE_ENV: "production" })).toThrow("HTTPS");
     expect(() =>
       readServerEnv({
@@ -44,14 +101,15 @@ describe("environment boundaries", () => {
         API_ORIGIN: "https://api.example.com",
         WEB_ORIGIN: "https://example.com",
       }),
-    ).toThrow("SMTP");
+    ).toThrow("RESEND_API_KEY");
     expect(
       readServerEnv({
         ...valid,
         NODE_ENV: "production",
         API_ORIGIN: "https://api.example.com",
         WEB_ORIGIN: "https://example.com",
-        SMTP_URL: "smtps://smtp.example.com",
+        RESEND_API_KEY: "re_synthetic_test_key",
+        EMAIL_FROM: "hello@lumolynk.com",
       }).NODE_ENV,
     ).toBe("production");
   });
@@ -215,7 +273,8 @@ test("production S3 endpoints require HTTPS", () => {
       NODE_ENV: "production",
       API_ORIGIN: "https://api.example.com",
       WEB_ORIGIN: "https://app.example.com",
-      SMTP_URL: "smtps://smtp.example.com",
+      RESEND_API_KEY: "re_synthetic_test_key",
+      EMAIL_FROM: "hello@lumolynk.com",
       AWS_REGION: "us-east-1",
       AWS_S3_BUCKET: "private-bucket",
       S3_ENDPOINT: "http://nyc3.digitaloceanspaces.com",
