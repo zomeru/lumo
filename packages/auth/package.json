@@ -15,7 +15,7 @@
     "@lumolynk/database": "workspace:*",
     "@lumolynk/env": "workspace:*",
     "@lumolynk/ui": "workspace:*",
-    "better-auth": "1.7.10",
+    "better-auth": "1.7.11",
     "pino": "10.4.0",
     "resend": "6.34.1"
   },
