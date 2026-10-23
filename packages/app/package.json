@@ -26,7 +26,7 @@
     "@tanstack/react-router": "1.170.44",
     "agora-rtc-sdk-ng": "4.24.9",
     "emoji-picker-react": "5.1.0",
-    "lucide-react": "1.59.0",
+    "lucide-react": "1.60.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-markdown": "10.1.0",
