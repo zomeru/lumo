@@ -15,7 +15,7 @@
   "dependencies": {
     "@lumolynk/app": "workspace:*",
     "@lumolynk/ui": "workspace:*",
-    "@tanstack/react-router": "1.170.44",
+    "@tanstack/react-router": "1.170.45",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
