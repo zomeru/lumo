@@ -2,8 +2,9 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "lumo",
   "compatibility_date": "2026-10-23",
-  "workers_dev": true,
+  "workers_dev": false,
   "preview_urls": false,
+  "routes": [{ "pattern": "lumolynk.com", "custom_domain": true, "zone_name": "lumolynk.com" }],
   "assets": {
     "not_found_handling": "single-page-application",
   },
