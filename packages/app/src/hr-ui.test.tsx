@@ -191,7 +191,7 @@ test("Attendance clock controls, CSV, corrections and schedule setup call real t
     minute: "2-digit",
     hour12: true,
   }).format(new Date("2026-10-21T08:00:00Z"));
-  expect(screen.getByRole("cell", { name: localTime, exact: true })).toBeVisible();
+  expect(screen.getByRole("cell", { name: localTime })).toBeVisible();
   await user.click(await screen.findByRole("button", { name: "Clock in" }));
   await user.click(await screen.findByRole("button", { name: "Start break" }));
   await user.click(await screen.findByRole("button", { name: "End break" }));
